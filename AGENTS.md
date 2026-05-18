@@ -33,9 +33,20 @@ This file is the contract. If a rule below conflicts with a default agent behavi
 
 - Branch from `main`: `feat/<short-name>` or `fix/<short-name>`.
 - One logical change per commit. No squashed mega-commits during development.
-- Sign commits with SSH where possible. See `README.md` for setup.
+- Sign commits with SSH (setup below).
 - Open a PR, do not push directly to `main`.
 - Do not force-push to shared branches.
+
+### Commit signing setup (one-time per dev machine)
+
+```bash
+git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/id_ed25519.pub
+git config --global commit.gpgsign true
+git config --global tag.gpgsign true
+```
+
+Then upload the same public key at https://github.com/settings/ssh/new with type "Signing Key" so PRs show the Verified badge. If you do not have an ed25519 SSH key yet, generate one with `ssh-keygen -t ed25519 -C "<your email>"` and use the same file path above.
 
 ## Hook expectations
 

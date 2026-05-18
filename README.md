@@ -1,15 +1,19 @@
 # Signal Force
 
-Fraud-aware loyalty platform demo. Login risk scoring, points transfer monitoring, personalized offers, and adaptive nudges.
+[![Node](https://img.shields.io/badge/Node-18-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![AWS CDK](https://img.shields.io/badge/AWS_CDK-v2-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com/cdk)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
+[![Tailwind](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Biome](https://img.shields.io/badge/Biome-2-60A5FA?logo=biome&logoColor=white)](https://biomejs.dev)
+[![lefthook](https://img.shields.io/badge/lefthook-2-FF6F00)](https://lefthook.dev)
 
-## Stack
+Fraud-aware loyalty platform. Login risk scoring, points transfer monitoring, personalized offers, and adaptive nudges. Serverless on AWS.
 
-- Backend: Node.js 18 Lambda, Serverless Framework, DynamoDB on-demand
-- Frontend: Vite 5, React 18, TypeScript 5, Tailwind 3, React Router 6
-- Infra: AWS CDK v2 in TypeScript
-- Auth on the API: HTTP Basic Auth at the client level, app user creds in the login body
+> **Architecture:** see [`docs/architecture.md`](./docs/architecture.md) for the service map, request flows, decision log, and cost estimate. Read this before opening a PR that adds a new AWS service.
 
-## Setup
+## Quick start
 
 ```bash
 git clone https://github.com/thegdsks/signal-force.git
@@ -17,23 +21,45 @@ cd signal-force
 npm install
 ```
 
-`npm install` at the root installs every workspace and wires up git hooks (Biome for formatting and linting, lefthook for hook management). The `prepare` script runs `lefthook install` automatically.
-
-Per workspace env files:
-
-- `apps/backend` reads env vars at deploy time (`CLIENT_ID`, `CLIENT_SECRET`, table names, `MFA_OTP`)
-- `apps/frontend` reads `apps/frontend/.env` (copy from `.env.example`)
-- `infra/cdk` reads `BUDGET_ALERT_EMAIL` at deploy time
+`npm install` at the root installs every workspace and wires the git hooks. That is the only setup step.
 
 ## Run locally
 
 ```bash
-# Backend on http://localhost:3000 (serverless-offline)
+# Backend on http://localhost:3000
 cd apps/backend && npm run offline
 
 # Frontend on http://localhost:5173 (separate shell)
 cd apps/frontend && npm run dev
 ```
+
+Copy `apps/frontend/.env.example` to `apps/frontend/.env` and fill in the three vars before `npm run dev`.
+
+## Repo layout
+
+```
+apps/backend         Node.js 18 Lambda, single handler.js routing all paths
+apps/frontend        Vite + React + TS SPA
+infra/cdk            CDK TypeScript stacks (dynamodb, budgets, runtime)
+seed_data            DynamoDB BatchWriteItem fixtures, 30 records per table
+docs                 Architecture and design notes
+scripts/hooks        commit-msg and pre-push scripts called by lefthook
+```
+
+## Daily flow
+
+Branch, commit small, open a PR. Hooks do the heavy lifting.
+
+| Step | Command |
+|---|---|
+| New work | `git checkout -b feat/<short-name>` |
+| Commit | `git commit -m "Imperative subject under 72 chars"` |
+| Push and open PR | `git push -u origin <branch>` then `gh pr create` |
+| Merge | `gh pr merge --merge --delete-branch` |
+
+Direct push to `main` is blocked by both a local hook and GitHub branch protection. Always PR.
+
+Hooks are **educational by default** (warn and let you through). Set `LEFTHOOK_STRICT=1` if you want them to block on warnings. Full conventions in [`AGENTS.md`](./AGENTS.md).
 
 ## Deploy to AWS
 
@@ -44,62 +70,23 @@ cd infra/cdk
 npx cdk bootstrap aws://<ACCOUNT_ID>/<REGION>
 ```
 
-Every deploy:
+Standard deploy:
 
 ```bash
-# Infra (DynamoDB tables, budget alarms)
+# Infra
 cd infra/cdk
 export BUDGET_ALERT_EMAIL=<your-email>
 npx cdk deploy --all
 
-# Backend (Lambda + API Gateway)
-cd ../../apps/backend
-export CLIENT_ID=demoClient CLIENT_SECRET=demoSecret
-npx serverless deploy --stage dev
-
-# Seed data (run once after the tables exist)
+# Seed data, once after the tables exist
 cd ../../seed_data
 # follow seed_data/README.md
 ```
 
-## Repo layout
+The CDK stacks: `signal-force-dynamodb`, `signal-force-budgets`, `signal-force-runtime`. The runtime stack outputs the API URL and CloudWatch dashboard URL.
 
-```
-apps/backend         Node.js Lambda, single handler.js routing all paths
-apps/frontend        Vite + React + TS SPA
-infra/cdk            CDK TypeScript stacks (dynamodb + budgets)
-seed_data            DynamoDB BatchWriteItem fixtures, 30 records per table
-docs                 Architecture and design notes
-```
+## See also
 
-## Contributing
-
-Small team, short timeline. Keep it light, keep it clean.
-
-1. Branch from `main`: `git checkout -b feat/<short-name>` or `fix/<short-name>`
-2. Commit small, one logical change per commit. Sign commits with SSH (see below).
-3. Push and open a PR. One review is enough, merge on green, delete the branch.
-4. Do not commit directly to `main`. The repo enforces this through hooks and through GitHub branch settings.
-
-### Hook behavior
-
-Hooks are educational by default. They print warnings with bad/good examples and let the commit through. Set `LEFTHOOK_STRICT=1` to block on warnings.
-
-- `pre-commit` runs `biome check --write` on staged files. Auto-fixes formatting and lint issues, re-stages the changes.
-- `commit-msg` warns on em dashes, AI mentions, Co-Authored-By footers, emojis in the subject, and subject lines over 72 chars.
-- `pre-push` runs typecheck and build for whichever workspace you touched (frontend build, CDK synth, backend syntax check). Skips workspaces you did not modify. Always blocks on real errors.
-
-Bypass with caution: `git commit --no-verify` skips hooks. Document the reason in the PR if you use it.
-
-### Commit signing
-
-SSH signing is recommended so PRs show "Verified" on GitHub.
-
-```bash
-git config --global gpg.format ssh
-git config --global user.signingkey ~/.ssh/id_ed25519.pub
-git config --global commit.gpgsign true
-git config --global tag.gpgsign true
-```
-
-Upload the same public key at https://github.com/settings/ssh/new with type "Signing Key".
+- [`docs/architecture.md`](./docs/architecture.md): service map, request flows, decisions, cost.
+- [`AGENTS.md`](./AGENTS.md): code conventions, commit signing setup, hook details, rules for AI tools.
+- [`infra/cdk/README.md`](./infra/cdk/README.md): per-stack deploy notes.
