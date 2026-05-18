@@ -103,7 +103,3 @@ git config --global tag.gpgsign true
 ```
 
 Upload the same public key at https://github.com/settings/ssh/new with type "Signing Key".
-
-## License
-
-MIT. See `LICENSE`.
