@@ -60,15 +60,14 @@ Hook scripts live in `scripts/hooks/`. Lefthook config is `lefthook.yml` at repo
 ## What you should not do
 
 - Do not commit secrets. Never put credentials in code, env example files, or commit messages.
-- Do not connect to Marriott networks or APIs. This is a hackathon submission and Marriott infra is off limits per the codefest rules.
-- Do not use real Marriott customer data. Test data lives in `seed_data/` and is synthetic.
+- Do not connect to any external corporate network, API, or database. Use only the synthetic data in `seed_data/`.
 - Do not delete or rewrite history on branches that have been pushed.
 
 ## Tech stack (already decided)
 
 - Backend: Node.js 18 Lambda, Serverless Framework, DynamoDB PAY_PER_REQUEST.
 - Frontend: Vite, React 18, TypeScript, Tailwind 3, React Router 6.
-- Infra: AWS CDK v2 in TypeScript. Two stacks: `codefest-dynamodb`, `codefest-budgets`.
+- Infra: AWS CDK v2 in TypeScript. Two stacks: `signal-force-dynamodb`, `signal-force-budgets`.
 - Auth: HTTP Basic Auth at client level, app user creds in login body. Single static MFA OTP for the demo.
 
 Do not introduce alternatives (no Vue, no raw CloudFormation YAML, no Pulumi, no Yarn, no Bun) without a written justification in the PR.
