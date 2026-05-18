@@ -1,7 +1,7 @@
 {
-  "name": "codefest-2026",
+  "name": "signal-force",
   "private": true,
-  "description": "Marriott Codefest 2026 fraud-aware loyalty platform",
+  "description": "Signal Force fraud-aware loyalty platform demo",
   "workspaces": [
     "apps/backend",
     "apps/frontend",

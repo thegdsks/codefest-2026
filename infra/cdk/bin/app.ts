@@ -6,18 +6,18 @@ import { DynamoDbStack } from '../lib/dynamodb-stack';
 
 const app = new cdk.App();
 
-new DynamoDbStack(app, 'codefest-dynamodb', {
+new DynamoDbStack(app, 'signal-force-dynamodb', {
   env: {
     account: process.env['CDK_DEFAULT_ACCOUNT'],
     region: process.env['CDK_DEFAULT_REGION'],
   },
-  description: 'Codefest 2026 — DynamoDB tables',
+  description: 'Signal Force - DynamoDB tables',
 });
 
-new BudgetsStack(app, 'codefest-budgets', {
+new BudgetsStack(app, 'signal-force-budgets', {
   env: {
     account: process.env['CDK_DEFAULT_ACCOUNT'],
     region: process.env['CDK_DEFAULT_REGION'],
   },
-  description: 'Codefest 2026 — cost budgets and alerts',
+  description: 'Signal Force - cost budgets and alerts',
 });

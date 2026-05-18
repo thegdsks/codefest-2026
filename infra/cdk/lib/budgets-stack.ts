@@ -4,7 +4,7 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import type { Construct } from 'constructs';
 
-const PROJECT_TAG = 'codefest-2026';
+const PROJECT_TAG = 'signal-force';
 
 export class BudgetsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -13,14 +13,14 @@ export class BudgetsStack extends cdk.Stack {
     // Email address for budget alerts.
     // Set via CDK context: --context budgetAlertEmail=you@example.com
     // or environment variable BUDGET_ALERT_EMAIL.
-    // Update before deploying — default is a placeholder.
+    // Update before deploying. Default is a placeholder.
     const alertEmail =
       (this.node.tryGetContext('budgetAlertEmail') as string | undefined) ??
       process.env['BUDGET_ALERT_EMAIL'] ??
       'change-me@example.com';
 
     const alertTopic = new sns.Topic(this, 'BudgetAlertTopic', {
-      displayName: 'codefest-2026 budget alerts',
+      displayName: 'signal-force budget alerts',
     });
     alertTopic.addSubscription(new subscriptions.EmailSubscription(alertEmail));
     cdk.Tags.of(alertTopic).add('Project', PROJECT_TAG);
@@ -51,10 +51,10 @@ export class BudgetsStack extends cdk.Stack {
       subscribers: [{ subscriptionType: 'SNS', address: topicArn }],
     });
 
-    // $25 monthly budget — alert at 80% and 100% actual spend
+    // $25 monthly budget: alert at 80% and 100% actual spend
     new budgets.CfnBudget(this, 'Budget25', {
       budget: {
-        budgetName: 'codefest-2026-25usd',
+        budgetName: 'signal-force-25usd',
         budgetType: 'COST',
         timeUnit: 'MONTHLY',
         budgetLimit: { amount: 25, unit: 'USD' },
@@ -62,10 +62,10 @@ export class BudgetsStack extends cdk.Stack {
       notificationsWithSubscribers: [snsNotification(80), snsNotification(100)],
     });
 
-    // $100 monthly budget — alert at 80% and 100% actual spend
+    // $100 monthly budget: alert at 80% and 100% actual spend
     new budgets.CfnBudget(this, 'Budget100', {
       budget: {
-        budgetName: 'codefest-2026-100usd',
+        budgetName: 'signal-force-100usd',
         budgetType: 'COST',
         timeUnit: 'MONTHLY',
         budgetLimit: { amount: 100, unit: 'USD' },
@@ -73,10 +73,10 @@ export class BudgetsStack extends cdk.Stack {
       notificationsWithSubscribers: [snsNotification(80), snsNotification(100)],
     });
 
-    // $200 monthly budget — alert at 100% forecasted spend
+    // $200 monthly budget: alert at 100% forecasted spend
     new budgets.CfnBudget(this, 'Budget200', {
       budget: {
-        budgetName: 'codefest-2026-200usd',
+        budgetName: 'signal-force-200usd',
         budgetType: 'COST',
         timeUnit: 'MONTHLY',
         budgetLimit: { amount: 200, unit: 'USD' },

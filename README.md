@@ -1,6 +1,6 @@
-# Codefest 2026
+# Signal Force
 
-Fraud-aware loyalty platform for Marriott Codefest 2026. Login risk scoring, points transfer monitoring, personalized offers, and adaptive nudges.
+Fraud-aware loyalty platform demo. Login risk scoring, points transfer monitoring, personalized offers, and adaptive nudges.
 
 ## Stack
 
@@ -12,8 +12,8 @@ Fraud-aware loyalty platform for Marriott Codefest 2026. Login risk scoring, poi
 ## Setup
 
 ```bash
-git clone https://github.com/thegdsks/codefest-2026.git
-cd codefest-2026
+git clone https://github.com/thegdsks/signal-force.git
+cd signal-force
 npm install
 ```
 
@@ -69,11 +69,12 @@ apps/backend         Node.js Lambda, single handler.js routing all paths
 apps/frontend        Vite + React + TS SPA
 infra/cdk            CDK TypeScript stacks (dynamodb + budgets)
 seed_data            DynamoDB BatchWriteItem fixtures, 30 records per table
+docs                 Architecture and design notes
 ```
 
 ## Contributing
 
-Five-person team, two-day event. Keep it light, keep it clean.
+Small team, short timeline. Keep it light, keep it clean.
 
 1. Branch from `main`: `git checkout -b feat/<short-name>` or `fix/<short-name>`
 2. Commit small, one logical change per commit. Sign commits with SSH (see below).
