@@ -66,7 +66,8 @@ The commit-msg hook warns on missing prefixes (educational by default, blocks un
 - One logical change per commit. No squashed mega-commits during development.
 - Sign commits with SSH (setup below).
 - Open a PR, do not push directly to `main`. Local hook blocks `git push` to `main` and `master`.
-- Do not merge your own PR without a review. GitHub branch protection requires at least one approving review before merge. If you really need a solo bypass, use admin override and explain why in the PR description.
+- PR review is welcomed but not required. The local hook chain (Biome, commit-msg, pre-push typecheck and build) is the gate. If those pass, you are clear to merge.
+- The pre-push hook writes a report to `.git/last-prepush-report.md` and posts a comment on the open PR for the branch (if any). The report has step durations and a total, which serves as the per-PR quality score.
 - Do not force-push to shared branches. The single documented exception is when an authorized admin needs to redact content from history, and that operation is reverted to protected immediately after.
 
 ### Commit signing setup (one-time per dev machine)
