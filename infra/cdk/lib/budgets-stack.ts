@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
+import { NagSuppressions } from 'cdk-nag';
 import type { Construct } from 'constructs';
 
 const PROJECT_TAG = 'signal-force';
@@ -24,6 +25,23 @@ export class BudgetsStack extends cdk.Stack {
     });
     alertTopic.addSubscription(new subscriptions.EmailSubscription(alertEmail));
     cdk.Tags.of(alertTopic).add('Project', PROJECT_TAG);
+
+    NagSuppressions.addResourceSuppressions(
+      alertTopic,
+      [
+        {
+          id: 'AwsSolutions-SNS3',
+          reason:
+            'Budget alert topic publishes only from the AWS Budgets service. Publishers are out of our control, and Budgets connects to SNS over TLS-encrypted internal AWS service endpoints.',
+        },
+        {
+          id: 'AwsSolutions-SNS2',
+          reason:
+            'Budget alert topic carries only cost metadata, not user data. KMS encryption deferred.',
+        },
+      ],
+      true
+    );
 
     const topicArn = alertTopic.topicArn;
 
