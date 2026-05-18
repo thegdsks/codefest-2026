@@ -1,0 +1,42 @@
+# Determine what changed on this branch vs the tracking remote
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+REMOTE_REF="origin/$CURRENT_BRANCH"
+
+if git rev-parse --verify "$REMOTE_REF" >/dev/null 2>&1; then
+  RANGE="$REMOTE_REF..HEAD"
+else
+  # First push of a new branch, diff against main
+  if git rev-parse --verify origin/main >/dev/null 2>&1; then
+    RANGE="origin/main..HEAD"
+  else
+    RANGE="HEAD"
+  fi
+fi
+
+CHANGED=$(git diff --name-only $RANGE 2>/dev/null)
+
+if printf '%s' "$CHANGED" | grep -q '^apps/frontend/'; then
+  echo "[pre-push] frontend changed, running typecheck + build"
+  (cd apps/frontend && npx tsc --noEmit && npm run build) || {
+    echo "[pre-push] frontend build failed" >&2
+    exit 1
+  }
+fi
+
+if printf '%s' "$CHANGED" | grep -q '^infra/cdk/'; then
+  echo "[pre-push] infra/cdk changed, running cdk synth"
+  (cd infra/cdk && npx tsc --noEmit && npx cdk synth --quiet) || {
+    echo "[pre-push] cdk synth failed" >&2
+    exit 1
+  }
+fi
+
+if printf '%s' "$CHANGED" | grep -q '^apps/backend/'; then
+  echo "[pre-push] backend changed, syntax checking handler"
+  node -c apps/backend/src/handler.js || {
+    echo "[pre-push] backend syntax check failed" >&2
+    exit 1
+  }
+fi
+
+exit 0
