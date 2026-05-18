@@ -1,0 +1,52 @@
+service: sf-decision-platform
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 1024
+  timeout: 30
+  environment:
+    CLIENT_ID: ${env:CLIENT_ID, 'demoClient'}
+    CLIENT_SECRET: ${env:CLIENT_SECRET, 'demoSecret'}
+    MFA_OTP: ${env:MFA_OTP, '123456'}
+
+    TABLE_USER_PROFILE: ${env:TABLE_USER_PROFILE, 'UserProfile'}
+    TABLE_USER_SESSION: ${env:TABLE_USER_SESSION, 'UserSession'}
+    TABLE_USER_ACTIVITY: ${env:TABLE_USER_ACTIVITY, 'UserActivity'}
+    TABLE_DECISION_STORE: ${env:TABLE_DECISION_STORE, 'DecisionStore'}
+    TABLE_USER_STATE: ${env:TABLE_USER_STATE, 'UserState'}
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:TABLE_USER_PROFILE, 'UserProfile'}
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:TABLE_USER_SESSION, 'UserSession'}
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:TABLE_USER_ACTIVITY, 'UserActivity'}
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:TABLE_DECISION_STORE, 'DecisionStore'}
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:TABLE_USER_STATE, 'UserState'}
+
+functions:
+  api:
+    handler: src/handler.main
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: '*'
+      - httpApi:
+          path: /
+          method: '*'
+
+package:
+  patterns:
+    - '!node_modules/**/aws-sdk/**'

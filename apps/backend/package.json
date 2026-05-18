@@ -1,0 +1,21 @@
+{
+  "name": "sf-decision-platform",
+  "version": "1.0.0",
+  "description": "SF serverless decision platform - Node.js Lambda + API Gateway",
+  "main": "src/handler.js",
+  "type": "commonjs",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "remove": "serverless remove",
+    "offline": "serverless offline",
+    "lint": "node -c src/handler.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/lib-dynamodb": "^3.600.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0"
+  }
+}
