@@ -56,6 +56,28 @@ if printf '%s' "$SUBJECT" | LC_ALL=C grep -qP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{2
     good: feat: Add login flow"
 fi
 
+# 6. Conventional commit prefix on subject
+# Allowed types: feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert
+# Pattern: <type>(<scope>)?<!>?: <subject>
+# Examples: feat(auth): add mfa flow / fix: handle null tier / docs!: remove license section
+# Merge commits made by gh are skipped.
+case "$SUBJECT" in
+  "Merge pull request"*|"Merge branch"*|"Revert "*)
+    ;;
+  *)
+    if ! printf '%s' "$SUBJECT" | grep -qE '^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z0-9_\.-]+\))?!?: .+'; then
+      report "Subject is missing a conventional commit prefix.
+    Use one of: feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert
+    Optional scope in parens, optional ! for a breaking change, then ': '.
+    bad:  Add login flow with MFA
+    good: feat(auth): add login flow with MFA
+    good: fix(handler): handle null user tier
+    good: docs(architecture): expand storage tiering section
+    good: refactor!: drop the legacy auth helper"
+    fi
+    ;;
+esac
+
 if [ "$ISSUES" -gt 0 ]; then
   printf 'commit-msg: %d issue(s) found.\n' "$ISSUES"
   if [ "$LEFTHOOK_STRICT" = "1" ]; then
