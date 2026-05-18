@@ -1,0 +1,1129 @@
+{
+  "DecisionStore": [
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#001"
+          },
+          "userId": {
+            "S": "USER#001"
+          },
+          "decisionType": {
+            "S": "FRAUD_LOGIN"
+          },
+          "score": {
+            "N": "0.53"
+          },
+          "riskLevel": {
+            "S": "MEDIUM"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "MFA"
+          },
+          "reason": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "PROFILE"
+          },
+          "correlationId": {
+            "S": "CORR#001"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779011178"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#002"
+          },
+          "userId": {
+            "S": "USER#002"
+          },
+          "decisionType": {
+            "S": "FRAUD_LOGIN"
+          },
+          "score": {
+            "N": "0.53"
+          },
+          "riskLevel": {
+            "S": "MEDIUM"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "MFA"
+          },
+          "reason": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "PROFILE"
+          },
+          "correlationId": {
+            "S": "CORR#002"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779011058"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#003"
+          },
+          "userId": {
+            "S": "USER#003"
+          },
+          "decisionType": {
+            "S": "FRAUD_TRANSFER"
+          },
+          "score": {
+            "N": "0.24"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "ALLOW"
+          },
+          "reason": {
+            "S": "SUSPICIOUS_REDEMPTION"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "AUTH"
+          },
+          "correlationId": {
+            "S": "CORR#003"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779010938"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#004"
+          },
+          "userId": {
+            "S": "USER#004"
+          },
+          "decisionType": {
+            "S": "FRAUD_TRANSFER"
+          },
+          "score": {
+            "N": "0.47"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "ALLOW"
+          },
+          "reason": {
+            "S": "SUSPICIOUS_REDEMPTION"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "OFFERS"
+          },
+          "correlationId": {
+            "S": "CORR#004"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779010818"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#005"
+          },
+          "userId": {
+            "S": "USER#005"
+          },
+          "decisionType": {
+            "S": "FRAUD_LOGIN"
+          },
+          "score": {
+            "N": "0.84"
+          },
+          "riskLevel": {
+            "S": "HIGH"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "BLOCK"
+          },
+          "reason": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "OFFERS"
+          },
+          "correlationId": {
+            "S": "CORR#005"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779010698"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#006"
+          },
+          "userId": {
+            "S": "USER#006"
+          },
+          "decisionType": {
+            "S": "ENGAGEMENT_OFFER"
+          },
+          "score": {
+            "N": "0.2"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "OFFER"
+          },
+          "reason": {
+            "S": "HIGH_INTENT"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "OFFERS"
+          },
+          "correlationId": {
+            "S": "CORR#006"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779010578"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#007"
+          },
+          "userId": {
+            "S": "USER#007"
+          },
+          "decisionType": {
+            "S": "NUDGE"
+          },
+          "score": {
+            "N": "0.14"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "NUDGE"
+          },
+          "reason": {
+            "S": "PROFILE_INCOMPLETE"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#007"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779010458"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#008"
+          },
+          "userId": {
+            "S": "USER#008"
+          },
+          "decisionType": {
+            "S": "NUDGE"
+          },
+          "score": {
+            "N": "0.59"
+          },
+          "riskLevel": {
+            "S": "MEDIUM"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "NUDGE"
+          },
+          "reason": {
+            "S": "PROFILE_INCOMPLETE"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "AUTH"
+          },
+          "correlationId": {
+            "S": "CORR#008"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779010338"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#009"
+          },
+          "userId": {
+            "S": "USER#009"
+          },
+          "decisionType": {
+            "S": "NUDGE"
+          },
+          "score": {
+            "N": "0.93"
+          },
+          "riskLevel": {
+            "S": "HIGH"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "NUDGE"
+          },
+          "reason": {
+            "S": "PROFILE_INCOMPLETE"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#009"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779010218"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#010"
+          },
+          "userId": {
+            "S": "USER#010"
+          },
+          "decisionType": {
+            "S": "FRAUD_TRANSFER"
+          },
+          "score": {
+            "N": "0.12"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "ALLOW"
+          },
+          "reason": {
+            "S": "SUSPICIOUS_REDEMPTION"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#010"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779010098"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#011"
+          },
+          "userId": {
+            "S": "USER#011"
+          },
+          "decisionType": {
+            "S": "FRAUD_LOGIN"
+          },
+          "score": {
+            "N": "0.73"
+          },
+          "riskLevel": {
+            "S": "MEDIUM"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "MFA"
+          },
+          "reason": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#011"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779009978"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#012"
+          },
+          "userId": {
+            "S": "USER#012"
+          },
+          "decisionType": {
+            "S": "FRAUD_LOGIN"
+          },
+          "score": {
+            "N": "0.87"
+          },
+          "riskLevel": {
+            "S": "HIGH"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "BLOCK"
+          },
+          "reason": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "AUTH"
+          },
+          "correlationId": {
+            "S": "CORR#012"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779009858"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#013"
+          },
+          "userId": {
+            "S": "USER#013"
+          },
+          "decisionType": {
+            "S": "NUDGE"
+          },
+          "score": {
+            "N": "0.94"
+          },
+          "riskLevel": {
+            "S": "HIGH"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "NUDGE"
+          },
+          "reason": {
+            "S": "PROFILE_INCOMPLETE"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#013"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779009738"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#014"
+          },
+          "userId": {
+            "S": "USER#014"
+          },
+          "decisionType": {
+            "S": "FRAUD_TRANSFER"
+          },
+          "score": {
+            "N": "0.3"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "ALLOW"
+          },
+          "reason": {
+            "S": "SUSPICIOUS_REDEMPTION"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "AUTH"
+          },
+          "correlationId": {
+            "S": "CORR#014"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779009618"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#015"
+          },
+          "userId": {
+            "S": "USER#015"
+          },
+          "decisionType": {
+            "S": "ENGAGEMENT_OFFER"
+          },
+          "score": {
+            "N": "0.87"
+          },
+          "riskLevel": {
+            "S": "HIGH"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "OFFER"
+          },
+          "reason": {
+            "S": "HIGH_INTENT"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#015"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779009498"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#016"
+          },
+          "userId": {
+            "S": "USER#016"
+          },
+          "decisionType": {
+            "S": "FRAUD_TRANSFER"
+          },
+          "score": {
+            "N": "0.39"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "ALLOW"
+          },
+          "reason": {
+            "S": "SUSPICIOUS_REDEMPTION"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "AUTH"
+          },
+          "correlationId": {
+            "S": "CORR#016"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779009378"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#017"
+          },
+          "userId": {
+            "S": "USER#017"
+          },
+          "decisionType": {
+            "S": "ENGAGEMENT_OFFER"
+          },
+          "score": {
+            "N": "0.77"
+          },
+          "riskLevel": {
+            "S": "MEDIUM"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "OFFER"
+          },
+          "reason": {
+            "S": "HIGH_INTENT"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#017"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779009258"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#018"
+          },
+          "userId": {
+            "S": "USER#018"
+          },
+          "decisionType": {
+            "S": "FRAUD_LOGIN"
+          },
+          "score": {
+            "N": "0.15"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "ALLOW"
+          },
+          "reason": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#018"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779009138"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#019"
+          },
+          "userId": {
+            "S": "USER#019"
+          },
+          "decisionType": {
+            "S": "ENGAGEMENT_OFFER"
+          },
+          "score": {
+            "N": "0.78"
+          },
+          "riskLevel": {
+            "S": "MEDIUM"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "OFFER"
+          },
+          "reason": {
+            "S": "HIGH_INTENT"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "PROFILE"
+          },
+          "correlationId": {
+            "S": "CORR#019"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779009018"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#020"
+          },
+          "userId": {
+            "S": "USER#020"
+          },
+          "decisionType": {
+            "S": "FRAUD_LOGIN"
+          },
+          "score": {
+            "N": "0.77"
+          },
+          "riskLevel": {
+            "S": "MEDIUM"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "MFA"
+          },
+          "reason": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "AUTH"
+          },
+          "correlationId": {
+            "S": "CORR#020"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779008898"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#021"
+          },
+          "userId": {
+            "S": "USER#021"
+          },
+          "decisionType": {
+            "S": "NUDGE"
+          },
+          "score": {
+            "N": "0.85"
+          },
+          "riskLevel": {
+            "S": "HIGH"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "NUDGE"
+          },
+          "reason": {
+            "S": "PROFILE_INCOMPLETE"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#021"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779008778"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#022"
+          },
+          "userId": {
+            "S": "USER#022"
+          },
+          "decisionType": {
+            "S": "FRAUD_TRANSFER"
+          },
+          "score": {
+            "N": "0.76"
+          },
+          "riskLevel": {
+            "S": "MEDIUM"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "ALLOW"
+          },
+          "reason": {
+            "S": "SUSPICIOUS_REDEMPTION"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#022"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779008658"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#023"
+          },
+          "userId": {
+            "S": "USER#023"
+          },
+          "decisionType": {
+            "S": "NUDGE"
+          },
+          "score": {
+            "N": "0.32"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "NUDGE"
+          },
+          "reason": {
+            "S": "PROFILE_INCOMPLETE"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "OFFERS"
+          },
+          "correlationId": {
+            "S": "CORR#023"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779008538"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#024"
+          },
+          "userId": {
+            "S": "USER#024"
+          },
+          "decisionType": {
+            "S": "FRAUD_LOGIN"
+          },
+          "score": {
+            "N": "0.25"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "ALLOW"
+          },
+          "reason": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#024"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779008418"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#025"
+          },
+          "userId": {
+            "S": "USER#025"
+          },
+          "decisionType": {
+            "S": "FRAUD_LOGIN"
+          },
+          "score": {
+            "N": "0.17"
+          },
+          "riskLevel": {
+            "S": "LOW"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "ALLOW"
+          },
+          "reason": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "explanation": {
+            "S": "seed explanation"
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#025"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1779008298"
+          }
+        }
+      }
+    }
+  ]
+}
