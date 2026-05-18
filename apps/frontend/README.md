@@ -1,4 +1,4 @@
-# Codefest 2026 Frontend
+# Signal Force Frontend
 
 Vite + React 18 + TypeScript + Tailwind CSS demo UI for the loyalty and fraud platform.
 
