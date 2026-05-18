@@ -1,262 +1,313 @@
 # Signal Force Architecture
 
-Fraud-aware loyalty platform. Serverless on AWS. This document is the contract for what we build and what we deliberately do not build.
+A real-time decision intelligence platform. One engine that turns customer signals into adaptive decisions across three surfaces: security, personalization, and engagement. Fraud detection is one decision type. The product is the engine.
 
-## TL;DR
+## What this document is
 
-- Single Lambda behind an API Gateway HTTP API, routing all paths.
-- DynamoDB on-demand for state, five tables, no relational store.
-- Amazon Bedrock (Claude Haiku 4.5) via the Converse API for personalized offers and adaptive nudges, called only when fraud risk crosses a threshold.
-- SNS topic for fraud alerts to email. CloudWatch dashboard for the demo storyline.
-- Static MFA OTP in the demo. No Cognito.
-- No CloudFront, no WAF, no Step Functions, no Kinesis, no SageMaker.
-- IaC is CDK in TypeScript. Three stacks: `signal-force-dynamodb`, `signal-force-budgets`, `signal-force-runtime`.
+The contract for what we build for the demo, the shape it grows into post-event, and the decisions we have closed. If a PR conflicts with this doc, the PR updates the doc first.
 
-Expected total event cost across the platform: under $5.
+## Vision in one paragraph
 
-## Service map
+Every customer interaction on a loyalty platform is a decision. Show a promotion or not. Flag a transfer or not. Greet with a personalized nudge or stay quiet. Today these decisions live in silos: fraud team owns one, marketing owns another, CRM owns a third. Signal Force unifies them. A single engine watches the activity stream, runs every signal through a tiered decision pipeline (rules, ML, LLM), and returns a typed response that the customer surface renders. The marketing team configures promotions in one place. The security team sees fraud holds in the same audit trail. The customer gets a smarter, safer, more personalized experience without knowing the engine exists.
+
+## Three apps, one engine
+
+```
++-------------------+        +-------------------+        +-------------------+
+| Customer surface  |        | Decision engine   |        | Admin / ops       |
+| (Bonvoy app/site, |        | (this repo's      |        | dashboard         |
+| our SPA simulates |<------>| Lambda + DDB +    |<------>| (our SPA,         |
+| for the demo)     |  HTTP  | Bedrock)          |  HTTP  | /admin route)     |
++-------------------+        +-------------------+        +-------------------+
+                                       ^
+                                       |
+                             activity stream events
+                             (Akamai logs, web hits,
+                             API calls in production)
+```
+
+| App | Built where | Owner |
+|---|---|---|
+| Customer surface | `apps/frontend/` routes `/login`, `/dashboard` simulate the Bonvoy experience | UI dev |
+| Decision engine | `apps/backend/src/handler.js` Lambda, called by both customer and admin | Backend dev |
+| Admin console | `apps/frontend/src/pages/admin/` new route, CRUD on promotions, audit log viewer | UI dev |
+
+The customer surface and the admin console share the same SPA for the demo. In production they are separate apps with separate auth.
+
+## Demo architecture (what we deploy for the hackathon)
 
 ```mermaid
 flowchart LR
-  User[Browser SPA<br/>Vite + React] -->|HTTPS| API[API Gateway<br/>HTTP API]
-  API --> Lambda[Lambda<br/>handler.js<br/>Node 18]
+  subgraph Customer
+    SPA[Browser SPA<br/>customer simulator]
+    Admin[Browser SPA<br/>/admin route]
+  end
+
+  SPA -->|HTTPS| API[API Gateway<br/>HTTP API]
+  Admin -->|HTTPS| API
+  API --> Lambda[Lambda<br/>handler.js<br/>Node 18 arm64]
+
   Lambda --> UP[(UserProfile)]
   Lambda --> US[(UserSession)]
   Lambda --> UA[(UserActivity<br/>TTL)]
   Lambda --> DS[(DecisionStore)]
   Lambda --> ST[(UserState)]
+  Lambda --> PROM[(Promotion)]
+
   Lambda -->|Converse| Bedrock[Bedrock<br/>Claude Haiku 4.5]
   Lambda -->|fraud alert| AlertTopic((SNS<br/>fraud alerts))
   AlertTopic -->|email| DemoMailbox[demo inbox]
+
   Lambda -.->|metrics + logs| CW[CloudWatch<br/>dashboard + alarms]
   Budgets[AWS Budgets<br/>25 / 100 / 200 USD] -.->|threshold| BudgetTopic((SNS<br/>budget alerts))
   BudgetTopic -->|email| Owner[owner inbox]
 ```
 
-ASCII fallback:
+Six DynamoDB tables now (added `Promotion`). The Promotion table holds the admin-configured offers. The DecisionStore captures every decision the engine makes (fraud holds, offers shown, nudges fired) so the admin console can replay history.
 
+## Production architecture (where this grows)
+
+The demo runs on a single Lambda. At Bonvoy scale (200M+ members, ~10M DAU, ~100M decisions/day), the engine splits into three lanes by decision complexity.
+
+```mermaid
+flowchart TB
+  subgraph Edge
+    AK[Akamai / CloudFront<br/>drop bots, cache static decisions]
+  end
+
+  subgraph Ingest
+    K[Kinesis Data Streams<br/>activity events]
+  end
+
+  subgraph DecisionRouter
+    R[Lambda router<br/>scores signal severity]
+  end
+
+  subgraph Hot["Hot lane (~80% of traffic)"]
+    L1[Lambda + Redis cache]
+    RULES[Rules + Promotion catalog]
+    L1 --> RULES
+  end
+
+  subgraph Warm["Warm lane (~15% of traffic)"]
+    L2[Lambda + Bedrock Haiku]
+    PC[Prompt cache]
+    L2 --> PC
+  end
+
+  subgraph Cold["Cold lane (~5% of traffic)"]
+    G[Glue jobs<br/>batch retrain, weekly recs]
+  end
+
+  subgraph Store
+    DDB[(DynamoDB<br/>DecisionStore + UserState)]
+    S3[(S3 audit lake)]
+  end
+
+  AK --> K
+  K --> R
+  R --> L1
+  R --> L2
+  R --> G
+  L1 --> DDB
+  L2 --> DDB
+  G --> S3
+  DDB -->|Firehose| S3
 ```
-+----------------+     HTTPS      +----------------+      +----------------+
-| Browser SPA    +--------------> | API Gateway    +----> | Lambda         |
-| Vite + React   |                | HTTP API       |      | handler.js     |
-+----------------+                +----------------+      +-+--+--+--+--+--+
-                                                            |  |  |  |  |
-                                                            v  v  v  v  v
-                                                  UserProfile / UserSession /
-                                                  UserActivity (TTL) /
-                                                  DecisionStore / UserState
-                                                  (DynamoDB PAY_PER_REQUEST)
-                                                            |
-                                              Converse API  |
-                                                            v
-                                                  +----------------+
-                                                  | Bedrock        |
-                                                  | Claude Haiku   |
-                                                  +----------------+
-                                                            |
-                                                  fraud alert
-                                                            v
-                                                  +----------------+
-                                                  | SNS            +--> email
-                                                  +----------------+
-```
+
+| Lane | Path | Typical latency | Cost per decision |
+|---|---|---|---|
+| Hot | Lambda + Redis + rules engine + promotion match | <50ms | ~$0.0001 |
+| Warm | Lambda + Bedrock Haiku with prompt cache | <500ms | ~$0.001 |
+| Cold | Glue or Step Functions nightly | seconds to minutes (async) | <$0.0001 amortized |
+
+Routing logic, simplified: severity score from rules first. If under low threshold, hot lane (just rules). If between, warm lane (LLM for nuance). If a heavy decision (weekly recommendations, audit summary), queue to cold.
+
+## Cost model at Bonvoy scale
+
+Assumptions: 200M members, 5% DAU = 10M daily active, 10 decisions per user per day = 100M decisions/day.
+
+Naive (no optimization):
+
+| Lane | Calls/day | Per-decision | Daily | Yearly |
+|---|---|---|---|---|
+| Hot | 80M | $0.0001 | $8,000 | $2.9M |
+| Warm (Haiku, ~600 tokens) | 15M | $0.001 | $15,000 | $5.5M |
+| Cold (batch) | 5M | $0.00005 | $250 | $90K |
+| Infra (Lambda, Kinesis, DDB, S3, Redis) | | | ~$1,500/day | ~$500K |
+| **Total naive** | | | | **~$9M/year** |
+
+Optimized:
+
+1. **Bedrock Provisioned Throughput** for Haiku at this volume: 50-70% off the warm lane. Saves ~$3M/year.
+2. **Prompt caching** (Anthropic prompt-cache feature): same user context reused for 5 min, ~50% hit rate. Saves ~$1M/year.
+3. **Prompt design**: small structured inputs, not 5KB context dumps. 40% token reduction. Saves ~$1.5M/year.
+4. **Tier ratios** shift to 90/8/2 once we have learned which decisions LLM actually changes. Saves ~$1M/year.
+5. **Edge caching** for non-user-specific decisions (promotion catalog state, A/B variants). 30% off the hot lane. Saves ~$500K/year.
+
+Realistic optimized total: **$1.5M to $2.5M/year for the entire decision layer at Bonvoy full scale**.
+
+Context for the pitch: enterprise loyalty programs lose tens to hundreds of millions per year to fraud. A platform that catches 10% pays for itself many times over before personalization revenue lift enters the model.
 
 ## Stacks
 
-Three CDK stacks. Two already exist on `main`. One is to be built.
+Three CDK stacks. All built on `main`.
 
 | Stack | Status | Contents |
 |---|---|---|
-| `signal-force-dynamodb` | built | 5 tables: UserProfile, UserSession, UserActivity (TTL), DecisionStore, UserState |
+| `signal-force-dynamodb` | built | UserProfile, UserSession, UserActivity (TTL), DecisionStore, UserState. Adding `Promotion` table next. |
 | `signal-force-budgets` | built | 3 monthly budgets (25 / 100 / 200 USD) with SNS email alerts |
-| `signal-force-runtime` | to build | Lambda + HTTP API + IAM + Bedrock permissions + fraud-alert SNS topic + CloudWatch dashboard |
+| `signal-force-runtime` | built | Lambda + HTTP API + IAM + Bedrock perms + fraud-alert SNS topic + CloudWatch dashboard |
 
-We intentionally keep stateful resources (DynamoDB) in their own stack. Removing a Lambda or rolling back the runtime stack does not touch tables.
+## Service selection (demo stack)
 
-## Service selection and rationale
+### Compute: AWS Lambda Node.js 18 arm64
 
-### Compute: AWS Lambda (Node.js 18)
-
-- Pay per millisecond, no idle cost.
-- Generous free tier (1M requests/month, 400k GB-seconds/month) covers the entire event with margin.
-- Single function with internal path routing. We do not split per route; the overhead of multiple Lambdas (deployment surface, log groups, cold starts) is not worth it at this scale.
-- Memory: 512 MB. Enough for the SDK + Bedrock client without making cold starts expensive.
+- Single function, internal path routing. Cold starts under 200ms with 512 MB on arm64.
+- Free tier covers the entire event with margin.
+- Choose Python at the next major rewrite. Better Powertools, better SageMaker integration, larger LLM ecosystem. Switching now is not worth the day of work.
 
 ### API: API Gateway HTTP API
 
-- HTTP API, not REST API. Cheaper, lower latency, simpler. We do not need the REST API features (request validation models, API keys, usage plans).
-- Single proxy integration to the Lambda. The handler reads `event.requestContext.http.method` and `event.requestContext.http.path` to route.
-- Per-route throttling via `defaultRouteSettings` in CDK if we want to demo a rate limit. No extra cost.
+- HTTP API, not REST. Cheaper, faster, sufficient for our needs.
+- Single Lambda integration on `$default` route. Handler reads method and path.
 
 ### Storage: DynamoDB on-demand
 
-- Five tables. Schema in `seed_data/`. Already deployed via the dynamodb stack.
-- PAY_PER_REQUEST. No capacity planning, no idle cost.
-- `RemovalPolicy.DESTROY` for the demo. Production would flip to `RETAIN`.
-- DynamoDB Streams not enabled. We do not need cross-table consistency in v1.
+- Six tables (five existing plus the new Promotion table).
+- PAY_PER_REQUEST. No capacity planning.
+- `RemovalPolicy.DESTROY` for the demo. Production flips to RETAIN.
 
-### Generative AI: Amazon Bedrock with Claude Haiku 4.5
+### Decision logic: Bedrock Claude Haiku 4.5 via Converse API
 
-- Used for two product features: personalized offers and adaptive nudges (the message shown when a fraud signal triggers a hold).
-- Called via the Converse API (`@aws-sdk/client-bedrock-runtime` `ConverseCommand`). Converse is the 2026 unified path, swapping models later is one line.
-- Model access must be enabled in the Bedrock console per region. Do this on day one.
-- Cost: $0.80 per 1M input tokens, $4.00 per 1M output tokens. At our expected volume (under 1k calls), the entire event costs under $1.
-- Called **only on the suspicious branch** of the fraud check. Normal traffic never invokes Bedrock. This keeps cost low and makes the demo story sharp: "watch what happens when the score crosses 60."
+- Called only on the warm lane (suspicious branch of the fraud check, personalized offer generation, adaptive nudge text).
+- Model ID: `us.anthropic.claude-haiku-4-5-20251001-v1:0` (US cross-region inference profile).
+- Cost at demo scale: under $1 total. At Bonvoy scale: see the cost model above.
 
-### Frontend hosting: S3 + CloudFront (deferred decision)
+### Frontend hosting
 
-- For the demo we serve the Vite build via S3 with static website hosting.
-- If we have time, front it with CloudFront for HTTPS and a clean domain. Not blocking.
+- S3 static hosting for the demo. CloudFront optional polish.
 
-## Request flows
+## Endpoints (demo set)
 
-### Login with static MFA
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/auth/login` | Username + password with Basic Auth client cred |
+| POST | `/auth/mfa` | Static OTP verification |
+| GET | `/dashboard` | User summary plus recent activity and decisions |
+| POST | `/transactions/transfer` | Points transfer with fraud check |
+| POST | `/decisions/evaluate` | Unified endpoint: takes user + context, returns `{ risk, offers, nudge, action }` in one response |
+| GET | `/admin/decisions` | Audit trail of recent decisions (read-only for the demo) |
+| GET | `/admin/promotions` | List promotions |
+| POST | `/admin/promotions` | Create or update a promotion (no auth gate beyond Basic Auth for the demo) |
 
-```
-client                  Lambda                            DynamoDB
-  | POST /auth/login       |                                |
-  | { username, password } |                                |
-  +----------------------->| validate Basic Auth header     |
-  |                        | look up user in UserProfile    |
-  |                        +------------------------------->|
-  |                        |<-------------------------------+
-  |                        | check pw hash                  |
-  |                        | create UserSession row         |
-  |                        +------------------------------->|
-  |<-----------------------+ 200 { sessionId, mfaRequired:true }
-  |                                                         |
-  | POST /auth/mfa { sessionId, otp }                       |
-  +----------------------->| compare otp to static value    |
-  |                        |   (env var MFA_OTP)            |
-  |                        | mark UserSession.status=active |
-  |                        +------------------------------->|
-  |<-----------------------+ 200 { token }                  |
-```
+`POST /decisions/evaluate` is the central endpoint. It replaces three separate calls (fraud check, offers, nudge) with one. The customer surface calls it on key events (login, page view of points balance, transfer initiated). The response tells the frontend what to render.
 
-The static OTP is a single env var the team agrees on for the demo. The MFA prompt is a real UI element. Judges will not authenticate themselves.
+## Decision flows
 
-### Points transfer with layered fraud check
+### Unified evaluate
 
 ```
-client              Lambda                       DynamoDB                Bedrock              SNS
-  | POST /transactions/transfer { from, to, amount }
-  +------------------>| pull recent transfers from UserActivity (last 1h)
-  |                   +-------------------------->|                       |                    |
-  |                   |<--------------------------+                       |                    |
-  |                   | compute heuristic score                            |                    |
-  |                   |   velocity + amount + IP/device delta              |                    |
-  |                   |                                                    |                    |
-  |                   | if score < 60: APPROVE                             |                    |
-  |                   |   write DecisionStore (status=APPROVED)            |                    |
-  |                   |   append to UserActivity                           |                    |
-  |                   +-------------------------->|                       |                    |
-  |<------------------+ 200 { status: APPROVED, decisionId }              |                    |
-  |                                                                       |                    |
-  |                   | if score >= 60: HOLD                              |                    |
-  |                   |   call Bedrock Converse for an adaptive nudge ----+------------------> |
-  |                   |<-------------------------------------------------+ (nudge text)        |
-  |                   |   write DecisionStore (status=HOLD, score, nudge)|                     |
-  |                   +-------------------------->|                       |                    |
-  |                   |   publish fraud-alert SNS  |                                            |
-  |                   +-------------------------------------------------------------------- -->|
-  |<------------------+ 200 { status: HOLD, nudge, decisionId }                                 |
+client                 Lambda                       DDB                              Bedrock              SNS
+  | POST /decisions/evaluate { userId, event, context }
+  +-------------------->| read UserState, UserActivity, eligible Promotions
+  |                     +---------------------------->|                               |                    |
+  |                     |<----------------------------+                               |                    |
+  |                     | compute heuristic risk score                                |                    |
+  |                     |   velocity, geo delta, device delta, amount multiple        |                    |
+  |                     | match promotions by eligibility rules + user tier           |                    |
+  |                     |                                                              |                    |
+  |                     | if risk < threshold: HOT LANE                                |                    |
+  |                     |   pick best 3 promotions, generate static nudge text         |                    |
+  |                     |                                                              |                    |
+  |                     | if risk >= threshold OR has-personalization-flag: WARM LANE  |                    |
+  |                     |   call Bedrock Converse with structured prompt -------------> |                    |
+  |                     |   prompt asks for: risk classification, nudge text,          |                    |
+  |                     |   personalized offer selection from candidates               |                    |
+  |                     |<-------------------------------------------------------------+                    |
+  |                     |   if risk action == HOLD or FLAG:                                                  |
+  |                     |     publish to fraud-alert SNS -------------------------------------------------->|
+  |                     |   write DecisionStore (every decision, with score + action + nudge)              |
+  |                     +---------------------------->|                                                     |
+  |<--------------------+ 200 { risk, offers, nudge, action, decisionId }                                   |
 ```
 
-The threshold (60) lives as an env var. Adjustable without redeploy.
-
-### Personalized offers
+### Admin loop
 
 ```
-client              Lambda                       DynamoDB              Bedrock
-  | GET /offers?userId=...
-  +------------------>| read UserState (tier, points, recent categories)
-  |                   +-------------------------->|
-  |                   |<--------------------------+
-  |                   | call Bedrock Converse with a structured prompt
-  |                   |   asking for 3 offer variants                ---->|
-  |                   |<--------------------------------------------------+
-  |<------------------+ 200 { offers: [...] }
+admin                  Lambda                       DDB
+  | GET /admin/decisions?since=...
+  +-------------------->| Query DecisionStore GSI userId-timestamp-index
+  |                     +---------------------------->|
+  |                     |<----------------------------+
+  |<--------------------+ 200 { decisions: [...] }
+
+  | POST /admin/promotions { id, eligibility, payload, expiry }
+  +-------------------->| PutItem on Promotion table
+  |                     +---------------------------->|
+  |<--------------------+ 200 { id }
 ```
 
-The Lambda parses the model response into a typed list. If parsing fails, fall back to a static offer list. This protects the demo from a bad model output.
+## Hackathon scope vs out-of-scope
+
+In scope for the demo:
+
+- Unified `/decisions/evaluate` endpoint
+- Promotion CRUD endpoints
+- Admin SPA route with audit log and promotion editor
+- Three demo scenarios (clean user, suspicious user, admin rule change)
+
+Intentionally out of scope, listed so the next person knows:
+
+- Cognito User Pools with TOTP MFA (half day work, no judge value)
+- CloudFront + WAF in front of API Gateway (no L2 for HTTP API)
+- Step Functions for transfer review workflows
+- Kinesis Firehose for activity stream (no analytics consumer yet)
+- SageMaker Serverless Inference for trained fraud model
+- DynamoDB Streams
+- EventBridge bus
+- The hot/warm/cold lane router (production-scale only, demo runs on a single Lambda)
 
 ## Decision log
 
-Each decision is closed. Reopening requires a written reason in a PR description.
+Each decision is closed. Reopening requires written rationale in a PR description.
 
-1. **CDK in TypeScript over CloudFormation YAML.** Two devs have TypeScript comfort. CDK gives us type safety, L2 constructs with secure defaults, and `cdk diff` before deploy. CDK synthesizes to CloudFormation, so the underlying template is still auditable if anyone asks.
+1. **CDK TypeScript over CloudFormation YAML.** Type safety, L2 constructs, cdk diff workflow.
+2. **HTTP API over REST API.** Cheaper, faster, sufficient features.
+3. **Single Lambda for the demo, tiered Lambdas at scale.** Less surface for the demo, clean lane separation for production. Architecture supports the migration without rewriting business logic.
+4. **Bedrock Claude Haiku via Converse API.** One-line model call, swap models later. Cheap at hackathon scale, optimizable at production scale.
+5. **Static MFA OTP over Cognito for the demo.** Half day saved. Cognito JWT only (no MFA) is the next upgrade if time permits.
+6. **Layered fraud: heuristics first, Bedrock on suspicion.** Fast for normal traffic, LLM only where it adds visible value, explainable decision trail.
+7. **Three apps, one repo, one backend, three frontends (or three routes).** Reduces surface area for the demo.
+8. **Node.js for the demo, Python at the next major rewrite.** Better Powertools, ML/SageMaker integration, LLM ecosystem.
+9. **No Step Functions, Kinesis, EventBridge in the demo.** All are correct at scale. None earn complexity at single-human demo traffic.
 
-2. **API Gateway HTTP API over REST API.** Cheaper, lower latency, simpler. We do not need REST features. The trade-off is per-stage throttling controls and we accept that.
+## Operational notes
 
-3. **Single Lambda over per-route functions.** Less deployment surface, fewer log groups, one cold start to optimize. Internal routing in `handler.js`. We split later only if traffic patterns demand it (they will not, this is a demo).
-
-4. **Bedrock with Claude Haiku 4.5 over SageMaker Serverless Inference.** SageMaker requires training a model, packaging an endpoint, and managing inference cost. Haiku via Bedrock is a one-line API call, generates text not a probability score, and gives us the adaptive nudge feature for free. Cost is negligible.
-
-5. **Static MFA OTP over Cognito.** Cognito User Pools with MFA require frontend changes (challenge response handling), backend changes (JWT verification, removing Basic Auth), and user pool provisioning. That is a full day for the 1-2 people on infra. The demo does not need real TOTP. Cognito for JWT only (no MFA) is a worthwhile upgrade only if we land before the last morning.
-
-6. **Skip CloudFront + WAF in front of API Gateway.** The standard guidance covers REST API. HTTP API has no L2 construct for CloudFront origin and requires a manual `x-origin-verify` secret header pattern. The demo does not need rate limiting against the open internet. If we want to demo a throttle, use HTTP API per-route throttling instead.
-
-7. **Layered fraud: heuristics first, Bedrock on suspicion.** A pure-LLM fraud detector is slow and expensive. A pure-heuristic detector is what judges have seen from every team. The layered approach is fast for normal traffic, uses the LLM only where it adds visible value, and creates a clear demo story.
-
-8. **No Step Functions, no Kinesis, no EventBridge.** All of these are correct production patterns. None of them earn their complexity for a two-day demo where traffic is a single human clicking through flows.
-
-## Cost estimate
-
-Assumptions: 1,000 API calls over the event, 10 users, 100 fraud decisions written, 500 Bedrock calls at 1k input / 200 output tokens each.
-
-| Service | Free tier coverage | Estimated event cost |
-|---|---|---|
-| Lambda | 1M req / 400k GB-s monthly, permanent | $0.00 |
-| API Gateway HTTP API | 1M calls / 12 months for new accounts | $0.00 |
-| DynamoDB (5 tables, on-demand) | 200M requests + 25 GB storage, permanent | $0.00 |
-| Bedrock Claude Haiku 4.5 | none, on-demand pay-per-token | $0.80 |
-| SNS email notifications | 1,000 emails monthly free | $0.00 |
-| CloudWatch dashboards + alarms | 3 dashboards, 10 alarms, 5 GB ingest | $0.00 |
-| S3 (frontend hosting) | 5 GB storage + 20k GET / 12 months | $0.00 |
-| AWS Budgets | first 2 budgets free, then $0.02/budget/day | ~$0.10 |
-| **Total** | | **~$1.00** |
-
-The $250 platform cap is not at risk. The largest variable is Bedrock token usage. Five thousand calls (10x baseline) is still under $10.
-
-One real cost surprise to avoid: if anyone enables verbose API Gateway access logging plus a load test, CloudWatch Logs ingestion ($0.50 per GB) can climb fast. Mitigation: log retention is set to 1 day on every log group, and we delete log groups after the event.
-
-## Operational concerns
-
-- **Region**: us-east-1. Bedrock model access is enabled there. Tables, Lambda, and SNS all go in the same region.
-- **Bedrock model access**: one-time enable in the Bedrock console for Anthropic Claude Haiku 4.5 in us-east-1 before any Lambda invocation. The console walks you through it.
-- **CDK bootstrap**: one-time per account/region, `cdk bootstrap aws://<ACCOUNT>/us-east-1`.
-- **Budget alarms**: confirm the SNS subscription email after the first deploy. AWS sends a confirmation link.
-- **Secrets**: `CLIENT_ID`, `CLIENT_SECRET`, `MFA_OTP` live in Lambda env vars set at deploy time, not in the repo. No KMS for the hackathon. Production would move these to Secrets Manager.
-
-## Out of scope (intentional)
-
-Documented here so the next person knows what we considered and rejected:
-
-- Amazon Cognito User Pools with TOTP MFA (half-day work, demo does not benefit)
-- CloudFront + AWS WAF in front of API Gateway HTTP API (no L2 construct, no demo value)
-- Step Functions for the points transfer review (over-engineered, single human flow)
-- Kinesis Data Firehose for activity stream to S3 (no analytics consumer in v1)
-- SageMaker Serverless Inference for fraud ML (Bedrock + heuristics is enough)
-- DynamoDB Streams (no consumer)
-- EventBridge bus for service decoupling (no second service)
+- Region: us-east-1.
+- Bedrock model access must be enabled in the Bedrock console for Anthropic Claude Haiku 4.5 in us-east-1 before the Lambda can call it.
+- Set `BUDGET_ALERT_EMAIL` and `FRAUD_ALERT_EMAIL` before `cdk deploy`.
+- Confirm both SNS subscription emails after the first deploy.
+- CloudWatch log groups have 1-day retention by default. Delete log groups after the event.
 
 ## Post-event upgrade path
 
-If this becomes a real product after the event, the upgrade order:
+Order of work if this becomes a real product:
 
-1. Cognito User Pools for real auth with MFA and JWT-protected API.
-2. CloudFront + WAF in front of the API for rate limiting and managed rules on the public endpoints.
-3. DynamoDB Streams + a second Lambda for cross-table consistency and activity stream into Firehose -> S3.
-4. SageMaker Serverless Inference endpoint for a trained fraud model. Bedrock stays for the nudge text.
-5. Step Functions for transfer review workflows once human-in-the-loop becomes part of the product.
-6. Secrets Manager for all credentials. KMS for at-rest encryption keys.
-7. Multi-region failover. Probably not needed for years.
-
-These are notes, not action items. Do not implement during the demo build.
+1. Promote `/decisions/evaluate` to its own dedicated Lambda with its own deployment cadence.
+2. Cognito User Pools for real auth on customer and admin surfaces.
+3. Split into hot / warm / cold lanes with a router Lambda.
+4. Redis (ElastiCache) for the hot lane's promotion-match cache.
+5. Kinesis Data Streams for activity ingestion. Firehose to S3 for audit.
+6. SageMaker Feature Store for hot personalization features. Custom small model for fraud classification, trained on the DecisionStore replay set.
+7. CloudFront + WAF in front of the customer surface. Akamai EdgeWorkers if Marriott already runs Akamai.
+8. Secrets Manager for credentials. KMS for at-rest encryption keys.
+9. Multi-region failover. Probably year two.
 
 ## References
 
-- API Gateway HTTP API + Lambda + DynamoDB pattern: https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-dynamo-db.html
+- API Gateway HTTP API + Lambda + DynamoDB: https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-dynamo-db.html
 - Bedrock Converse API + cost attribution: https://docs.aws.amazon.com/bedrock/latest/userguide/cost-management.html
-- DDoS resiliency whitepaper (the reason we are not adding CloudFront for the demo): https://docs.aws.amazon.com/whitepapers/latest/aws-best-practices-ddos-resiliency/protecting-api-endpoints-bp4.html
+- DDoS resiliency whitepaper: https://docs.aws.amazon.com/whitepapers/latest/aws-best-practices-ddos-resiliency/protecting-api-endpoints-bp4.html
 - CDK API reference: https://docs.aws.amazon.com/cdk/api/v2/
+- Anthropic prompt caching (production-only): https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
