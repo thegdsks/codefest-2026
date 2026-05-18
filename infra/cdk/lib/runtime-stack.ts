@@ -8,6 +8,8 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
+import { NagSuppressions } from 'cdk-nag';
 import type { Construct } from 'constructs';
 import type { DynamoDbStack } from './dynamodb-stack';
 
@@ -143,6 +145,30 @@ export class RuntimeStack extends cdk.Stack {
 
     cdk.Tags.of(api).add('Project', PROJECT_TAG);
 
+    // Access logging on the default stage. Format keeps the JSON small so
+    // CloudWatch ingestion cost stays in the cents-per-month range for the demo.
+    const apiAccessLogGroup = new logs.LogGroup(this, 'ApiAccessLogGroup', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    const defaultStage = api.defaultStage?.node.defaultChild as apigatewayv2.CfnStage | undefined;
+    if (defaultStage) {
+      defaultStage.accessLogSettings = {
+        destinationArn: apiAccessLogGroup.logGroupArn,
+        format: JSON.stringify({
+          requestId: '$context.requestId',
+          ip: '$context.identity.sourceIp',
+          requestTime: '$context.requestTime',
+          httpMethod: '$context.httpMethod',
+          routeKey: '$context.routeKey',
+          status: '$context.status',
+          protocol: '$context.protocol',
+          responseLength: '$context.responseLength',
+          integrationErrorMessage: '$context.integrationErrorMessage',
+        }),
+      };
+    }
+
     // -------------------------------------------------------------------------
     // CloudWatch dashboard
     // -------------------------------------------------------------------------
@@ -242,11 +268,100 @@ export class RuntimeStack extends cdk.Stack {
     );
 
     // -------------------------------------------------------------------------
+    // cdk-nag suppressions: documented architecture choices, not oversights.
+    // Each entry has a reason that explains why it is acceptable for this app.
+    // Revisit during post-event hardening.
+    // -------------------------------------------------------------------------
+    NagSuppressions.addResourceSuppressions(
+      fraudAlertTopic,
+      [
+        {
+          id: 'AwsSolutions-SNS3',
+          reason:
+            'Demo topic for internal fraud notifications. AWS SDK and Lambda publish over TLS by default. SSE will be revisited when the topic carries real user data.',
+        },
+        {
+          id: 'AwsSolutions-SNS2',
+          reason:
+            'Demo topic. KMS-managed encryption deferred until the topic carries production payloads.',
+        },
+      ],
+      true
+    );
+    NagSuppressions.addResourceSuppressions(
+      apiLambda,
+      [
+        {
+          id: 'AwsSolutions-L1',
+          reason:
+            'Node.js 18 is the documented runtime for this hackathon (see AGENTS.md). Bump tracked as post-event work before Lambda EOL.',
+        },
+      ],
+      true
+    );
+    const lambdaRole = apiLambda.role;
+    if (!lambdaRole) {
+      throw new Error('apiLambda.role is undefined which should not happen');
+    }
+    NagSuppressions.addResourceSuppressions(
+      lambdaRole,
+      [
+        {
+          id: 'AwsSolutions-IAM4',
+          reason:
+            'AWSLambdaBasicExecutionRole is the CDK default for Lambda CloudWatch Logs access and is acceptable.',
+          appliesTo: [
+            'Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',
+          ],
+        },
+        {
+          id: 'AwsSolutions-IAM5',
+          reason:
+            'GSI wildcards are required by Table.grantReadWriteData so the function can query the indexes attached to each table.',
+          appliesTo: [
+            'Resource::<UserProfileTable61BB5480.Arn>/index/*',
+            'Resource::<UserSessionTableCD18DD22.Arn>/index/*',
+            'Resource::<DecisionStoreTable3E281CE6.Arn>/index/*',
+          ],
+        },
+        {
+          id: 'AwsSolutions-IAM5',
+          reason:
+            'Bedrock foundation-model and inference-profile ARNs use a model-family wildcard so the function works across Haiku 4.5 minor versions without redeploy.',
+          appliesTo: [
+            'Resource::arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5*',
+            'Resource::arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5*',
+          ],
+        },
+      ],
+      true
+    );
+    NagSuppressions.addResourceSuppressions(
+      api,
+      [
+        {
+          id: 'AwsSolutions-APIG4',
+          reason:
+            'Authorization is handled in-Lambda by the Basic Auth + static MFA OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event (see docs/architecture.md upgrade path).',
+        },
+      ],
+      true
+    );
+
+    // -------------------------------------------------------------------------
     // Outputs
     // -------------------------------------------------------------------------
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: api.apiEndpoint,
       exportName: `${this.stackName}:ApiUrl`,
+    });
+
+    // Publish the API URL to SSM so the frontend build can read it without
+    // a coupled CloudFormation import. Avoids deadly-embrace on rename.
+    new ssm.StringParameter(this, 'ApiUrlParam', {
+      parameterName: '/signal-force/api-url',
+      stringValue: api.apiEndpoint,
+      description: 'HTTP API endpoint for the signal-force runtime stack',
     });
 
     new cdk.CfnOutput(this, 'LambdaFunctionName', {

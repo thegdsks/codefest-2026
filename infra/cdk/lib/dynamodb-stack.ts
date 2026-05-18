@@ -20,6 +20,7 @@ export class DynamoDbStack extends cdk.Stack {
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
     this.userProfileTable.addGlobalSecondaryIndex({
       indexName: 'username-index',
@@ -34,6 +35,7 @@ export class DynamoDbStack extends cdk.Stack {
       partitionKey: { name: 'sessionId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
     this.userSessionTable.addGlobalSecondaryIndex({
       indexName: 'userId-index',
@@ -50,6 +52,7 @@ export class DynamoDbStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       timeToLiveAttribute: 'ttl',
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
     cdk.Tags.of(this.userActivityTable).add('Project', PROJECT_TAG);
 
@@ -59,6 +62,7 @@ export class DynamoDbStack extends cdk.Stack {
       partitionKey: { name: 'decisionId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
     this.decisionStoreTable.addGlobalSecondaryIndex({
       indexName: 'userId-timestamp-index',
@@ -74,6 +78,7 @@ export class DynamoDbStack extends cdk.Stack {
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
     cdk.Tags.of(this.userStateTable).add('Project', PROJECT_TAG);
 
