@@ -1,0 +1,326 @@
+{
+  "info": {
+    "name": "SF Full API (Node/SF)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://<api-id>.execute-api.<region>.amazonaws.com"
+    },
+    {
+      "key": "clientId",
+      "value": "demoClient"
+    },
+    {
+      "key": "clientSecret",
+      "value": "demoSecret"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth - Login",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{clientId}}"
+            },
+            {
+              "key": "password",
+              "value": "{{clientSecret}}"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"user001\",\n  \"password\": \"Password1\",\n  \"ipAddress\": \"1.2.3.4\",\n  \"location\": \"New York\",\n  \"deviceId\": \"DEVICE#001\",\n  \"deviceType\": \"iPhone\",\n  \"browser\": \"Safari\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Auth - MFA Verify",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{clientId}}"
+            },
+            {
+              "key": "password",
+              "value": "{{clientSecret}}"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/mfa/verify"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sessionId\": \"SESSION#001\",\n  \"otp\": \"123456\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Transactions - Transfer",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{clientId}}"
+            },
+            {
+              "key": "password",
+              "value": "{{clientSecret}}"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idemKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/transactions/transfer"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"USER#001\",\n  \"recipientId\": \"USER#002\",\n  \"amount\": 20000,\n  \"channel\": \"APP\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Offers - Get",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{clientId}}"
+            },
+            {
+              "key": "password",
+              "value": "{{clientSecret}}"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/offers?userId=USER#001"
+        }
+      }
+    },
+    {
+      "name": "Offers - Track Action",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{clientId}}"
+            },
+            {
+              "key": "password",
+              "value": "{{clientSecret}}"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idemKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/offers/action"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"USER#001\",\n  \"offerId\": \"OFF#001\",\n  \"action\": \"CLICK\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Nudges - Get",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{clientId}}"
+            },
+            {
+              "key": "password",
+              "value": "{{clientSecret}}"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/nudges?userId=USER#001"
+        }
+      }
+    },
+    {
+      "name": "Nudges - Track Action",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{clientId}}"
+            },
+            {
+              "key": "password",
+              "value": "{{clientSecret}}"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idemKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/nudges/action"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"USER#001\",\n  \"nudgeId\": \"NUDGE#PROFILE\",\n  \"action\": \"COMPLETED\"\n}"
+        }
+      }
+    },
+    {
+      "name": "User - Get Profile",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{clientId}}"
+            },
+            {
+              "key": "password",
+              "value": "{{clientSecret}}"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/user/profile?userId=USER#001"
+        }
+      }
+    },
+    {
+      "name": "Dashboard - Get",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{clientId}}"
+            },
+            {
+              "key": "password",
+              "value": "{{clientSecret}}"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/dashboard?userId=USER#001"
+        }
+      }
+    }
+  ]
+}
