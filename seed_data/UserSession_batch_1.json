@@ -1,0 +1,979 @@
+{
+  "UserSession": [
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#001"
+          },
+          "userId": {
+            "S": "USER#001"
+          },
+          "loginTime": {
+            "N": "1779010998"
+          },
+          "logoutTime": {
+            "N": "1779012198"
+          },
+          "location": {
+            "S": "Chicago"
+          },
+          "ipAddress": {
+            "S": "10.0.1.7"
+          },
+          "deviceId": {
+            "S": "DEVICE#001"
+          },
+          "deviceType": {
+            "S": "iPhone"
+          },
+          "browser": {
+            "S": "Edge"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779010998"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#002"
+          },
+          "userId": {
+            "S": "USER#002"
+          },
+          "loginTime": {
+            "N": "1779010698"
+          },
+          "logoutTime": {
+            "N": "1779011898"
+          },
+          "location": {
+            "S": "Bethesda"
+          },
+          "ipAddress": {
+            "S": "10.0.2.14"
+          },
+          "deviceId": {
+            "S": "DEVICE#002"
+          },
+          "deviceType": {
+            "S": "Tablet"
+          },
+          "browser": {
+            "S": "Edge"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779010698"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#003"
+          },
+          "userId": {
+            "S": "USER#003"
+          },
+          "loginTime": {
+            "N": "1779010398"
+          },
+          "logoutTime": {
+            "N": "1779011598"
+          },
+          "location": {
+            "S": "New York"
+          },
+          "ipAddress": {
+            "S": "10.0.3.21"
+          },
+          "deviceId": {
+            "S": "DEVICE#003"
+          },
+          "deviceType": {
+            "S": "Tablet"
+          },
+          "browser": {
+            "S": "Chrome"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779010398"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#004"
+          },
+          "userId": {
+            "S": "USER#004"
+          },
+          "loginTime": {
+            "N": "1779010098"
+          },
+          "logoutTime": {
+            "N": "1779011298"
+          },
+          "location": {
+            "S": "Chicago"
+          },
+          "ipAddress": {
+            "S": "10.0.4.28"
+          },
+          "deviceId": {
+            "S": "DEVICE#004"
+          },
+          "deviceType": {
+            "S": "Android"
+          },
+          "browser": {
+            "S": "Firefox"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779010098"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#005"
+          },
+          "userId": {
+            "S": "USER#005"
+          },
+          "loginTime": {
+            "N": "1779009798"
+          },
+          "logoutTime": {
+            "N": "1779010998"
+          },
+          "location": {
+            "S": "San Francisco"
+          },
+          "ipAddress": {
+            "S": "10.0.5.35"
+          },
+          "deviceId": {
+            "S": "DEVICE#005"
+          },
+          "deviceType": {
+            "S": "Laptop"
+          },
+          "browser": {
+            "S": "Edge"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779009798"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#006"
+          },
+          "userId": {
+            "S": "USER#006"
+          },
+          "loginTime": {
+            "N": "1779009498"
+          },
+          "logoutTime": {
+            "N": "1779010698"
+          },
+          "location": {
+            "S": "Washington DC"
+          },
+          "ipAddress": {
+            "S": "10.0.6.42"
+          },
+          "deviceId": {
+            "S": "DEVICE#006"
+          },
+          "deviceType": {
+            "S": "Tablet"
+          },
+          "browser": {
+            "S": "Safari"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779009498"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#007"
+          },
+          "userId": {
+            "S": "USER#007"
+          },
+          "loginTime": {
+            "N": "1779009198"
+          },
+          "logoutTime": {
+            "N": "1779010398"
+          },
+          "location": {
+            "S": "New York"
+          },
+          "ipAddress": {
+            "S": "10.0.7.49"
+          },
+          "deviceId": {
+            "S": "DEVICE#007"
+          },
+          "deviceType": {
+            "S": "Tablet"
+          },
+          "browser": {
+            "S": "Firefox"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779009198"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#008"
+          },
+          "userId": {
+            "S": "USER#008"
+          },
+          "loginTime": {
+            "N": "1779008898"
+          },
+          "logoutTime": {
+            "N": "1779010098"
+          },
+          "location": {
+            "S": "Bethesda"
+          },
+          "ipAddress": {
+            "S": "10.0.8.56"
+          },
+          "deviceId": {
+            "S": "DEVICE#008"
+          },
+          "deviceType": {
+            "S": "Android"
+          },
+          "browser": {
+            "S": "Edge"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779008898"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#009"
+          },
+          "userId": {
+            "S": "USER#009"
+          },
+          "loginTime": {
+            "N": "1779008598"
+          },
+          "logoutTime": {
+            "N": "1779009798"
+          },
+          "location": {
+            "S": "Bethesda"
+          },
+          "ipAddress": {
+            "S": "10.0.9.63"
+          },
+          "deviceId": {
+            "S": "DEVICE#009"
+          },
+          "deviceType": {
+            "S": "iPhone"
+          },
+          "browser": {
+            "S": "Edge"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779008598"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#010"
+          },
+          "userId": {
+            "S": "USER#010"
+          },
+          "loginTime": {
+            "N": "1779008298"
+          },
+          "logoutTime": {
+            "N": "1779009498"
+          },
+          "location": {
+            "S": "Washington DC"
+          },
+          "ipAddress": {
+            "S": "10.0.10.70"
+          },
+          "deviceId": {
+            "S": "DEVICE#010"
+          },
+          "deviceType": {
+            "S": "iPhone"
+          },
+          "browser": {
+            "S": "Safari"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779008298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#011"
+          },
+          "userId": {
+            "S": "USER#011"
+          },
+          "loginTime": {
+            "N": "1779007998"
+          },
+          "logoutTime": {
+            "N": "1779009198"
+          },
+          "location": {
+            "S": "Washington DC"
+          },
+          "ipAddress": {
+            "S": "10.0.11.77"
+          },
+          "deviceId": {
+            "S": "DEVICE#011"
+          },
+          "deviceType": {
+            "S": "iPhone"
+          },
+          "browser": {
+            "S": "Firefox"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779007998"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#012"
+          },
+          "userId": {
+            "S": "USER#012"
+          },
+          "loginTime": {
+            "N": "1779007698"
+          },
+          "logoutTime": {
+            "N": "1779008898"
+          },
+          "location": {
+            "S": "San Francisco"
+          },
+          "ipAddress": {
+            "S": "10.0.12.84"
+          },
+          "deviceId": {
+            "S": "DEVICE#012"
+          },
+          "deviceType": {
+            "S": "Laptop"
+          },
+          "browser": {
+            "S": "Chrome"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779007698"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#013"
+          },
+          "userId": {
+            "S": "USER#013"
+          },
+          "loginTime": {
+            "N": "1779007398"
+          },
+          "logoutTime": {
+            "N": "1779008598"
+          },
+          "location": {
+            "S": "New York"
+          },
+          "ipAddress": {
+            "S": "10.0.13.91"
+          },
+          "deviceId": {
+            "S": "DEVICE#013"
+          },
+          "deviceType": {
+            "S": "Laptop"
+          },
+          "browser": {
+            "S": "Safari"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779007398"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#014"
+          },
+          "userId": {
+            "S": "USER#014"
+          },
+          "loginTime": {
+            "N": "1779007098"
+          },
+          "logoutTime": {
+            "N": "1779008298"
+          },
+          "location": {
+            "S": "Bethesda"
+          },
+          "ipAddress": {
+            "S": "10.0.14.98"
+          },
+          "deviceId": {
+            "S": "DEVICE#014"
+          },
+          "deviceType": {
+            "S": "Tablet"
+          },
+          "browser": {
+            "S": "Safari"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779007098"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#015"
+          },
+          "userId": {
+            "S": "USER#015"
+          },
+          "loginTime": {
+            "N": "1779006798"
+          },
+          "logoutTime": {
+            "N": "1779007998"
+          },
+          "location": {
+            "S": "Chicago"
+          },
+          "ipAddress": {
+            "S": "10.0.15.105"
+          },
+          "deviceId": {
+            "S": "DEVICE#015"
+          },
+          "deviceType": {
+            "S": "Android"
+          },
+          "browser": {
+            "S": "Chrome"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779006798"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#016"
+          },
+          "userId": {
+            "S": "USER#016"
+          },
+          "loginTime": {
+            "N": "1779006498"
+          },
+          "logoutTime": {
+            "N": "1779007698"
+          },
+          "location": {
+            "S": "Bethesda"
+          },
+          "ipAddress": {
+            "S": "10.0.16.112"
+          },
+          "deviceId": {
+            "S": "DEVICE#016"
+          },
+          "deviceType": {
+            "S": "Android"
+          },
+          "browser": {
+            "S": "Chrome"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779006498"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#017"
+          },
+          "userId": {
+            "S": "USER#017"
+          },
+          "loginTime": {
+            "N": "1779006198"
+          },
+          "logoutTime": {
+            "N": "1779007398"
+          },
+          "location": {
+            "S": "New York"
+          },
+          "ipAddress": {
+            "S": "10.0.17.119"
+          },
+          "deviceId": {
+            "S": "DEVICE#017"
+          },
+          "deviceType": {
+            "S": "Laptop"
+          },
+          "browser": {
+            "S": "Safari"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779006198"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#018"
+          },
+          "userId": {
+            "S": "USER#018"
+          },
+          "loginTime": {
+            "N": "1779005898"
+          },
+          "logoutTime": {
+            "N": "1779007098"
+          },
+          "location": {
+            "S": "Bethesda"
+          },
+          "ipAddress": {
+            "S": "10.0.18.126"
+          },
+          "deviceId": {
+            "S": "DEVICE#018"
+          },
+          "deviceType": {
+            "S": "Laptop"
+          },
+          "browser": {
+            "S": "Chrome"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779005898"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#019"
+          },
+          "userId": {
+            "S": "USER#019"
+          },
+          "loginTime": {
+            "N": "1779005598"
+          },
+          "logoutTime": {
+            "N": "1779006798"
+          },
+          "location": {
+            "S": "New York"
+          },
+          "ipAddress": {
+            "S": "10.0.19.133"
+          },
+          "deviceId": {
+            "S": "DEVICE#019"
+          },
+          "deviceType": {
+            "S": "Tablet"
+          },
+          "browser": {
+            "S": "Chrome"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779005598"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#020"
+          },
+          "userId": {
+            "S": "USER#020"
+          },
+          "loginTime": {
+            "N": "1779005298"
+          },
+          "logoutTime": {
+            "N": "1779006498"
+          },
+          "location": {
+            "S": "Bethesda"
+          },
+          "ipAddress": {
+            "S": "10.0.20.140"
+          },
+          "deviceId": {
+            "S": "DEVICE#020"
+          },
+          "deviceType": {
+            "S": "Laptop"
+          },
+          "browser": {
+            "S": "Safari"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779005298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#021"
+          },
+          "userId": {
+            "S": "USER#021"
+          },
+          "loginTime": {
+            "N": "1779004998"
+          },
+          "logoutTime": {
+            "N": "1779006198"
+          },
+          "location": {
+            "S": "San Francisco"
+          },
+          "ipAddress": {
+            "S": "10.0.21.147"
+          },
+          "deviceId": {
+            "S": "DEVICE#021"
+          },
+          "deviceType": {
+            "S": "Laptop"
+          },
+          "browser": {
+            "S": "Safari"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779004998"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#022"
+          },
+          "userId": {
+            "S": "USER#022"
+          },
+          "loginTime": {
+            "N": "1779004698"
+          },
+          "logoutTime": {
+            "N": "1779005898"
+          },
+          "location": {
+            "S": "Chicago"
+          },
+          "ipAddress": {
+            "S": "10.0.22.154"
+          },
+          "deviceId": {
+            "S": "DEVICE#022"
+          },
+          "deviceType": {
+            "S": "Tablet"
+          },
+          "browser": {
+            "S": "Edge"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779004698"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#023"
+          },
+          "userId": {
+            "S": "USER#023"
+          },
+          "loginTime": {
+            "N": "1779004398"
+          },
+          "logoutTime": {
+            "N": "1779005598"
+          },
+          "location": {
+            "S": "New York"
+          },
+          "ipAddress": {
+            "S": "10.0.23.161"
+          },
+          "deviceId": {
+            "S": "DEVICE#023"
+          },
+          "deviceType": {
+            "S": "Tablet"
+          },
+          "browser": {
+            "S": "Safari"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779004398"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#024"
+          },
+          "userId": {
+            "S": "USER#024"
+          },
+          "loginTime": {
+            "N": "1779004098"
+          },
+          "logoutTime": {
+            "N": "1779005298"
+          },
+          "location": {
+            "S": "Bethesda"
+          },
+          "ipAddress": {
+            "S": "10.0.24.168"
+          },
+          "deviceId": {
+            "S": "DEVICE#024"
+          },
+          "deviceType": {
+            "S": "Laptop"
+          },
+          "browser": {
+            "S": "Firefox"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779004098"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#025"
+          },
+          "userId": {
+            "S": "USER#025"
+          },
+          "loginTime": {
+            "N": "1779003798"
+          },
+          "logoutTime": {
+            "N": "1779004998"
+          },
+          "location": {
+            "S": "Washington DC"
+          },
+          "ipAddress": {
+            "S": "10.0.25.175"
+          },
+          "deviceId": {
+            "S": "DEVICE#025"
+          },
+          "deviceType": {
+            "S": "Android"
+          },
+          "browser": {
+            "S": "Edge"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779003798"
+          }
+        }
+      }
+    }
+  ]
+}

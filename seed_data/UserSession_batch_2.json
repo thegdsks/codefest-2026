@@ -1,0 +1,199 @@
+{
+  "UserSession": [
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#026"
+          },
+          "userId": {
+            "S": "USER#026"
+          },
+          "loginTime": {
+            "N": "1779003498"
+          },
+          "logoutTime": {
+            "N": "1779004698"
+          },
+          "location": {
+            "S": "Chicago"
+          },
+          "ipAddress": {
+            "S": "10.0.26.182"
+          },
+          "deviceId": {
+            "S": "DEVICE#026"
+          },
+          "deviceType": {
+            "S": "Tablet"
+          },
+          "browser": {
+            "S": "Safari"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779003498"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#027"
+          },
+          "userId": {
+            "S": "USER#027"
+          },
+          "loginTime": {
+            "N": "1779003198"
+          },
+          "logoutTime": {
+            "N": "1779004398"
+          },
+          "location": {
+            "S": "New York"
+          },
+          "ipAddress": {
+            "S": "10.0.27.189"
+          },
+          "deviceId": {
+            "S": "DEVICE#027"
+          },
+          "deviceType": {
+            "S": "Android"
+          },
+          "browser": {
+            "S": "Edge"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779003198"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#028"
+          },
+          "userId": {
+            "S": "USER#028"
+          },
+          "loginTime": {
+            "N": "1779002898"
+          },
+          "logoutTime": {
+            "N": "1779004098"
+          },
+          "location": {
+            "S": "New York"
+          },
+          "ipAddress": {
+            "S": "10.0.28.196"
+          },
+          "deviceId": {
+            "S": "DEVICE#028"
+          },
+          "deviceType": {
+            "S": "Laptop"
+          },
+          "browser": {
+            "S": "Safari"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779002898"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#029"
+          },
+          "userId": {
+            "S": "USER#029"
+          },
+          "loginTime": {
+            "N": "1779002598"
+          },
+          "logoutTime": {
+            "N": "1779003798"
+          },
+          "location": {
+            "S": "Chicago"
+          },
+          "ipAddress": {
+            "S": "10.0.29.203"
+          },
+          "deviceId": {
+            "S": "DEVICE#029"
+          },
+          "deviceType": {
+            "S": "Android"
+          },
+          "browser": {
+            "S": "Firefox"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779002598"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "sessionId": {
+            "S": "SESSION#030"
+          },
+          "userId": {
+            "S": "USER#030"
+          },
+          "loginTime": {
+            "N": "1779002298"
+          },
+          "logoutTime": {
+            "N": "1779003498"
+          },
+          "location": {
+            "S": "Washington DC"
+          },
+          "ipAddress": {
+            "S": "10.0.30.210"
+          },
+          "deviceId": {
+            "S": "DEVICE#030"
+          },
+          "deviceType": {
+            "S": "iPhone"
+          },
+          "browser": {
+            "S": "Chrome"
+          },
+          "isSuccessful": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1779002298"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1129 @@
+{
+  "UserActivity": [
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#001"
+          },
+          "activityTime": {
+            "N": "1779011118"
+          },
+          "activityType": {
+            "S": "LOGIN"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#001"
+          },
+          "ttl": {
+            "N": "1779615918"
+          },
+          "createdAt": {
+            "N": "1779011118"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#002"
+          },
+          "activityTime": {
+            "N": "1779010938"
+          },
+          "activityType": {
+            "S": "TRANSFER"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "2000"
+          },
+          "currency": {
+            "S": "POINTS"
+          },
+          "recipientId": {
+            "S": "USER#012"
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#002"
+          },
+          "ttl": {
+            "N": "1779615738"
+          },
+          "createdAt": {
+            "N": "1779010938"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#003"
+          },
+          "activityTime": {
+            "N": "1779010758"
+          },
+          "activityType": {
+            "S": "LOGIN"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#003"
+          },
+          "ttl": {
+            "N": "1779615558"
+          },
+          "createdAt": {
+            "N": "1779010758"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#004"
+          },
+          "activityTime": {
+            "N": "1779010578"
+          },
+          "activityType": {
+            "S": "SEARCH"
+          },
+          "channel": {
+            "S": "API"
+          },
+          "source": {
+            "S": "UI"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": "city:LAX"
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#004"
+          },
+          "ttl": {
+            "N": "1779615378"
+          },
+          "createdAt": {
+            "N": "1779010578"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#005"
+          },
+          "activityTime": {
+            "N": "1779010398"
+          },
+          "activityType": {
+            "S": "TRANSFER"
+          },
+          "channel": {
+            "S": "WEB"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "5000"
+          },
+          "currency": {
+            "S": "POINTS"
+          },
+          "recipientId": {
+            "S": "USER#015"
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#005"
+          },
+          "ttl": {
+            "N": "1779615198"
+          },
+          "createdAt": {
+            "N": "1779010398"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#006"
+          },
+          "activityTime": {
+            "N": "1779010218"
+          },
+          "activityType": {
+            "S": "LOGIN"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#006"
+          },
+          "ttl": {
+            "N": "1779615018"
+          },
+          "createdAt": {
+            "N": "1779010218"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#007"
+          },
+          "activityTime": {
+            "N": "1779010038"
+          },
+          "activityType": {
+            "S": "SEARCH"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": "city:LAX"
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#007"
+          },
+          "ttl": {
+            "N": "1779614838"
+          },
+          "createdAt": {
+            "N": "1779010038"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#008"
+          },
+          "activityTime": {
+            "N": "1779009858"
+          },
+          "activityType": {
+            "S": "LOGIN"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "SERVICE"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#008"
+          },
+          "ttl": {
+            "N": "1779614658"
+          },
+          "createdAt": {
+            "N": "1779009858"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#009"
+          },
+          "activityTime": {
+            "N": "1779009678"
+          },
+          "activityType": {
+            "S": "SEARCH"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "SERVICE"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": "city:LAX"
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#009"
+          },
+          "ttl": {
+            "N": "1779614478"
+          },
+          "createdAt": {
+            "N": "1779009678"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#010"
+          },
+          "activityTime": {
+            "N": "1779009498"
+          },
+          "activityType": {
+            "S": "SEARCH"
+          },
+          "channel": {
+            "S": "WEB"
+          },
+          "source": {
+            "S": "SERVICE"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": "city:SEA"
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#010"
+          },
+          "ttl": {
+            "N": "1779614298"
+          },
+          "createdAt": {
+            "N": "1779009498"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#011"
+          },
+          "activityTime": {
+            "N": "1779009318"
+          },
+          "activityType": {
+            "S": "LOGIN"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "UI"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#011"
+          },
+          "ttl": {
+            "N": "1779614118"
+          },
+          "createdAt": {
+            "N": "1779009318"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#012"
+          },
+          "activityTime": {
+            "N": "1779009138"
+          },
+          "activityType": {
+            "S": "SEARCH"
+          },
+          "channel": {
+            "S": "API"
+          },
+          "source": {
+            "S": "UI"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": "city:LAX"
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#012"
+          },
+          "ttl": {
+            "N": "1779613938"
+          },
+          "createdAt": {
+            "N": "1779009138"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#013"
+          },
+          "activityTime": {
+            "N": "1779008958"
+          },
+          "activityType": {
+            "S": "LOGIN"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "SERVICE"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#013"
+          },
+          "ttl": {
+            "N": "1779613758"
+          },
+          "createdAt": {
+            "N": "1779008958"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#014"
+          },
+          "activityTime": {
+            "N": "1779008778"
+          },
+          "activityType": {
+            "S": "LOGIN"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "UI"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#014"
+          },
+          "ttl": {
+            "N": "1779613578"
+          },
+          "createdAt": {
+            "N": "1779008778"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#015"
+          },
+          "activityTime": {
+            "N": "1779008598"
+          },
+          "activityType": {
+            "S": "SEARCH"
+          },
+          "channel": {
+            "S": "API"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": "city:NYC"
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#015"
+          },
+          "ttl": {
+            "N": "1779613398"
+          },
+          "createdAt": {
+            "N": "1779008598"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#016"
+          },
+          "activityTime": {
+            "N": "1779008418"
+          },
+          "activityType": {
+            "S": "SEARCH"
+          },
+          "channel": {
+            "S": "WEB"
+          },
+          "source": {
+            "S": "UI"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": "city:SEA"
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#016"
+          },
+          "ttl": {
+            "N": "1779613218"
+          },
+          "createdAt": {
+            "N": "1779008418"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#017"
+          },
+          "activityTime": {
+            "N": "1779008238"
+          },
+          "activityType": {
+            "S": "TRANSFER"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "SERVICE"
+          },
+          "amount": {
+            "N": "17000"
+          },
+          "currency": {
+            "S": "POINTS"
+          },
+          "recipientId": {
+            "S": "USER#027"
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#017"
+          },
+          "ttl": {
+            "N": "1779613038"
+          },
+          "createdAt": {
+            "N": "1779008238"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#018"
+          },
+          "activityTime": {
+            "N": "1779008058"
+          },
+          "activityType": {
+            "S": "TRANSFER"
+          },
+          "channel": {
+            "S": "API"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "18000"
+          },
+          "currency": {
+            "S": "POINTS"
+          },
+          "recipientId": {
+            "S": "USER#028"
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#018"
+          },
+          "ttl": {
+            "N": "1779612858"
+          },
+          "createdAt": {
+            "N": "1779008058"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#019"
+          },
+          "activityTime": {
+            "N": "1779007878"
+          },
+          "activityType": {
+            "S": "TRANSFER"
+          },
+          "channel": {
+            "S": "APP"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "19000"
+          },
+          "currency": {
+            "S": "POINTS"
+          },
+          "recipientId": {
+            "S": "USER#029"
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#019"
+          },
+          "ttl": {
+            "N": "1779612678"
+          },
+          "createdAt": {
+            "N": "1779007878"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#020"
+          },
+          "activityTime": {
+            "N": "1779007698"
+          },
+          "activityType": {
+            "S": "LOGIN"
+          },
+          "channel": {
+            "S": "API"
+          },
+          "source": {
+            "S": "UI"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#020"
+          },
+          "ttl": {
+            "N": "1779612498"
+          },
+          "createdAt": {
+            "N": "1779007698"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#021"
+          },
+          "activityTime": {
+            "N": "1779007518"
+          },
+          "activityType": {
+            "S": "SEARCH"
+          },
+          "channel": {
+            "S": "API"
+          },
+          "source": {
+            "S": "UI"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": "city:NYC"
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#021"
+          },
+          "ttl": {
+            "N": "1779612318"
+          },
+          "createdAt": {
+            "N": "1779007518"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#022"
+          },
+          "activityTime": {
+            "N": "1779007338"
+          },
+          "activityType": {
+            "S": "TRANSFER"
+          },
+          "channel": {
+            "S": "API"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "22000"
+          },
+          "currency": {
+            "S": "POINTS"
+          },
+          "recipientId": {
+            "S": "USER#002"
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#022"
+          },
+          "ttl": {
+            "N": "1779612138"
+          },
+          "createdAt": {
+            "N": "1779007338"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#023"
+          },
+          "activityTime": {
+            "N": "1779007158"
+          },
+          "activityType": {
+            "S": "TRANSFER"
+          },
+          "channel": {
+            "S": "WEB"
+          },
+          "source": {
+            "S": "SERVICE"
+          },
+          "amount": {
+            "N": "23000"
+          },
+          "currency": {
+            "S": "POINTS"
+          },
+          "recipientId": {
+            "S": "USER#003"
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#023"
+          },
+          "ttl": {
+            "N": "1779611958"
+          },
+          "createdAt": {
+            "N": "1779007158"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#024"
+          },
+          "activityTime": {
+            "N": "1779006978"
+          },
+          "activityType": {
+            "S": "LOGIN"
+          },
+          "channel": {
+            "S": "WEB"
+          },
+          "source": {
+            "S": "SERVICE"
+          },
+          "amount": {
+            "N": "0"
+          },
+          "currency": {
+            "S": ""
+          },
+          "recipientId": {
+            "S": ""
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#024"
+          },
+          "ttl": {
+            "N": "1779611778"
+          },
+          "createdAt": {
+            "N": "1779006978"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#025"
+          },
+          "activityTime": {
+            "N": "1779006798"
+          },
+          "activityType": {
+            "S": "TRANSFER"
+          },
+          "channel": {
+            "S": "API"
+          },
+          "source": {
+            "S": "BATCH"
+          },
+          "amount": {
+            "N": "25000"
+          },
+          "currency": {
+            "S": "POINTS"
+          },
+          "recipientId": {
+            "S": "USER#005"
+          },
+          "searchQuery": {
+            "S": ""
+          },
+          "metadata": {
+            "S": "hackathon-seed"
+          },
+          "correlationId": {
+            "S": "CORR#025"
+          },
+          "ttl": {
+            "N": "1779611598"
+          },
+          "createdAt": {
+            "N": "1779006798"
+          }
+        }
+      }
+    }
+  ]
+}
