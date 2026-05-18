@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+.next
+.turbo
+.serverless
+cdk.out
+package-lock.json
+seed_data
+*.min.js
+*.min.css

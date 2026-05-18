@@ -1,0 +1,32 @@
+{
+  "name": "codefest-2026",
+  "private": true,
+  "description": "Marriott Codefest 2026 fraud-aware loyalty platform",
+  "workspaces": [
+    "apps/backend",
+    "apps/frontend",
+    "infra/cdk"
+  ],
+  "scripts": {
+    "prepare": "husky",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck:frontend": "tsc -p apps/frontend --noEmit",
+    "typecheck:cdk": "tsc -p infra/cdk --noEmit",
+    "synth": "npm --workspace=infra/cdk exec -- cdk synth --quiet",
+    "build:frontend": "npm --workspace=apps/frontend run build"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,yml,yaml,md,css}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
