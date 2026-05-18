@@ -1,10 +1,11 @@
 # infra/cdk
 
-AWS CDK (TypeScript) infrastructure for Codefest 2026.
+AWS CDK (TypeScript) infrastructure for the Signal Force platform.
 
 Two stacks:
-- `codefest-dynamodb` — five DynamoDB tables used by the backend Lambda
-- `codefest-budgets` — monthly cost budgets with SNS email alerts
+
+- `signal-force-dynamodb`: five DynamoDB tables used by the backend Lambda
+- `signal-force-budgets`: monthly cost budgets with SNS email alerts
 
 ## Prerequisites
 
@@ -21,7 +22,7 @@ Two stacks:
 cd infra/cdk
 npm install
 
-# Set alert email before deploying budgets stack
+# Set alert email before deploying the budgets stack
 export BUDGET_ALERT_EMAIL=you@example.com
 # or pass via context:
 # --context budgetAlertEmail=you@example.com
@@ -37,9 +38,9 @@ Confirm the SNS subscription email that AWS sends after deploy.
 npx cdk destroy --all
 ```
 
-DynamoDB tables use `RemovalPolicy.DESTROY` — they are deleted with the stack.
+DynamoDB tables use `RemovalPolicy.DESTROY` and are deleted with the stack.
 
 ## Outputs
 
 Each table name is exported as a CloudFormation output:
-`codefest-dynamodb:UserProfileTableName`, `...UserSessionTableName`, etc.
+`signal-force-dynamodb:UserProfileTableName`, `...UserSessionTableName`, etc.

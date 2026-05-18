@@ -2,13 +2,13 @@ import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import type { Construct } from 'constructs';
 
-const PROJECT_TAG = 'codefest-2026';
+const PROJECT_TAG = 'signal-force';
 
 export class DynamoDbStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // UserProfile — PK: userId, GSI: username-index on username
+    // UserProfile: PK userId, GSI username-index on username
     const userProfileTable = new dynamodb.Table(this, 'UserProfileTable', {
       tableName: 'UserProfile',
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
@@ -22,7 +22,7 @@ export class DynamoDbStack extends cdk.Stack {
     });
     cdk.Tags.of(userProfileTable).add('Project', PROJECT_TAG);
 
-    // UserSession — PK: sessionId, GSI: userId-index on userId
+    // UserSession: PK sessionId, GSI userId-index on userId
     const userSessionTable = new dynamodb.Table(this, 'UserSessionTable', {
       tableName: 'UserSession',
       partitionKey: { name: 'sessionId', type: dynamodb.AttributeType.STRING },
@@ -36,7 +36,7 @@ export class DynamoDbStack extends cdk.Stack {
     });
     cdk.Tags.of(userSessionTable).add('Project', PROJECT_TAG);
 
-    // UserActivity — PK: userId, SK: activityTime (number), TTL on "ttl"
+    // UserActivity: PK userId, SK activityTime (number), TTL on "ttl"
     const userActivityTable = new dynamodb.Table(this, 'UserActivityTable', {
       tableName: 'UserActivity',
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
@@ -47,7 +47,7 @@ export class DynamoDbStack extends cdk.Stack {
     });
     cdk.Tags.of(userActivityTable).add('Project', PROJECT_TAG);
 
-    // DecisionStore — PK: decisionId, GSI: userId-timestamp-index (userId HASH + timestamp RANGE)
+    // DecisionStore: PK decisionId, GSI userId-timestamp-index (userId HASH + timestamp RANGE)
     const decisionStoreTable = new dynamodb.Table(this, 'DecisionStoreTable', {
       tableName: 'DecisionStore',
       partitionKey: { name: 'decisionId', type: dynamodb.AttributeType.STRING },
@@ -62,7 +62,7 @@ export class DynamoDbStack extends cdk.Stack {
     });
     cdk.Tags.of(decisionStoreTable).add('Project', PROJECT_TAG);
 
-    // UserState — PK: userId, no GSIs
+    // UserState: PK userId, no GSIs
     const userStateTable = new dynamodb.Table(this, 'UserStateTable', {
       tableName: 'UserState',
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
@@ -71,7 +71,7 @@ export class DynamoDbStack extends cdk.Stack {
     });
     cdk.Tags.of(userStateTable).add('Project', PROJECT_TAG);
 
-    // CfnOutputs — export each table name for cross-stack / backend reference
+    // CfnOutputs: export each table name for cross-stack and backend reference
     new cdk.CfnOutput(this, 'UserProfileTableName', {
       value: userProfileTable.tableName,
       exportName: `${this.stackName}:UserProfileTableName`,
