@@ -1,5 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, LogIn } from 'lucide-react'
+import { LayoutDashboard, LogIn } from 'lucide-react';
+import { NavLink, Outlet } from 'react-router-dom';
 
 export default function Layout() {
   return (
@@ -41,5 +41,5 @@ export default function Layout() {
         <Outlet />
       </main>
     </div>
-  )
+  );
 }
