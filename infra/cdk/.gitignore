@@ -1,0 +1,14 @@
+*.js
+*.d.ts
+!jest.config.js
+!cdk.context.json
+
+# CDK asset staging
+.cdk.staging
+cdk.out
+
+# Dependencies
+node_modules
+
+# Build output
+dist
