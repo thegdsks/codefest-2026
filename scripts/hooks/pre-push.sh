@@ -1,22 +1,24 @@
+#!/bin/sh
+# pre-push.sh
+# Runs workspace-scoped checks for changed files since the tracking remote.
+# Each step times itself and prints [pre-push] <step> ... ok (Nms) on success.
+
 START_NS=$(date +%s%N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1e9))')
+
 elapsed_ms() {
   END_NS=$(date +%s%N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1e9))')
   printf '%d' "$(( (END_NS - START_NS) / 1000000 ))"
 }
 
-# Determine what changed on this branch vs the tracking remote
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 REMOTE_REF="origin/$CURRENT_BRANCH"
 
 if git rev-parse --verify "$REMOTE_REF" >/dev/null 2>&1; then
   RANGE="$REMOTE_REF..HEAD"
+elif git rev-parse --verify origin/main >/dev/null 2>&1; then
+  RANGE="origin/main..HEAD"
 else
-  # First push of a new branch, diff against main
-  if git rev-parse --verify origin/main >/dev/null 2>&1; then
-    RANGE="origin/main..HEAD"
-  else
-    RANGE="HEAD"
-  fi
+  RANGE="HEAD"
 fi
 
 CHANGED=$(git diff --name-only $RANGE 2>/dev/null)
