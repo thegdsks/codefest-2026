@@ -74,11 +74,20 @@ Hook scripts live in `scripts/hooks/`. Lefthook config is `lefthook.yml` at repo
 - Do not connect to any external corporate network, API, or database. Use only the synthetic data in `seed_data/`.
 - Do not delete or rewrite history on branches that have been pushed.
 
+## Product framing
+
+Signal Force is a real-time decision intelligence platform. One engine that turns customer signals into adaptive decisions across security, personalization, and engagement. Three apps share one engine: a customer surface (Bonvoy site in production, SPA simulator in the demo), the decision engine (Lambda + DDB + Bedrock), and an admin/ops console (the SPA's `/admin` route).
+
+The central endpoint is `POST /decisions/evaluate`. It takes user + event + context and returns `{ risk, offers, nudge, action }` in one response. The customer surface calls it on key events (login, page view, transfer initiated). The admin console reads the audit trail.
+
+See `docs/architecture.md` for the full design, including how the engine splits into hot / warm / cold lanes at production scale, and the cost model at Bonvoy scale.
+
 ## Tech stack (already decided)
 
-- Backend: Node.js 18 Lambda, Serverless Framework, DynamoDB PAY_PER_REQUEST.
+- Backend: Node.js 18 Lambda, Serverless Framework, DynamoDB PAY_PER_REQUEST. Migration to Python is the next major rewrite.
 - Frontend: Vite, React 18, TypeScript, Tailwind 3, React Router 6.
-- Infra: AWS CDK v2 in TypeScript. Two stacks: `signal-force-dynamodb`, `signal-force-budgets`.
+- Infra: AWS CDK v2 in TypeScript. Three stacks: `signal-force-dynamodb`, `signal-force-budgets`, `signal-force-runtime`.
+- Decision LLM: Amazon Bedrock, Claude Haiku 4.5 via the Converse API. Called only on the warm lane.
 - Auth: HTTP Basic Auth at client level, app user creds in login body. Single static MFA OTP for the demo.
 
 Do not introduce alternatives (no Vue, no raw CloudFormation YAML, no Pulumi, no Yarn, no Bun) without a written justification in the PR.
