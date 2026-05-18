@@ -1,3 +1,9 @@
+START_NS=$(date +%s%N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1e9))')
+elapsed_ms() {
+  END_NS=$(date +%s%N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1e9))')
+  printf '%d' "$(( (END_NS - START_NS) / 1000000 ))"
+}
+
 # Determine what changed on this branch vs the tracking remote
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 REMOTE_REF="origin/$CURRENT_BRANCH"
@@ -14,29 +20,43 @@ else
 fi
 
 CHANGED=$(git diff --name-only $RANGE 2>/dev/null)
+RAN=0
+
+run_step() {
+  STEP_NAME="$1"
+  STEP_START=$(date +%s%N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1e9))')
+  printf '[pre-push] %s ... ' "$STEP_NAME"
+  shift
+  if "$@" >/tmp/codefest-prepush.log 2>&1; then
+    STEP_END=$(date +%s%N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1e9))')
+    printf 'ok (%dms)\n' "$(( (STEP_END - STEP_START) / 1000000 ))"
+    RAN=$((RAN + 1))
+  else
+    printf 'FAILED\n'
+    cat /tmp/codefest-prepush.log >&2
+    printf '\n[pre-push] %s failed. Fix the error above and push again.\n' "$STEP_NAME" >&2
+    exit 1
+  fi
+}
 
 if printf '%s' "$CHANGED" | grep -q '^apps/frontend/'; then
-  echo "[pre-push] frontend changed, running typecheck + build"
-  (cd apps/frontend && npx tsc --noEmit && npm run build) || {
-    echo "[pre-push] frontend build failed" >&2
-    exit 1
-  }
+  run_step "frontend typecheck" sh -c 'cd apps/frontend && npx tsc --noEmit'
+  run_step "frontend build" sh -c 'cd apps/frontend && npm run build'
 fi
 
 if printf '%s' "$CHANGED" | grep -q '^infra/cdk/'; then
-  echo "[pre-push] infra/cdk changed, running cdk synth"
-  (cd infra/cdk && npx tsc --noEmit && npx cdk synth --quiet) || {
-    echo "[pre-push] cdk synth failed" >&2
-    exit 1
-  }
+  run_step "cdk typecheck" sh -c 'cd infra/cdk && npx tsc --noEmit'
+  run_step "cdk synth" sh -c 'cd infra/cdk && npx cdk synth --quiet'
 fi
 
 if printf '%s' "$CHANGED" | grep -q '^apps/backend/'; then
-  echo "[pre-push] backend changed, syntax checking handler"
-  node -c apps/backend/src/handler.js || {
-    echo "[pre-push] backend syntax check failed" >&2
-    exit 1
-  }
+  run_step "backend syntax" node -c apps/backend/src/handler.js
+fi
+
+if [ "$RAN" -eq 0 ]; then
+  printf '[pre-push] no workspace-relevant changes, skipping (%dms total)\n' "$(elapsed_ms)"
+else
+  printf '[pre-push] %d step(s) passed in %dms total\n' "$RAN" "$(elapsed_ms)"
 fi
 
 exit 0
