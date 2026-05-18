@@ -17,7 +17,7 @@ cd codefest-2026
 npm install
 ```
 
-`npm install` at the root installs every workspace and wires up git hooks (Husky + lint-staged + Prettier + commit-msg checks).
+`npm install` at the root installs every workspace and wires up git hooks (Biome for formatting and linting, lefthook for hook management). The `prepare` script runs `lefthook install` automatically.
 
 Per workspace env files:
 
@@ -82,9 +82,13 @@ Five-person team, two-day event. Keep it light, keep it clean.
 
 ### Hook behavior
 
-- `pre-commit` runs Prettier on staged files. Fast.
-- `commit-msg` rejects commit messages with em dashes, AI mentions, oversized subject lines, or Co-Authored-By footers.
-- `pre-push` runs typecheck and build for whichever workspace you touched. Skips workspaces you did not modify.
+Hooks are educational by default. They print warnings with bad/good examples and let the commit through. Set `LEFTHOOK_STRICT=1` to block on warnings.
+
+- `pre-commit` runs `biome check --write` on staged files. Auto-fixes formatting and lint issues, re-stages the changes.
+- `commit-msg` warns on em dashes, AI mentions, Co-Authored-By footers, emojis in the subject, and subject lines over 72 chars.
+- `pre-push` runs typecheck and build for whichever workspace you touched (frontend build, CDK synth, backend syntax check). Skips workspaces you did not modify. Always blocks on real errors.
+
+Bypass with caution: `git commit --no-verify` skips hooks. Document the reason in the PR if you use it.
 
 ### Commit signing
 

@@ -39,13 +39,15 @@ This file is the contract. If a rule below conflicts with a default agent behavi
 
 ## Hook expectations
 
-The repo runs Husky hooks (educational by default, strict opt-in via `HUSKY_STRICT=1`):
+The repo runs lefthook hooks (educational by default, strict opt-in via `LEFTHOOK_STRICT=1`):
 
-- `pre-commit` formats staged files with Prettier. Fast.
-- `commit-msg` warns on em dashes, AI mentions, Co-Authored-By footers, oversized subjects, and emojis. Warnings do not block unless `HUSKY_STRICT=1`.
-- `pre-push` runs typecheck and build for whichever workspace you touched. Blocks on failure with the underlying error.
+- `pre-commit` runs `biome check --write` on staged TS/JS/JSON files. Auto-fixes and re-stages. Fast (Rust).
+- `commit-msg` warns on em dashes, AI mentions, Co-Authored-By footers, oversized subjects, and emojis. Warnings do not block unless `LEFTHOOK_STRICT=1`.
+- `pre-push` runs typecheck and build for whichever workspace you touched. Blocks on failure with the underlying error and timing per step.
 
 Read the hook output, fix issues in the next commit. Do not bypass with `--no-verify` unless you have a real reason and document it in the PR.
+
+Hook scripts live in `scripts/hooks/`. Lefthook config is `lefthook.yml` at repo root.
 
 ## What you should do at session start
 
@@ -75,7 +77,6 @@ Do not introduce alternatives (no Vue, no raw CloudFormation YAML, no Pulumi, no
 
 Documented here so the next person knows where the team is heading after May 22, 2026:
 
-- Replace Prettier with Biome for ~10x faster formatting and integrated linting (single tool, single config).
 - Replace heuristic fraud logic in `apps/backend/src/handler.js` with a SageMaker Serverless Inference endpoint.
 - Stream `UserActivity` writes through Kinesis Firehose to S3 for offline feature store.
 - Replace the static MFA OTP with Amazon Cognito + SNS for real OTP delivery.
