@@ -1,0 +1,1279 @@
+{
+  "UserState": [
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#001"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779010998"
+          },
+          "lastLoginLocation": {
+            "S": "San Francisco"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779010398"
+          },
+          "transferCount1h": {
+            "N": "1"
+          },
+          "transferCount24h": {
+            "N": "1"
+          },
+          "lastTransferTime": {
+            "N": "1779011118"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#011"
+          },
+          "nudgeShownCount": {
+            "N": "1"
+          },
+          "lastNudgeTime": {
+            "N": "1779010798"
+          },
+          "offerShownCount": {
+            "N": "1"
+          },
+          "offerCooldownUntil": {
+            "N": "1779012198"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#002"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779010698"
+          },
+          "lastLoginLocation": {
+            "S": "San Francisco"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779010098"
+          },
+          "transferCount1h": {
+            "N": "2"
+          },
+          "transferCount24h": {
+            "N": "2"
+          },
+          "lastTransferTime": {
+            "N": "1779010938"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#012"
+          },
+          "nudgeShownCount": {
+            "N": "2"
+          },
+          "lastNudgeTime": {
+            "N": "1779010298"
+          },
+          "offerShownCount": {
+            "N": "2"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013098"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#003"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779010398"
+          },
+          "lastLoginLocation": {
+            "S": "New York"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779009798"
+          },
+          "transferCount1h": {
+            "N": "3"
+          },
+          "transferCount24h": {
+            "N": "3"
+          },
+          "lastTransferTime": {
+            "N": "1779010758"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#013"
+          },
+          "nudgeShownCount": {
+            "N": "3"
+          },
+          "lastNudgeTime": {
+            "N": "1779009798"
+          },
+          "offerShownCount": {
+            "N": "3"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013998"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#004"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779010098"
+          },
+          "lastLoginLocation": {
+            "S": "Chicago"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779009498"
+          },
+          "transferCount1h": {
+            "N": "4"
+          },
+          "transferCount24h": {
+            "N": "4"
+          },
+          "lastTransferTime": {
+            "N": "1779010578"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#014"
+          },
+          "nudgeShownCount": {
+            "N": "4"
+          },
+          "lastNudgeTime": {
+            "N": "1779009298"
+          },
+          "offerShownCount": {
+            "N": "4"
+          },
+          "offerCooldownUntil": {
+            "N": "1779011298"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#005"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779009798"
+          },
+          "lastLoginLocation": {
+            "S": "San Francisco"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779009198"
+          },
+          "transferCount1h": {
+            "N": "5"
+          },
+          "transferCount24h": {
+            "N": "5"
+          },
+          "lastTransferTime": {
+            "N": "1779010398"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#015"
+          },
+          "nudgeShownCount": {
+            "N": "0"
+          },
+          "lastNudgeTime": {
+            "N": "1779008798"
+          },
+          "offerShownCount": {
+            "N": "5"
+          },
+          "offerCooldownUntil": {
+            "N": "1779012198"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#006"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779009498"
+          },
+          "lastLoginLocation": {
+            "S": "San Francisco"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779008898"
+          },
+          "transferCount1h": {
+            "N": "0"
+          },
+          "transferCount24h": {
+            "N": "6"
+          },
+          "lastTransferTime": {
+            "N": "1779010218"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#016"
+          },
+          "nudgeShownCount": {
+            "N": "1"
+          },
+          "lastNudgeTime": {
+            "N": "1779008298"
+          },
+          "offerShownCount": {
+            "N": "6"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013098"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#007"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779009198"
+          },
+          "lastLoginLocation": {
+            "S": "San Francisco"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779008598"
+          },
+          "transferCount1h": {
+            "N": "1"
+          },
+          "transferCount24h": {
+            "N": "7"
+          },
+          "lastTransferTime": {
+            "N": "1779010038"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#017"
+          },
+          "nudgeShownCount": {
+            "N": "2"
+          },
+          "lastNudgeTime": {
+            "N": "1779007798"
+          },
+          "offerShownCount": {
+            "N": "0"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013998"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#008"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779008898"
+          },
+          "lastLoginLocation": {
+            "S": "Bethesda"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779008298"
+          },
+          "transferCount1h": {
+            "N": "2"
+          },
+          "transferCount24h": {
+            "N": "8"
+          },
+          "lastTransferTime": {
+            "N": "1779009858"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#018"
+          },
+          "nudgeShownCount": {
+            "N": "3"
+          },
+          "lastNudgeTime": {
+            "N": "1779007298"
+          },
+          "offerShownCount": {
+            "N": "1"
+          },
+          "offerCooldownUntil": {
+            "N": "1779011298"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#009"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779008598"
+          },
+          "lastLoginLocation": {
+            "S": "Bethesda"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779007998"
+          },
+          "transferCount1h": {
+            "N": "3"
+          },
+          "transferCount24h": {
+            "N": "9"
+          },
+          "lastTransferTime": {
+            "N": "1779009678"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#019"
+          },
+          "nudgeShownCount": {
+            "N": "4"
+          },
+          "lastNudgeTime": {
+            "N": "1779006798"
+          },
+          "offerShownCount": {
+            "N": "2"
+          },
+          "offerCooldownUntil": {
+            "N": "1779012198"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#010"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779008298"
+          },
+          "lastLoginLocation": {
+            "S": "New York"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779007698"
+          },
+          "transferCount1h": {
+            "N": "4"
+          },
+          "transferCount24h": {
+            "N": "10"
+          },
+          "lastTransferTime": {
+            "N": "1779009498"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#020"
+          },
+          "nudgeShownCount": {
+            "N": "0"
+          },
+          "lastNudgeTime": {
+            "N": "1779006298"
+          },
+          "offerShownCount": {
+            "N": "3"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013098"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#011"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": true
+          },
+          "lastLoginTime": {
+            "N": "1779007998"
+          },
+          "lastLoginLocation": {
+            "S": "Chicago"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779007398"
+          },
+          "transferCount1h": {
+            "N": "5"
+          },
+          "transferCount24h": {
+            "N": "11"
+          },
+          "lastTransferTime": {
+            "N": "1779009318"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#021"
+          },
+          "nudgeShownCount": {
+            "N": "1"
+          },
+          "lastNudgeTime": {
+            "N": "1779005798"
+          },
+          "offerShownCount": {
+            "N": "4"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013998"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#012"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779007698"
+          },
+          "lastLoginLocation": {
+            "S": "Washington DC"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779007098"
+          },
+          "transferCount1h": {
+            "N": "0"
+          },
+          "transferCount24h": {
+            "N": "0"
+          },
+          "lastTransferTime": {
+            "N": "1779009138"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#022"
+          },
+          "nudgeShownCount": {
+            "N": "2"
+          },
+          "lastNudgeTime": {
+            "N": "1779005298"
+          },
+          "offerShownCount": {
+            "N": "5"
+          },
+          "offerCooldownUntil": {
+            "N": "1779011298"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#013"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779007398"
+          },
+          "lastLoginLocation": {
+            "S": "Chicago"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779006798"
+          },
+          "transferCount1h": {
+            "N": "1"
+          },
+          "transferCount24h": {
+            "N": "1"
+          },
+          "lastTransferTime": {
+            "N": "1779008958"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#023"
+          },
+          "nudgeShownCount": {
+            "N": "3"
+          },
+          "lastNudgeTime": {
+            "N": "1779004798"
+          },
+          "offerShownCount": {
+            "N": "6"
+          },
+          "offerCooldownUntil": {
+            "N": "1779012198"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#014"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779007098"
+          },
+          "lastLoginLocation": {
+            "S": "Bethesda"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779006498"
+          },
+          "transferCount1h": {
+            "N": "2"
+          },
+          "transferCount24h": {
+            "N": "2"
+          },
+          "lastTransferTime": {
+            "N": "1779008778"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#024"
+          },
+          "nudgeShownCount": {
+            "N": "4"
+          },
+          "lastNudgeTime": {
+            "N": "1779004298"
+          },
+          "offerShownCount": {
+            "N": "0"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013098"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#015"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779006798"
+          },
+          "lastLoginLocation": {
+            "S": "Washington DC"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779006198"
+          },
+          "transferCount1h": {
+            "N": "3"
+          },
+          "transferCount24h": {
+            "N": "3"
+          },
+          "lastTransferTime": {
+            "N": "1779008598"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#025"
+          },
+          "nudgeShownCount": {
+            "N": "0"
+          },
+          "lastNudgeTime": {
+            "N": "1779003798"
+          },
+          "offerShownCount": {
+            "N": "1"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013998"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#016"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779006498"
+          },
+          "lastLoginLocation": {
+            "S": "Chicago"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779005898"
+          },
+          "transferCount1h": {
+            "N": "4"
+          },
+          "transferCount24h": {
+            "N": "4"
+          },
+          "lastTransferTime": {
+            "N": "1779008418"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#026"
+          },
+          "nudgeShownCount": {
+            "N": "1"
+          },
+          "lastNudgeTime": {
+            "N": "1779003298"
+          },
+          "offerShownCount": {
+            "N": "2"
+          },
+          "offerCooldownUntil": {
+            "N": "1779011298"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#017"
+          },
+          "isBlocked": {
+            "BOOL": true
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779006198"
+          },
+          "lastLoginLocation": {
+            "S": "Chicago"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779005598"
+          },
+          "transferCount1h": {
+            "N": "5"
+          },
+          "transferCount24h": {
+            "N": "5"
+          },
+          "lastTransferTime": {
+            "N": "1779008238"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#027"
+          },
+          "nudgeShownCount": {
+            "N": "2"
+          },
+          "lastNudgeTime": {
+            "N": "1779002798"
+          },
+          "offerShownCount": {
+            "N": "3"
+          },
+          "offerCooldownUntil": {
+            "N": "1779012198"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#018"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779005898"
+          },
+          "lastLoginLocation": {
+            "S": "Bethesda"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779005298"
+          },
+          "transferCount1h": {
+            "N": "0"
+          },
+          "transferCount24h": {
+            "N": "6"
+          },
+          "lastTransferTime": {
+            "N": "1779008058"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#028"
+          },
+          "nudgeShownCount": {
+            "N": "3"
+          },
+          "lastNudgeTime": {
+            "N": "1779002298"
+          },
+          "offerShownCount": {
+            "N": "4"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013098"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#019"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779005598"
+          },
+          "lastLoginLocation": {
+            "S": "Chicago"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779004998"
+          },
+          "transferCount1h": {
+            "N": "1"
+          },
+          "transferCount24h": {
+            "N": "7"
+          },
+          "lastTransferTime": {
+            "N": "1779007878"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#029"
+          },
+          "nudgeShownCount": {
+            "N": "4"
+          },
+          "lastNudgeTime": {
+            "N": "1779001798"
+          },
+          "offerShownCount": {
+            "N": "5"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013998"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#020"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779005298"
+          },
+          "lastLoginLocation": {
+            "S": "Bethesda"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779004698"
+          },
+          "transferCount1h": {
+            "N": "2"
+          },
+          "transferCount24h": {
+            "N": "8"
+          },
+          "lastTransferTime": {
+            "N": "1779007698"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#030"
+          },
+          "nudgeShownCount": {
+            "N": "0"
+          },
+          "lastNudgeTime": {
+            "N": "1779001298"
+          },
+          "offerShownCount": {
+            "N": "6"
+          },
+          "offerCooldownUntil": {
+            "N": "1779011298"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#021"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779004998"
+          },
+          "lastLoginLocation": {
+            "S": "New York"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779004398"
+          },
+          "transferCount1h": {
+            "N": "3"
+          },
+          "transferCount24h": {
+            "N": "9"
+          },
+          "lastTransferTime": {
+            "N": "1779007518"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#001"
+          },
+          "nudgeShownCount": {
+            "N": "1"
+          },
+          "lastNudgeTime": {
+            "N": "1779000798"
+          },
+          "offerShownCount": {
+            "N": "0"
+          },
+          "offerCooldownUntil": {
+            "N": "1779012198"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#022"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": true
+          },
+          "lastLoginTime": {
+            "N": "1779004698"
+          },
+          "lastLoginLocation": {
+            "S": "New York"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779004098"
+          },
+          "transferCount1h": {
+            "N": "4"
+          },
+          "transferCount24h": {
+            "N": "10"
+          },
+          "lastTransferTime": {
+            "N": "1779007338"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#002"
+          },
+          "nudgeShownCount": {
+            "N": "2"
+          },
+          "lastNudgeTime": {
+            "N": "1779000298"
+          },
+          "offerShownCount": {
+            "N": "1"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013098"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#023"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779004398"
+          },
+          "lastLoginLocation": {
+            "S": "Washington DC"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779003798"
+          },
+          "transferCount1h": {
+            "N": "5"
+          },
+          "transferCount24h": {
+            "N": "11"
+          },
+          "lastTransferTime": {
+            "N": "1779007158"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#003"
+          },
+          "nudgeShownCount": {
+            "N": "3"
+          },
+          "lastNudgeTime": {
+            "N": "1778999798"
+          },
+          "offerShownCount": {
+            "N": "2"
+          },
+          "offerCooldownUntil": {
+            "N": "1779013998"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#024"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779004098"
+          },
+          "lastLoginLocation": {
+            "S": "Washington DC"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779003498"
+          },
+          "transferCount1h": {
+            "N": "0"
+          },
+          "transferCount24h": {
+            "N": "0"
+          },
+          "lastTransferTime": {
+            "N": "1779006978"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#004"
+          },
+          "nudgeShownCount": {
+            "N": "4"
+          },
+          "lastNudgeTime": {
+            "N": "1778999298"
+          },
+          "offerShownCount": {
+            "N": "3"
+          },
+          "offerCooldownUntil": {
+            "N": "1779011298"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#025"
+          },
+          "isBlocked": {
+            "BOOL": false
+          },
+          "isUnderReview": {
+            "BOOL": false
+          },
+          "lastLoginTime": {
+            "N": "1779003798"
+          },
+          "lastLoginLocation": {
+            "S": "San Francisco"
+          },
+          "lastFailedLoginTime": {
+            "N": "1779003198"
+          },
+          "transferCount1h": {
+            "N": "1"
+          },
+          "transferCount24h": {
+            "N": "1"
+          },
+          "lastTransferTime": {
+            "N": "1779006798"
+          },
+          "lastTransferRecipient": {
+            "S": "USER#005"
+          },
+          "nudgeShownCount": {
+            "N": "0"
+          },
+          "lastNudgeTime": {
+            "N": "1778998798"
+          },
+          "offerShownCount": {
+            "N": "4"
+          },
+          "offerCooldownUntil": {
+            "N": "1779012198"
+          },
+          "updatedAt": {
+            "N": "1779011298"
+          }
+        }
+      }
+    }
+  ]
+}

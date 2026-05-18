@@ -1,0 +1,1054 @@
+{
+  "UserProfile": [
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#001"
+          },
+          "username": {
+            "S": "user001"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user001@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1001"
+          },
+          "tier": {
+            "S": "Gold"
+          },
+          "loyaltyScore": {
+            "N": "510"
+          },
+          "profileCompletion": {
+            "N": "0.45"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1776505698"
+          },
+          "updatedAt": {
+            "N": "1776509298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#002"
+          },
+          "username": {
+            "S": "user002"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user002@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1002"
+          },
+          "tier": {
+            "S": "Platinum"
+          },
+          "loyaltyScore": {
+            "N": "520"
+          },
+          "profileCompletion": {
+            "N": "0.5"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1776592098"
+          },
+          "updatedAt": {
+            "N": "1776595698"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#003"
+          },
+          "username": {
+            "S": "user003"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user003@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1003"
+          },
+          "tier": {
+            "S": "Titanium"
+          },
+          "loyaltyScore": {
+            "N": "530"
+          },
+          "profileCompletion": {
+            "N": "0.55"
+          },
+          "emailVerified": {
+            "BOOL": false
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1776678498"
+          },
+          "updatedAt": {
+            "N": "1776682098"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#004"
+          },
+          "username": {
+            "S": "user004"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user004@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1004"
+          },
+          "tier": {
+            "S": "Ambassador"
+          },
+          "loyaltyScore": {
+            "N": "540"
+          },
+          "profileCompletion": {
+            "N": "0.6"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1776764898"
+          },
+          "updatedAt": {
+            "N": "1776768498"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#005"
+          },
+          "username": {
+            "S": "user005"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user005@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1005"
+          },
+          "tier": {
+            "S": "Silver"
+          },
+          "loyaltyScore": {
+            "N": "550"
+          },
+          "profileCompletion": {
+            "N": "0.65"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1776851298"
+          },
+          "updatedAt": {
+            "N": "1776854898"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#006"
+          },
+          "username": {
+            "S": "user006"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user006@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1006"
+          },
+          "tier": {
+            "S": "Gold"
+          },
+          "loyaltyScore": {
+            "N": "560"
+          },
+          "profileCompletion": {
+            "N": "0.7"
+          },
+          "emailVerified": {
+            "BOOL": false
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1776937698"
+          },
+          "updatedAt": {
+            "N": "1776941298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#007"
+          },
+          "username": {
+            "S": "user007"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user007@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1007"
+          },
+          "tier": {
+            "S": "Platinum"
+          },
+          "loyaltyScore": {
+            "N": "570"
+          },
+          "profileCompletion": {
+            "N": "0.75"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1777024098"
+          },
+          "updatedAt": {
+            "N": "1777027698"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#008"
+          },
+          "username": {
+            "S": "user008"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user008@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1008"
+          },
+          "tier": {
+            "S": "Titanium"
+          },
+          "loyaltyScore": {
+            "N": "580"
+          },
+          "profileCompletion": {
+            "N": "0.8"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1777110498"
+          },
+          "updatedAt": {
+            "N": "1777114098"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#009"
+          },
+          "username": {
+            "S": "user009"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user009@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1009"
+          },
+          "tier": {
+            "S": "Ambassador"
+          },
+          "loyaltyScore": {
+            "N": "590"
+          },
+          "profileCompletion": {
+            "N": "0.85"
+          },
+          "emailVerified": {
+            "BOOL": false
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1777196898"
+          },
+          "updatedAt": {
+            "N": "1777200498"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#010"
+          },
+          "username": {
+            "S": "user010"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user010@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1010"
+          },
+          "tier": {
+            "S": "Silver"
+          },
+          "loyaltyScore": {
+            "N": "600"
+          },
+          "profileCompletion": {
+            "N": "0.4"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1777283298"
+          },
+          "updatedAt": {
+            "N": "1777286898"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#011"
+          },
+          "username": {
+            "S": "user011"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user011@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1011"
+          },
+          "tier": {
+            "S": "Gold"
+          },
+          "loyaltyScore": {
+            "N": "610"
+          },
+          "profileCompletion": {
+            "N": "0.45"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1777369698"
+          },
+          "updatedAt": {
+            "N": "1777373298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#012"
+          },
+          "username": {
+            "S": "user012"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user012@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1012"
+          },
+          "tier": {
+            "S": "Platinum"
+          },
+          "loyaltyScore": {
+            "N": "620"
+          },
+          "profileCompletion": {
+            "N": "0.5"
+          },
+          "emailVerified": {
+            "BOOL": false
+          },
+          "phoneVerified": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1777456098"
+          },
+          "updatedAt": {
+            "N": "1777459698"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#013"
+          },
+          "username": {
+            "S": "user013"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user013@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1013"
+          },
+          "tier": {
+            "S": "Titanium"
+          },
+          "loyaltyScore": {
+            "N": "630"
+          },
+          "profileCompletion": {
+            "N": "0.55"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1777542498"
+          },
+          "updatedAt": {
+            "N": "1777546098"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#014"
+          },
+          "username": {
+            "S": "user014"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user014@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1014"
+          },
+          "tier": {
+            "S": "Ambassador"
+          },
+          "loyaltyScore": {
+            "N": "640"
+          },
+          "profileCompletion": {
+            "N": "0.6"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1777628898"
+          },
+          "updatedAt": {
+            "N": "1777632498"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#015"
+          },
+          "username": {
+            "S": "user015"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user015@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1015"
+          },
+          "tier": {
+            "S": "Silver"
+          },
+          "loyaltyScore": {
+            "N": "650"
+          },
+          "profileCompletion": {
+            "N": "0.65"
+          },
+          "emailVerified": {
+            "BOOL": false
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1777715298"
+          },
+          "updatedAt": {
+            "N": "1777718898"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#016"
+          },
+          "username": {
+            "S": "user016"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user016@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1016"
+          },
+          "tier": {
+            "S": "Gold"
+          },
+          "loyaltyScore": {
+            "N": "660"
+          },
+          "profileCompletion": {
+            "N": "0.7"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1777801698"
+          },
+          "updatedAt": {
+            "N": "1777805298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#017"
+          },
+          "username": {
+            "S": "user017"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user017@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1017"
+          },
+          "tier": {
+            "S": "Platinum"
+          },
+          "loyaltyScore": {
+            "N": "670"
+          },
+          "profileCompletion": {
+            "N": "0.75"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1777888098"
+          },
+          "updatedAt": {
+            "N": "1777891698"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#018"
+          },
+          "username": {
+            "S": "user018"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user018@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1018"
+          },
+          "tier": {
+            "S": "Titanium"
+          },
+          "loyaltyScore": {
+            "N": "680"
+          },
+          "profileCompletion": {
+            "N": "0.8"
+          },
+          "emailVerified": {
+            "BOOL": false
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1777974498"
+          },
+          "updatedAt": {
+            "N": "1777978098"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#019"
+          },
+          "username": {
+            "S": "user019"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user019@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1019"
+          },
+          "tier": {
+            "S": "Ambassador"
+          },
+          "loyaltyScore": {
+            "N": "690"
+          },
+          "profileCompletion": {
+            "N": "0.85"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1778060898"
+          },
+          "updatedAt": {
+            "N": "1778064498"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#020"
+          },
+          "username": {
+            "S": "user020"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user020@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1020"
+          },
+          "tier": {
+            "S": "Silver"
+          },
+          "loyaltyScore": {
+            "N": "700"
+          },
+          "profileCompletion": {
+            "N": "0.4"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1778147298"
+          },
+          "updatedAt": {
+            "N": "1778150898"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#021"
+          },
+          "username": {
+            "S": "user021"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user021@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1021"
+          },
+          "tier": {
+            "S": "Gold"
+          },
+          "loyaltyScore": {
+            "N": "710"
+          },
+          "profileCompletion": {
+            "N": "0.45"
+          },
+          "emailVerified": {
+            "BOOL": false
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1778233698"
+          },
+          "updatedAt": {
+            "N": "1778237298"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#022"
+          },
+          "username": {
+            "S": "user022"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user022@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1022"
+          },
+          "tier": {
+            "S": "Platinum"
+          },
+          "loyaltyScore": {
+            "N": "720"
+          },
+          "profileCompletion": {
+            "N": "0.5"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1778320098"
+          },
+          "updatedAt": {
+            "N": "1778323698"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#023"
+          },
+          "username": {
+            "S": "user023"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user023@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1023"
+          },
+          "tier": {
+            "S": "Titanium"
+          },
+          "loyaltyScore": {
+            "N": "730"
+          },
+          "profileCompletion": {
+            "N": "0.55"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1778406498"
+          },
+          "updatedAt": {
+            "N": "1778410098"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#024"
+          },
+          "username": {
+            "S": "user024"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user024@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1024"
+          },
+          "tier": {
+            "S": "Ambassador"
+          },
+          "loyaltyScore": {
+            "N": "740"
+          },
+          "profileCompletion": {
+            "N": "0.6"
+          },
+          "emailVerified": {
+            "BOOL": false
+          },
+          "phoneVerified": {
+            "BOOL": true
+          },
+          "createdAt": {
+            "N": "1778492898"
+          },
+          "updatedAt": {
+            "N": "1778496498"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": {
+            "S": "USER#025"
+          },
+          "username": {
+            "S": "user025"
+          },
+          "passwordHash": {
+            "S": "Password1"
+          },
+          "email": {
+            "S": "user025@example.com"
+          },
+          "phone": {
+            "S": "+1-202-555-1025"
+          },
+          "tier": {
+            "S": "Silver"
+          },
+          "loyaltyScore": {
+            "N": "750"
+          },
+          "profileCompletion": {
+            "N": "0.65"
+          },
+          "emailVerified": {
+            "BOOL": true
+          },
+          "phoneVerified": {
+            "BOOL": false
+          },
+          "createdAt": {
+            "N": "1778579298"
+          },
+          "updatedAt": {
+            "N": "1778582898"
+          }
+        }
+      }
+    }
+  ]
+}
