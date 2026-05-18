@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.turbo/
+
+# Serverless Framework
+.serverless/
+.dynamodb/
+.esbuild/
+
+# AWS
+.aws/
+aws-exports.js
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test
+coverage/
+.nyc_output/
+
+# OS
+Thumbs.db
