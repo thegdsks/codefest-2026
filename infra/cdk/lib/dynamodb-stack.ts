@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import { Construct } from 'constructs';
+import type { Construct } from 'constructs';
 
 const PROJECT_TAG = 'codefest-2026';
 

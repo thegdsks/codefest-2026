@@ -1,30 +1,30 @@
-import { useState, type FormEvent } from 'react'
-import { apiFetch } from '../lib/api'
-import type { LoginRequest, LoginResponse } from '../lib/types'
+import { type FormEvent, useState } from 'react';
+import { apiFetch } from '../lib/api';
+import type { LoginRequest, LoginResponse } from '../lib/types';
 
 interface FormState {
-  username: string
-  password: string
+  username: string;
+  password: string;
 }
 
 export default function Login() {
-  const [form, setForm] = useState<FormState>({ username: '', password: '' })
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
+  const [form, setForm] = useState<FormState>({ username: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setLoading(true)
-    setResult(null)
+    e.preventDefault();
+    setLoading(true);
+    setResult(null);
 
-    const body: LoginRequest = { username: form.username, password: form.password }
+    const body: LoginRequest = { username: form.username, password: form.password };
     const response = await apiFetch<LoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(body),
-    })
+    });
 
-    setResult(JSON.stringify(response, null, 2))
-    setLoading(false)
+    setResult(JSON.stringify(response, null, 2));
+    setLoading(false);
   }
 
   return (
@@ -81,5 +81,5 @@ export default function Login() {
         </div>
       )}
     </div>
-  )
+  );
 }

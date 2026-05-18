@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
-import { Construct } from 'constructs';
+import type { Construct } from 'constructs';
 
 const PROJECT_TAG = 'codefest-2026';
 
@@ -15,9 +15,9 @@ export class BudgetsStack extends cdk.Stack {
     // or environment variable BUDGET_ALERT_EMAIL.
     // Update before deploying — default is a placeholder.
     const alertEmail =
-      this.node.tryGetContext('budgetAlertEmail') as string | undefined
-      ?? process.env['BUDGET_ALERT_EMAIL']
-      ?? 'change-me@example.com';
+      (this.node.tryGetContext('budgetAlertEmail') as string | undefined) ??
+      process.env['BUDGET_ALERT_EMAIL'] ??
+      'change-me@example.com';
 
     const alertTopic = new sns.Topic(this, 'BudgetAlertTopic', {
       displayName: 'codefest-2026 budget alerts',
@@ -27,7 +27,9 @@ export class BudgetsStack extends cdk.Stack {
 
     const topicArn = alertTopic.topicArn;
 
-    const snsNotification = (threshold: number): budgets.CfnBudget.NotificationWithSubscribersProperty => ({
+    const snsNotification = (
+      threshold: number
+    ): budgets.CfnBudget.NotificationWithSubscribersProperty => ({
       notification: {
         notificationType: 'ACTUAL',
         comparisonOperator: 'GREATER_THAN',
@@ -37,7 +39,9 @@ export class BudgetsStack extends cdk.Stack {
       subscribers: [{ subscriptionType: 'SNS', address: topicArn }],
     });
 
-    const snsForecastedNotification = (threshold: number): budgets.CfnBudget.NotificationWithSubscribersProperty => ({
+    const snsForecastedNotification = (
+      threshold: number
+    ): budgets.CfnBudget.NotificationWithSubscribersProperty => ({
       notification: {
         notificationType: 'FORECASTED',
         comparisonOperator: 'GREATER_THAN',
@@ -55,10 +59,7 @@ export class BudgetsStack extends cdk.Stack {
         timeUnit: 'MONTHLY',
         budgetLimit: { amount: 25, unit: 'USD' },
       },
-      notificationsWithSubscribers: [
-        snsNotification(80),
-        snsNotification(100),
-      ],
+      notificationsWithSubscribers: [snsNotification(80), snsNotification(100)],
     });
 
     // $100 monthly budget — alert at 80% and 100% actual spend
@@ -69,10 +70,7 @@ export class BudgetsStack extends cdk.Stack {
         timeUnit: 'MONTHLY',
         budgetLimit: { amount: 100, unit: 'USD' },
       },
-      notificationsWithSubscribers: [
-        snsNotification(80),
-        snsNotification(100),
-      ],
+      notificationsWithSubscribers: [snsNotification(80), snsNotification(100)],
     });
 
     // $200 monthly budget — alert at 100% forecasted spend
@@ -83,9 +81,7 @@ export class BudgetsStack extends cdk.Stack {
         timeUnit: 'MONTHLY',
         budgetLimit: { amount: 200, unit: 'USD' },
       },
-      notificationsWithSubscribers: [
-        snsForecastedNotification(100),
-      ],
+      notificationsWithSubscribers: [snsForecastedNotification(100)],
     });
 
     new cdk.CfnOutput(this, 'BudgetAlertTopicArn', {

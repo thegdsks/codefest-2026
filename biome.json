@@ -1,0 +1,73 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "apps/**",
+      "infra/**",
+      "scripts/**",
+      "*.json",
+      "*.ts",
+      "*.tsx",
+      "*.js",
+      "*.jsx",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/build",
+      "!**/.serverless",
+      "!**/cdk.out",
+      "!**/package-lock.json",
+      "!**/seed_data/*.json"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "es5",
+      "arrowParentheses": "always",
+      "semicolons": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnreachable": "error",
+        "noUnusedVariables": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noUnknownAtRules": "warn"
+      },
+      "style": {
+        "noNonNullAssertion": "warn",
+        "useConst": "warn",
+        "useTemplate": "warn",
+        "noUnusedTemplateLiteral": "warn",
+        "useDefaultParameterLast": "warn",
+        "useEnumInitializers": "warn",
+        "useSingleVarDeclarator": "warn",
+        "noParameterAssign": "warn"
+      },
+      "complexity": {
+        "noForEach": "warn",
+        "useLiteralKeys": "warn",
+        "noUselessSwitchCase": "warn",
+        "noExcessiveCognitiveComplexity": "warn"
+      },
+      "nursery": {}
+    }
+  }
+}

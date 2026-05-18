@@ -1,0 +1,17 @@
+pre-commit:
+  parallel: true
+  commands:
+    biome-check:
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs,json}"
+      run: npx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  commands:
+    validate-msg:
+      run: sh scripts/hooks/commit-msg.sh {1}
+
+pre-push:
+  commands:
+    workspace-checks:
+      run: sh scripts/hooks/pre-push.sh

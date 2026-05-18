@@ -1,0 +1,64 @@
+#!/bin/sh
+# pre-push.sh
+# Runs workspace-scoped checks for changed files since the tracking remote.
+# Each step times itself and prints [pre-push] <step> ... ok (Nms) on success.
+
+START_NS=$(date +%s%N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1e9))')
+
+elapsed_ms() {
+  END_NS=$(date +%s%N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1e9))')
+  printf '%d' "$(( (END_NS - START_NS) / 1000000 ))"
+}
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+REMOTE_REF="origin/$CURRENT_BRANCH"
+
+if git rev-parse --verify "$REMOTE_REF" >/dev/null 2>&1; then
+  RANGE="$REMOTE_REF..HEAD"
+elif git rev-parse --verify origin/main >/dev/null 2>&1; then
+  RANGE="origin/main..HEAD"
+else
+  RANGE="HEAD"
+fi
+
+CHANGED=$(git diff --name-only $RANGE 2>/dev/null)
+RAN=0
+
+run_step() {
+  STEP_NAME="$1"
+  STEP_START=$(date +%s%N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1e9))')
+  printf '[pre-push] %s ... ' "$STEP_NAME"
+  shift
+  if "$@" >/tmp/codefest-prepush.log 2>&1; then
+    STEP_END=$(date +%s%N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1e9))')
+    printf 'ok (%dms)\n' "$(( (STEP_END - STEP_START) / 1000000 ))"
+    RAN=$((RAN + 1))
+  else
+    printf 'FAILED\n'
+    cat /tmp/codefest-prepush.log >&2
+    printf '\n[pre-push] %s failed. Fix the error above and push again.\n' "$STEP_NAME" >&2
+    exit 1
+  fi
+}
+
+if printf '%s' "$CHANGED" | grep -q '^apps/frontend/'; then
+  run_step "frontend typecheck" sh -c 'cd apps/frontend && npx tsc --noEmit'
+  run_step "frontend build" sh -c 'cd apps/frontend && npm run build'
+fi
+
+if printf '%s' "$CHANGED" | grep -q '^infra/cdk/'; then
+  run_step "cdk typecheck" sh -c 'cd infra/cdk && npx tsc --noEmit'
+  run_step "cdk synth" sh -c 'cd infra/cdk && npx cdk synth --quiet'
+fi
+
+if printf '%s' "$CHANGED" | grep -q '^apps/backend/'; then
+  run_step "backend syntax" node -c apps/backend/src/handler.js
+fi
+
+if [ "$RAN" -eq 0 ]; then
+  printf '[pre-push] no workspace-relevant changes, skipping (%dms total)\n' "$(elapsed_ms)"
+else
+  printf '[pre-push] %d step(s) passed in %dms total\n' "$RAN" "$(elapsed_ms)"
+fi
+
+exit 0

@@ -1,0 +1,28 @@
+{
+  "name": "codefest-2026",
+  "private": true,
+  "description": "Marriott Codefest 2026 fraud-aware loyalty platform",
+  "workspaces": [
+    "apps/backend",
+    "apps/frontend",
+    "infra/cdk"
+  ],
+  "scripts": {
+    "prepare": "lefthook install",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "check": "biome check .",
+    "typecheck:frontend": "tsc -p apps/frontend --noEmit",
+    "typecheck:cdk": "tsc -p infra/cdk --noEmit",
+    "synth": "npm --workspace=infra/cdk exec -- cdk synth --quiet",
+    "build:frontend": "npm --workspace=apps/frontend run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.15",
+    "lefthook": "2.1.6"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
