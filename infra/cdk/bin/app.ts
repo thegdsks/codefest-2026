@@ -3,21 +3,27 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { BudgetsStack } from '../lib/budgets-stack';
 import { DynamoDbStack } from '../lib/dynamodb-stack';
+import { RuntimeStack } from '../lib/runtime-stack';
 
 const app = new cdk.App();
 
-new DynamoDbStack(app, 'signal-force-dynamodb', {
-  env: {
-    account: process.env['CDK_DEFAULT_ACCOUNT'],
-    region: process.env['CDK_DEFAULT_REGION'],
-  },
+const sharedEnv = {
+  account: process.env['CDK_DEFAULT_ACCOUNT'],
+  region: process.env['CDK_DEFAULT_REGION'],
+};
+
+const dynamoDb = new DynamoDbStack(app, 'signal-force-dynamodb', {
+  env: sharedEnv,
   description: 'Signal Force - DynamoDB tables',
 });
 
 new BudgetsStack(app, 'signal-force-budgets', {
-  env: {
-    account: process.env['CDK_DEFAULT_ACCOUNT'],
-    region: process.env['CDK_DEFAULT_REGION'],
-  },
+  env: sharedEnv,
   description: 'Signal Force - cost budgets and alerts',
+});
+
+new RuntimeStack(app, 'signal-force-runtime', {
+  env: sharedEnv,
+  description: 'Signal Force - runtime (Lambda, HTTP API, fraud alert, dashboard)',
+  dynamoDbStack: dynamoDb,
 });
