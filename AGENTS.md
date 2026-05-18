@@ -15,9 +15,40 @@ This file is the contract. If a rule below conflicts with a default agent behavi
 - No em dashes (—). They are a strong AI tell. Use commas, parentheses, "and", or split the sentence. Hyphens (-) for compound words are fine.
 - No emojis anywhere. Code, README, commits, PR descriptions.
 - No marketing fluff. Avoid "blazing fast", "comprehensive", "production-ready" unless earned.
-- Vary phrasing in commit messages. Do not start every commit with the same verb.
-- Plain English subjects. No conventional-commits prefixes (`feat:`, `fix:`, `chore:`) unless the team adopts them later.
-- Subject line under 72 chars.
+- Vary phrasing in commit messages within each type. Do not start every `feat:` commit with the same verb.
+- Subject line under 72 chars including the prefix.
+
+### Commit subject format (Conventional Commits, lite)
+
+Use one of these type prefixes on every commit subject:
+
+| Type | When |
+|---|---|
+| `feat` | New feature or capability |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `chore` | Tooling, config, deps that do not change behavior |
+| `refactor` | Code restructure with no behavior change |
+| `perf` | Performance improvement |
+| `test` | Tests only |
+| `style` | Formatting only (no logic) |
+| `build` | Build system, packaging |
+| `ci` | CI configuration |
+| `revert` | Reverts a previous commit |
+
+Optional scope in parens. Optional `!` after the type or scope for a breaking change. Then `: ` and the imperative subject.
+
+Examples:
+
+```
+feat(auth): add static MFA OTP verification
+fix(handler): handle null user tier in offer match
+docs(architecture): expand storage tiering section
+chore(hooks): warn when subject is missing a conventional prefix
+refactor!: drop the legacy auth helper
+```
+
+The commit-msg hook warns on missing prefixes (educational by default, blocks under `LEFTHOOK_STRICT=1`). Merge commits made by `gh` are exempt.
 
 ## Code rules
 
@@ -34,8 +65,9 @@ This file is the contract. If a rule below conflicts with a default agent behavi
 - Branch from `main`: `feat/<short-name>` or `fix/<short-name>`.
 - One logical change per commit. No squashed mega-commits during development.
 - Sign commits with SSH (setup below).
-- Open a PR, do not push directly to `main`.
-- Do not force-push to shared branches.
+- Open a PR, do not push directly to `main`. Local hook blocks `git push` to `main` and `master`.
+- Do not merge your own PR without a review. GitHub branch protection requires at least one approving review before merge. If you really need a solo bypass, use admin override and explain why in the PR description.
+- Do not force-push to shared branches. The single documented exception is when an authorized admin needs to redact content from history, and that operation is reverted to protected immediately after.
 
 ### Commit signing setup (one-time per dev machine)
 
