@@ -3,6 +3,11 @@ node_modules/
 .pnp
 .pnp.js
 
+# Workspace install hygiene: only the root package-lock.json is authoritative.
+# Per-workspace lockfiles drift from the root and break fresh clones.
+apps/*/package-lock.json
+infra/*/package-lock.json
+
 # Build outputs
 dist/
 build/
