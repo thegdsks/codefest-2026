@@ -7,7 +7,7 @@ const {
   QueryCommand,
   ScanCommand,
 } = require('@aws-sdk/lib-dynamodb');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -399,7 +399,7 @@ async function login(event, correlationId) {
     lastLoc.toLowerCase() !== String(location).toLowerCase() &&
     now - lastTime <= 300;
 
-  const sessionId = `SESSION#${uuidv4().slice(0, 8)}`;
+  const sessionId = `SESSION#${randomUUID().slice(0, 8)}`;
   await putSession({
     sessionId,
     userId,
@@ -546,7 +546,7 @@ async function transfer(event, correlationId) {
   const st = await getState(userId);
   const tc1h = st && st.transferCount1h ? st.transferCount1h : 0;
 
-  const transferId = `XFER#${uuidv4().slice(0, 8)}`;
+  const transferId = `XFER#${randomUUID().slice(0, 8)}`;
   await putActivity(activityTransfer(userId, now, amount, recipientId, channel, correlationId));
 
   if (tc1h >= 4) {
