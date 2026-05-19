@@ -1,6 +1,14 @@
 service: sf-decision-platform
 frameworkVersion: '3'
 
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: true
+
 provider:
   name: aws
   runtime: nodejs18.x
@@ -30,11 +38,11 @@ provider:
             - dynamodb:Query
             - dynamodb:Scan
           Resource:
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:TABLE_USER_PROFILE, 'UserProfile'}
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:TABLE_USER_SESSION, 'UserSession'}
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:TABLE_USER_ACTIVITY, 'UserActivity'}
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:TABLE_DECISION_STORE, 'DecisionStore'}
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:TABLE_USER_STATE, 'UserState'}
+            - arn:aws:dynamodb:${aws:region}:${env:AWS_ACCOUNT_ID, '000000000000'}:table/${env:TABLE_USER_PROFILE, 'UserProfile'}
+            - arn:aws:dynamodb:${aws:region}:${env:AWS_ACCOUNT_ID, '000000000000'}:table/${env:TABLE_USER_SESSION, 'UserSession'}
+            - arn:aws:dynamodb:${aws:region}:${env:AWS_ACCOUNT_ID, '000000000000'}:table/${env:TABLE_USER_ACTIVITY, 'UserActivity'}
+            - arn:aws:dynamodb:${aws:region}:${env:AWS_ACCOUNT_ID, '000000000000'}:table/${env:TABLE_DECISION_STORE, 'DecisionStore'}
+            - arn:aws:dynamodb:${aws:region}:${env:AWS_ACCOUNT_ID, '000000000000'}:table/${env:TABLE_USER_STATE, 'UserState'}
 
 functions:
   api:
