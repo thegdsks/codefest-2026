@@ -88,6 +88,11 @@ export class RuntimeStack extends cdk.Stack {
         target: 'node18',
         externalModules: ['@aws-sdk/*'],
       },
+      // Caps the thundering-herd multiplier so a load spike cannot multiplicatively
+      // call the LLM across many concurrent instances. Each instance has its own
+      // in-process sliding-window cap (LLM_GUARD_MAX_CALLS), so worst-case LLM
+      // burst = reservedConcurrentExecutions * LLM_GUARD_MAX_CALLS per window.
+      reservedConcurrentExecutions: 5,
       tracing: lambda.Tracing.ACTIVE,
       logGroup,
       environment: {
@@ -342,6 +347,28 @@ export class RuntimeStack extends cdk.Stack {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
     apiGateway5xxAlarm.addAlarmAction(snsAlarmAction);
+
+    // Alarm 3: LLM invocation rate exceeds 200 calls/hour across all instances.
+    // The EMF metric is emitted from llm.js on every real LLM call; CloudWatch
+    // aggregates it across all dimensions. Firing here means the sliding-window
+    // guard may not be enough on its own - investigate for bugs or attack traffic.
+    const llmBudgetAlarm = new cloudwatch.Alarm(this, 'LlmBudgetAlarm', {
+      alarmName: 'signal-force-llm-budget',
+      alarmDescription:
+        'LLM invocations exceeded 200/hr. Check for bug loops or unexpected traffic. ' +
+        'Tune LLM_GUARD_MAX_CALLS and LLM_GUARD_WINDOW_SEC env vars if thresholds need adjustment.',
+      metric: new cloudwatch.Metric({
+        namespace: 'SignalForce',
+        metricName: 'LLMInvocations',
+        statistic: 'Sum',
+        period: cdk.Duration.hours(1),
+      }),
+      threshold: 200,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    llmBudgetAlarm.addAlarmAction(snsAlarmAction);
 
     // -------------------------------------------------------------------------
     // cdk-nag suppressions: documented architecture choices, not oversights.
