@@ -54,7 +54,7 @@ fi
 
 if printf '%s' "$CHANGED" | grep -q '^infra/cdk/'; then
   run_step "cdk typecheck" sh -c 'cd infra/cdk && npx tsc --noEmit'
-  run_step "cdk synth" sh -c 'cd infra/cdk && npx cdk synth --quiet'
+  run_step "cdk synth" sh -c 'cd infra/cdk && CDK_DEFAULT_ACCOUNT=${CDK_DEFAULT_ACCOUNT:-123456789012} CDK_DEFAULT_REGION=${CDK_DEFAULT_REGION:-us-east-1} CDK_NAG=off npx cdk synth --quiet'
 fi
 
 if printf '%s' "$CHANGED" | grep -q '^apps/backend/'; then

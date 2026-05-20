@@ -1,5 +1,3 @@
-// API envelope types
-
 export interface ApiSuccess<T> {
   correlationId: string;
   data: T;
@@ -20,8 +18,6 @@ export type ApiResult<T> =
   | { data: T; error: null; correlationId: string }
   | { data: null; error: ApiErrorDetail; correlationId: string };
 
-// Auth
-
 export interface LoginRequest {
   username: string;
   password: string;
@@ -39,8 +35,6 @@ export interface LoginResponse {
   user: User;
 }
 
-// User
-
 export interface User {
   userId: string;
   name: string;
@@ -48,8 +42,6 @@ export interface User {
   tier: string;
   pointsBalance: number;
 }
-
-// Offers
 
 export interface Offer {
   offerId: string;
@@ -59,16 +51,12 @@ export interface Offer {
   expiresAt: string;
 }
 
-// Nudges
-
 export interface Nudge {
   nudgeId: string;
   type: string;
   message: string;
   priority: number;
 }
-
-// Dashboard
 
 export interface DashboardResponse {
   user: User;

@@ -1,13 +1,15 @@
+'use client';
+
 import { type FormEvent, useState } from 'react';
-import { apiFetch } from '../lib/api';
-import type { LoginRequest, LoginResponse } from '../lib/types';
+import { apiFetch } from '@/lib/api';
+import type { LoginRequest, LoginResponse } from '@/lib/types';
 
 interface FormState {
   username: string;
   password: string;
 }
 
-export default function Login() {
+export default function LoginPage() {
   const [form, setForm] = useState<FormState>({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -17,7 +19,11 @@ export default function Login() {
     setLoading(true);
     setResult(null);
 
-    const body: LoginRequest = { username: form.username, password: form.password };
+    const body: LoginRequest = {
+      username: form.username,
+      password: form.password,
+    };
+
     const response = await apiFetch<LoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(body),

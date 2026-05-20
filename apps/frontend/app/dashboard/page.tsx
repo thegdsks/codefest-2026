@@ -1,10 +1,12 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { apiFetch } from '../lib/api';
-import type { ApiResult, DashboardResponse } from '../lib/types';
+import { apiFetch } from '@/lib/api';
+import type { ApiResult, DashboardResponse } from '@/lib/types';
 
 type DashboardResult = ApiResult<DashboardResponse>;
 
-export default function Dashboard() {
+export default function DashboardPage() {
   const [result, setResult] = useState<DashboardResult | null>(null);
   const [loading, setLoading] = useState(true);
 

@@ -1,8 +1,8 @@
 import type { ApiErrorDetail, ApiResult } from './types';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
-const CLIENT_SECRET = import.meta.env.VITE_CLIENT_SECRET;
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const CLIENT_ID = process.env.NEXT_PUBLIC_CLIENT_ID;
+const CLIENT_SECRET = process.env.NEXT_PUBLIC_CLIENT_SECRET;
 
 function buildAuthHeader(): string {
   const credentials = `${CLIENT_ID}:${CLIENT_SECRET}`;
@@ -36,7 +36,10 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
     const json = (await response.json()) as Record<string, unknown>;
 
     if (!response.ok) {
-      const errorPayload = json as { correlationId?: string; error?: ApiErrorDetail };
+      const errorPayload = json as {
+        correlationId?: string;
+        error?: ApiErrorDetail;
+      };
       return {
         data: null,
         error: errorPayload.error ?? {
