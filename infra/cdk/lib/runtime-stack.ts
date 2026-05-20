@@ -367,6 +367,12 @@ export class RuntimeStack extends cdk.Stack {
             'Resource::arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5*',
           ],
         },
+        {
+          id: 'AwsSolutions-IAM5',
+          reason:
+            'X-Ray PutTraceSegments and PutTelemetryRecords cannot be scoped to specific resource ARNs (AWS docs require Resource: *). Enabled by lambda.Tracing.ACTIVE so the runtime function appears in X-Ray traces.',
+          appliesTo: ['Resource::*'],
+        },
       ],
       true
     );

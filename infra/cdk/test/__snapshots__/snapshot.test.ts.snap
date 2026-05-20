@@ -1714,6 +1714,13 @@ exports[`signal-force CDK RuntimeStack matches snapshot 1`] = `
               "id": "AwsSolutions-IAM5",
               "reason": "Bedrock foundation-model and inference-profile ARNs use a model-family wildcard so the function works across Haiku 4.5 minor versions without redeploy.",
             },
+            {
+              "applies_to": [
+                "Resource::*",
+              ],
+              "id": "AwsSolutions-IAM5",
+              "reason": "X-Ray PutTraceSegments and PutTelemetryRecords cannot be scoped to specific resource ARNs (AWS docs require Resource: *). Enabled by lambda.Tracing.ACTIVE so the runtime function appears in X-Ray traces.",
+            },
           ],
         },
       },
@@ -1778,6 +1785,13 @@ exports[`signal-force CDK RuntimeStack matches snapshot 1`] = `
               ],
               "id": "AwsSolutions-IAM5",
               "reason": "Bedrock foundation-model and inference-profile ARNs use a model-family wildcard so the function works across Haiku 4.5 minor versions without redeploy.",
+            },
+            {
+              "applies_to": [
+                "Resource::*",
+              ],
+              "id": "AwsSolutions-IAM5",
+              "reason": "X-Ray PutTraceSegments and PutTelemetryRecords cannot be scoped to specific resource ARNs (AWS docs require Resource: *). Enabled by lambda.Tracing.ACTIVE so the runtime function appears in X-Ray traces.",
             },
           ],
         },
