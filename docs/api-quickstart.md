@@ -2,6 +2,27 @@
 
 Copy-paste curl examples for the deployed demo API. Verified working against the live stack on 2026-05-20.
 
+## Endpoint index
+
+All endpoints require `Authorization: Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0` (`demoClient:demoSecret`). Admin routes additionally require the basic-auth subject to be in the `ADMIN_USERNAMES` env (default `demoClient`).
+
+| Method | Path | Purpose | Auth | Anchor |
+|--------|------|---------|------|--------|
+| `POST` | `/auth/login` | Customer login, returns sessionId and risk decision | Basic | [Auth flow](#auth-flow-run-these-two-first) |
+| `POST` | `/auth/mfa/verify` | Verify the static OTP (123456) to complete login | Basic | [Auth flow](#auth-flow-run-these-two-first) |
+| `POST` | `/transactions/transfer` | Points transfer with fraud scoring | Basic | [Transactions](#transactions) |
+| `GET` | `/user/profile` | Fetch full loyalty profile for a user | Basic | [Customer surface](#customer-surface) |
+| `GET` | `/user/profile-completeness?userId=` | Completeness percent, missing fields, and nudge text | Basic | [Profile completeness](#profile-completeness) |
+| `GET` | `/offers?userId=` | Personalized offers for a user | Basic | [Customer surface](#customer-surface) |
+| `POST` | `/offers/action` | Track an offer interaction (IMPRESSION, CLICK, BOOK) | Basic | [Customer surface](#customer-surface) |
+| `GET` | `/nudges?userId=` | Active nudges for a user | Basic | [Customer surface](#customer-surface) |
+| `POST` | `/nudges/action` | Track a nudge interaction (SHOWN, DISMISSED, COMPLETED) | Basic | [Customer surface](#customer-surface) |
+| `GET` | `/dashboard?userId=` | Customer dashboard: profile, fraud status, offers, nudges, activity | Basic | [Customer surface](#customer-surface) |
+| `GET` | `/admin/decisions?window=&type=&userId=&limit=` | Decision feed, sorted newest-first | Basic + admin | [Admin endpoints](#admin-endpoints) |
+| `GET` | `/admin/metrics?window=` | Aggregate counts and L1 vs L1+L2 split | Basic + admin | [Admin endpoints](#admin-endpoints) |
+| `POST` | `/admin/decisions/{id}/release` | Override a HOLD or BLOCK decision | Basic + admin | [Admin endpoints](#admin-endpoints) |
+| `GET` | `/admin/users?limit=&cursor=` | Paginated user list (passwordHash stripped) | Basic + admin | [Admin endpoints](#admin-endpoints) |
+
 ## Connection details
 
 - Base URL: `https://55p8lbxf9g.execute-api.us-east-1.amazonaws.com`
