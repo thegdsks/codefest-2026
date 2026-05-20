@@ -598,6 +598,56 @@ describe('GET /nudges', () => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /health (unauthenticated)
+// ---------------------------------------------------------------------------
+
+describe('GET /health', () => {
+  it('returns 200 without any Authorization header', async () => {
+    handler._setDdb(makeDdb());
+    const event = {
+      httpMethod: 'GET',
+      path: '/health',
+      headers: {},
+      queryStringParameters: null,
+      body: null,
+    };
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+  });
+
+  it('returns status ok with version, commit, engineLayer, asOf fields', async () => {
+    handler._setDdb(makeDdb());
+    const event = {
+      httpMethod: 'GET',
+      path: '/health',
+      headers: {},
+      queryStringParameters: null,
+      body: null,
+    };
+    const res = await handler.main(event);
+    const body = JSON.parse(res.body);
+    assert.equal(body.status, 'ok');
+    assert.ok(body.version, 'version field missing');
+    assert.ok('commit' in body, 'commit field missing');
+    assert.ok(body.engineLayer, 'engineLayer field missing');
+    assert.ok(typeof body.asOf === 'number', 'asOf must be a number');
+  });
+
+  it('returns 200 even with wrong Basic Auth credentials', async () => {
+    handler._setDdb(makeDdb());
+    const event = {
+      httpMethod: 'GET',
+      path: '/health',
+      headers: { authorization: basicAuth('wrong', 'creds') },
+      queryStringParameters: null,
+      body: null,
+    };
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200, '/health must not require auth');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GET /admin/decisions/{id}
 // ---------------------------------------------------------------------------
 
