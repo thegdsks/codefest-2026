@@ -1,5 +1,7 @@
 # Signal Force API quickstart
 
+> OpenAPI 3.1 spec: [docs/openapi.yaml](./openapi.yaml) - see [docs/openapi-readme.md](./openapi-readme.md) for TypeScript codegen instructions.
+
 Copy-paste curl examples for the deployed demo API. Verified working against the live stack on 2026-05-20.
 
 ## Endpoint index
