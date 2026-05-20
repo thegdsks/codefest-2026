@@ -162,6 +162,30 @@ docs                   Architecture and design notes
 scripts/hooks          commit-msg and pre-push scripts called by lefthook
 ```
 
+## Workstream split
+
+Two lanes, no overlap on files. The lane boundary is the file system, not the feature.
+
+| Lane | Owner | Files / scope | Deliverable |
+|---|---|---|---|
+| Infra and API | Gagan | `apps/backend/**`, `infra/cdk/**`, `seed_data/**`, `docs/api-quickstart.md`, `docs/superpowers/plans/*-infra*.md` | Working API for all three demo use cases, admin endpoints, deploy, observability, cost guardrails |
+| Frontend | Julia (AI Studio + cleanup) | `apps/frontend/**`, `apps/frontend/.env.example` | Customer screens (login, MFA, dashboard, transfer), admin console, visual design |
+| Product / demo orchestration | PM | `docs/demo-runbook.md` (forthcoming) | Demo storyboard, talking points, screen handoff sequence |
+
+Coordination contract:
+
+- The API is the only shared interface. Both lanes consume `docs/api-quickstart.md` as the source of truth. Any new endpoint requires that doc to be updated in the same PR.
+- The frontend lane reads endpoints, never adds them. The infra lane never edits files under `apps/frontend/`.
+- Both lanes commit to `main` via PR. Branches are prefixed `feat/infra-*` and `feat/fe-*` so reviewers know which lane to look at.
+
+## Demo use cases (in scope, the API supports each end to end)
+
+1. **Suspicious login (geo-velocity)** — login from two distant locations within a short window. Risk score crosses the impossible-travel threshold; MFA is forced and a `LOGIN_GEO` decision is written for the admin feed. Demo shows success path only.
+2. **Points transfer abuse** — first transfer scores MEDIUM. Repeated transfers within an hour escalate to HIGH; the transfer is held, a fraud SNS notification publishes, the user is blocked for 24h. Admin can release the hold from `/admin`.
+3. **Profile completeness nudge** — on login the engine returns the user's completion percentage and the missing fields. The frontend renders the nudge; submitting any missing field increases the percentage and removes the nudge on the next poll.
+
+Personalized offers ride on top of all three (the engine returns an offer with each login response when eligibility rules match). Companion / family profiles are deferred (see `docs/architecture.md` upgrade path).
+
 ## Daily flow
 
 | Step | Command |
