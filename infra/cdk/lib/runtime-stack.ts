@@ -182,9 +182,14 @@ export class RuntimeStack extends cdk.Stack {
         }),
       };
       // HttpApi v2 has no tracingEnabled prop; use the L1 escape hatch on the default stage.
+      // Throttling: 20 rps steady-state, burst cap of 40 (2x steady, generous for a demo
+      // with 5 reserved concurrency slots). UsagePlan is RestApi (v1) only; for HttpApi v2
+      // the throttle lives on defaultRouteSettings via the CfnStage L1 escape hatch.
       defaultStage.defaultRouteSettings = {
         ...(defaultStage.defaultRouteSettings as Record<string, unknown> | undefined),
         detailedMetricsEnabled: true,
+        throttlingRateLimit: 20,
+        throttlingBurstLimit: 40,
       };
     }
 
