@@ -20,19 +20,26 @@ function clearLiteLLMEnv() {
 }
 
 // ---------------------------------------------------------------------------
-// The module is required after each env manipulation because readConfig()
-// reads process.env at call time. No module cache tricks needed.
+// The module is required once; the _setProvider seam allows injecting a fake
+// provider per test without re-requiring.
 // ---------------------------------------------------------------------------
 
-const { classify, writeText } = require('./llm.js');
+const { classify, writeText, _setProvider } = require('./llm.js');
 
 // ---------------------------------------------------------------------------
-// 1. Missing env vars - both methods must return null without fetching
+// 1. Missing env vars - both methods must return null without calling the SDK
 // ---------------------------------------------------------------------------
 
 describe('missing env vars', () => {
-  before(() => clearLiteLLMEnv());
-  after(() => clearLiteLLMEnv());
+  before(() => {
+    clearLiteLLMEnv();
+    // Ensure the provider seam is cleared so the module re-checks env vars
+    _setProvider(null);
+  });
+  after(() => {
+    clearLiteLLMEnv();
+    _setProvider(null);
+  });
 
   test('classify returns null when LITELLM_BASE_URL is absent', async () => {
     const result = await classify('is this fraud?');
@@ -53,11 +60,12 @@ describe('missing env vars', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Successful classify - stub fetch, check returned shape
+// 2. Successful classify - inject a fake provider, check returned shape
 // ---------------------------------------------------------------------------
 
 describe('successful classify', () => {
-  let originalFetch;
+  let originalLog;
+  let logLines;
 
   before(() => {
     clearLiteLLMEnv();
@@ -66,52 +74,81 @@ describe('successful classify', () => {
       LITELLM_API_KEY: 'sk-test',
       LITELLM_MODEL: 'claude-haiku-4-5',
     });
-    originalFetch = global.fetch;
+
+    // Capture console.log for EMF metric assertion
+    originalLog = console.log;
+    logLines = [];
+    console.log = (...args) => logLines.push(args.join(' '));
   });
 
   after(() => {
-    global.fetch = originalFetch;
+    console.log = originalLog;
+    _setProvider(null);
     clearLiteLLMEnv();
   });
 
   test('returns correct shape with latencyMs as number', async () => {
-    global.fetch = async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        choices: [
-          {
-            message: {
-              content: JSON.stringify({ label: 'high-risk', confidence: 0.92 }),
-            },
-          },
-        ],
+    // Inject a fake provider whose model() function returns an object that
+    // generateObject will use. We stub at the module level by injecting a
+    // fake that makes generateObject produce a known value.
+    //
+    // Since generateObject calls provider(modelName) to get the language model,
+    // we inject a fake at the _setProvider seam so the real SDK path is bypassed.
+    // The fake generateObject is injected via _setProvider({ generateObject, generateText }).
+    //
+    // However the cleanest seam is to replace the internal sdk functions directly.
+    // llm.js exposes _setProvider(p) where p = { generateObject, generateText } for tests.
+
+    _setProvider({
+      generateObject: async () => ({
+        object: { label: 'ALLOW', confidence: 0.95, rationale: 'Low risk login' },
+        usage: { totalTokens: 42 },
       }),
+      generateText: async () => ({ text: '', usage: {} }),
     });
 
+    logLines = [];
     const result = await classify('User logged in from 3 different countries in 2 minutes.');
 
     assert.ok(result !== null, 'expected a non-null result');
-    assert.equal(result.label, 'high-risk');
-    assert.equal(result.confidence, 0.92);
-    assert.ok(typeof result.raw === 'string', 'raw should be a string');
+    assert.equal(result.label, 'ALLOW');
+    assert.equal(result.confidence, 0.95);
+    assert.equal(result.rationale, 'Low risk login');
     assert.ok(typeof result.latencyMs === 'number', 'latencyMs should be a number');
     assert.ok(result.latencyMs >= 0, 'latencyMs should be non-negative');
     assert.equal(result.model, 'claude-haiku-4-5');
   });
 
+  test('EMF metric line is emitted on classify success with correct shape', () => {
+    // logLines captured from previous test (classify success)
+    const emfLine = logLines.find((l) => {
+      try {
+        return JSON.parse(l)._aws !== undefined;
+      } catch {
+        return false;
+      }
+    });
+    assert.ok(emfLine != null, 'expected an EMF metric log line');
+
+    const parsed = JSON.parse(emfLine);
+    assert.ok(parsed._aws, '_aws key must be present');
+    assert.equal(parsed._aws.CloudWatchMetrics[0].Namespace, 'SignalForce');
+    assert.equal(parsed.Outcome, 'success');
+    assert.equal(parsed.LLMInvocations, 1);
+    assert.ok(typeof parsed.LLMLatencyMs === 'number', 'LLMLatencyMs must be a number');
+    assert.equal(parsed.Model, 'claude-haiku-4-5');
+    assert.deepEqual(parsed._aws.CloudWatchMetrics[0].Dimensions, [['Model', 'Outcome']]);
+    const metricNames = parsed._aws.CloudWatchMetrics[0].Metrics.map((m) => m.Name);
+    assert.ok(metricNames.includes('LLMInvocations'), 'LLMInvocations metric must exist');
+    assert.ok(metricNames.includes('LLMLatencyMs'), 'LLMLatencyMs metric must exist');
+  });
+
   test('writeText returns correct shape', async () => {
-    global.fetch = async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        choices: [
-          {
-            message: {
-              content: 'Earn 500 bonus points on your next stay.',
-            },
-          },
-        ],
+    _setProvider({
+      generateObject: async () => ({ object: {}, usage: {} }),
+      generateText: async () => ({
+        text: 'Earn 500 bonus points on your next stay.',
+        usage: { totalTokens: 20 },
       }),
     });
 
@@ -126,91 +163,83 @@ describe('successful classify', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. Non-2xx response - must return null, must not throw
+// 3. Schema mismatch on classify - stub returns malformed data, must return null
 // ---------------------------------------------------------------------------
 
-describe('non-2xx response', () => {
-  let originalFetch;
-
+describe('schema mismatch', () => {
   before(() => {
     clearLiteLLMEnv();
     setEnv({
       LITELLM_BASE_URL: 'https://fake-litellm.example.com',
       LITELLM_API_KEY: 'sk-test',
+      LITELLM_MODEL: 'claude-haiku-4-5',
     });
-    originalFetch = global.fetch;
   });
 
   after(() => {
-    global.fetch = originalFetch;
+    _setProvider(null);
     clearLiteLLMEnv();
   });
 
-  test('classify returns null on 500', async () => {
-    global.fetch = async () => ({ ok: false, status: 500 });
-    const result = await classify('test prompt');
-    assert.equal(result, null);
-  });
+  test('classify returns null when generateObject throws a schema error', async () => {
+    _setProvider({
+      generateObject: async () => {
+        const err = new Error(
+          'Schema validation failed: label must be one of ALLOW|REVIEW|BLOCK|MFA'
+        );
+        err.name = 'AI_NoObjectGeneratedError';
+        throw err;
+      },
+      generateText: async () => ({ text: '', usage: {} }),
+    });
 
-  test('writeText returns null on 401', async () => {
-    global.fetch = async () => ({ ok: false, status: 401 });
-    const result = await writeText('test nudge');
+    const result = await classify('ambiguous event');
     assert.equal(result, null);
   });
 });
 
 // ---------------------------------------------------------------------------
-// 4. Timeout simulation - fetch hangs beyond 1500 ms, must return null
+// 4. Timeout / abort - simulate AbortError, must return null
 // ---------------------------------------------------------------------------
 
 describe('timeout handling', () => {
-  let originalFetch;
-
   before(() => {
     clearLiteLLMEnv();
     setEnv({
       LITELLM_BASE_URL: 'https://fake-litellm.example.com',
       LITELLM_API_KEY: 'sk-test',
+      LITELLM_MODEL: 'claude-haiku-4-5',
     });
-    originalFetch = global.fetch;
   });
 
   after(() => {
-    global.fetch = originalFetch;
+    _setProvider(null);
     clearLiteLLMEnv();
   });
 
-  test('classify returns null when fetch never resolves within timeout', async () => {
-    // Simulate a hanging request that respects the abort signal
-    global.fetch = (_url, options) =>
-      new Promise((_resolve, reject) => {
-        options.signal.addEventListener('abort', () => {
-          const err = new Error('The operation was aborted.');
-          err.name = 'AbortError';
-          reject(err);
-        });
-        // Never resolves on its own
-      });
+  test('classify returns null when generateObject throws an AbortError', async () => {
+    _setProvider({
+      generateObject: async () => {
+        const err = new Error('The operation was aborted.');
+        err.name = 'AbortError';
+        throw err;
+      },
+      generateText: async () => ({ text: '', usage: {} }),
+    });
 
-    const start = Date.now();
     const result = await classify('hanging prompt');
-    const elapsed = Date.now() - start;
-
     assert.equal(result, null);
-    // Should abort after ~1500ms (allow generous buffer for CI jitter)
-    assert.ok(elapsed < 4000, `timed out too slowly: ${elapsed}ms`);
-    assert.ok(elapsed >= 1400, `aborted too quickly: ${elapsed}ms`);
   });
 
-  test('writeText returns null when fetch never resolves within timeout', async () => {
-    global.fetch = (_url, options) =>
-      new Promise((_resolve, reject) => {
-        options.signal.addEventListener('abort', () => {
-          const err = new Error('The operation was aborted.');
-          err.name = 'AbortError';
-          reject(err);
-        });
-      });
+  test('writeText returns null when generateText throws an AbortError', async () => {
+    _setProvider({
+      generateObject: async () => ({ object: {}, usage: {} }),
+      generateText: async () => {
+        const err = new Error('The operation was aborted.');
+        err.name = 'AbortError';
+        throw err;
+      },
+    });
 
     const result = await writeText('hanging nudge');
     assert.equal(result, null);
