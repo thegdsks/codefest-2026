@@ -4,8 +4,7 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import { NagSuppressions } from 'cdk-nag';
 import type { Construct } from 'constructs';
-
-const PROJECT_TAG = 'signal-force';
+import { BUDGET_THRESHOLDS_USD } from './config';
 
 export class BudgetsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -24,7 +23,6 @@ export class BudgetsStack extends cdk.Stack {
       displayName: 'signal-force budget alerts',
     });
     alertTopic.addSubscription(new subscriptions.EmailSubscription(alertEmail));
-    cdk.Tags.of(alertTopic).add('Project', PROJECT_TAG);
 
     NagSuppressions.addResourceSuppressions(
       alertTopic,
@@ -69,35 +67,35 @@ export class BudgetsStack extends cdk.Stack {
       subscribers: [{ subscriptionType: 'SNS', address: topicArn }],
     });
 
-    // $25 monthly budget: alert at 80% and 100% actual spend
+    // warn-tier monthly budget: alert at 80% and 100% actual spend
     new budgets.CfnBudget(this, 'Budget25', {
       budget: {
         budgetName: 'signal-force-25usd',
         budgetType: 'COST',
         timeUnit: 'MONTHLY',
-        budgetLimit: { amount: 25, unit: 'USD' },
+        budgetLimit: { amount: BUDGET_THRESHOLDS_USD.warn, unit: 'USD' },
       },
       notificationsWithSubscribers: [snsNotification(80), snsNotification(100)],
     });
 
-    // $100 monthly budget: alert at 80% and 100% actual spend
+    // alarm-tier monthly budget: alert at 80% and 100% actual spend
     new budgets.CfnBudget(this, 'Budget100', {
       budget: {
         budgetName: 'signal-force-100usd',
         budgetType: 'COST',
         timeUnit: 'MONTHLY',
-        budgetLimit: { amount: 100, unit: 'USD' },
+        budgetLimit: { amount: BUDGET_THRESHOLDS_USD.alarm, unit: 'USD' },
       },
       notificationsWithSubscribers: [snsNotification(80), snsNotification(100)],
     });
 
-    // $200 monthly budget: alert at 100% forecasted spend
+    // forecast-tier monthly budget: alert at 100% forecasted spend
     new budgets.CfnBudget(this, 'Budget200', {
       budget: {
         budgetName: 'signal-force-200usd',
         budgetType: 'COST',
         timeUnit: 'MONTHLY',
-        budgetLimit: { amount: 200, unit: 'USD' },
+        budgetLimit: { amount: BUDGET_THRESHOLDS_USD.forecast, unit: 'USD' },
       },
       notificationsWithSubscribers: [snsForecastedNotification(100)],
     });

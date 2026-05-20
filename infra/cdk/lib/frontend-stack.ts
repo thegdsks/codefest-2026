@@ -8,8 +8,7 @@ import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { NagSuppressions } from 'cdk-nag';
 import type { Construct } from 'constructs';
-
-const PROJECT_TAG = 'signal-force';
+import { ssmSpaUrlPath } from './config';
 
 export class FrontendStack extends cdk.Stack {
   public readonly bucket: s3.Bucket;
@@ -27,7 +26,6 @@ export class FrontendStack extends cdk.Stack {
       autoDeleteObjects: true,
       versioned: false,
     });
-    cdk.Tags.of(this.bucket).add('Project', PROJECT_TAG);
 
     // Distribution with OAC (Origin Access Control), the modern replacement
     // for Origin Access Identity. Error responses rewrite SPA deep links to
@@ -58,7 +56,6 @@ export class FrontendStack extends cdk.Stack {
       ],
       comment: 'signal-force SPA distribution',
     });
-    cdk.Tags.of(this.distribution).add('Project', PROJECT_TAG);
 
     // Optional: if apps/frontend/dist exists at synth time, deploy it.
     // Keeps `cdk synth` working before the frontend team has produced a build.
@@ -75,9 +72,12 @@ export class FrontendStack extends cdk.Stack {
       });
     }
 
+    // Stage is read here so FrontendStack does not need a custom StackProps shape.
+    // SF_STAGE follows the same precedence as resolveDeployEnv in config.ts.
+    const stage = process.env['SF_STAGE'] ?? 'dev';
     // Publish the distribution URL to SSM for tooling that needs it.
     new ssm.StringParameter(this, 'SpaUrlParam', {
-      parameterName: '/signal-force/spa-url',
+      parameterName: ssmSpaUrlPath(stage),
       stringValue: `https://${this.distribution.distributionDomainName}`,
       description: 'Public URL for the signal-force SPA (CloudFront)',
     });
