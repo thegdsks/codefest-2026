@@ -5,15 +5,21 @@ import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { NagSuppressions } from 'cdk-nag';
 import type { Construct } from 'constructs';
+import {
+  BEDROCK_MODEL_FAMILY_ARNS,
+  BEDROCK_MODEL_ID,
+  FRAUD_SCORE_THRESHOLD,
+  LAMBDA_DEFAULTS,
+  ssmApiUrlPath,
+} from './config';
 import type { DynamoDbStack } from './dynamodb-stack';
-
-const PROJECT_TAG = 'signal-force';
 
 export interface RuntimeStackProps extends cdk.StackProps {
   dynamoDbStack: DynamoDbStack;
@@ -25,13 +31,16 @@ export class RuntimeStack extends cdk.Stack {
 
     const { dynamoDbStack } = props;
 
+    // Stage drives SSM parameter paths so deploys to different environments
+    // do not overwrite each other. Defaults to 'dev' when SF_STAGE is unset.
+    const stage = process.env['SF_STAGE'] ?? 'dev';
+
     // -------------------------------------------------------------------------
     // SNS fraud alert topic
     // -------------------------------------------------------------------------
     const fraudAlertTopic = new sns.Topic(this, 'FraudAlertTopic', {
       displayName: 'signal-force fraud alerts',
     });
-    cdk.Tags.of(fraudAlertTopic).add('Project', PROJECT_TAG);
 
     // Subscribe an email address only when the env var is provided at synth time.
     // If not set, the topic ARN is exported below so manual subscription is easy.
@@ -41,7 +50,8 @@ export class RuntimeStack extends cdk.Stack {
     }
 
     // -------------------------------------------------------------------------
-    // Lambda - asset is the apps/backend directory so node_modules is included
+    // Lambda - NodejsFunction bundles with esbuild, preventing the npm-workspace
+    // hoisting regression hit in PR 13 where uuid disappeared from the asset.
     // -------------------------------------------------------------------------
     // CLIENT_SECRET and MFA_OTP: set via context or env at deploy time.
     // Do not commit real values. Defaults here are demo placeholders only.
@@ -63,17 +73,21 @@ export class RuntimeStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    const apiLambda = new lambda.Function(this, 'ApiLambda', {
+    const apiLambda = new NodejsFunction(this, 'ApiLambda', {
+      entry: path.join(__dirname, '..', '..', '..', 'apps', 'backend', 'src', 'handler.js'),
+      handler: 'main',
       runtime: lambda.Runtime.NODEJS_18_X,
-      // Asset root is apps/backend so node_modules/uuid is included in the zip
-      code: lambda.Code.fromAsset(path.join(__dirname, '..', '..', '..', 'apps', 'backend'), {
-        exclude: ['node_modules/.cache', '.serverless', '.nyc_output'],
-      }),
-      // The file is src/handler.js and exports.main is the entry point
-      handler: 'src/handler.main',
-      memorySize: 512,
-      timeout: cdk.Duration.seconds(10),
       architecture: lambda.Architecture.ARM_64,
+      memorySize: LAMBDA_DEFAULTS.memorySize,
+      timeout: cdk.Duration.seconds(LAMBDA_DEFAULTS.timeoutSeconds),
+      depsLockFilePath: path.join(__dirname, '..', '..', '..', 'package-lock.json'),
+      bundling: {
+        minify: false,
+        sourceMap: true,
+        target: 'node18',
+        externalModules: ['@aws-sdk/*'],
+      },
+      tracing: lambda.Tracing.ACTIVE,
       logGroup,
       environment: {
         CLIENT_ID: clientId,
@@ -85,13 +99,12 @@ export class RuntimeStack extends cdk.Stack {
         TABLE_DECISION_STORE: dynamoDbStack.decisionStoreTable.tableName,
         TABLE_USER_STATE: dynamoDbStack.userStateTable.tableName,
         // Cross-region inference profile for Claude Haiku 4.5 (US)
-        BEDROCK_MODEL_ID: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+        BEDROCK_MODEL_ID,
         FRAUD_ALERT_TOPIC_ARN: fraudAlertTopic.topicArn,
         // Threshold is a string because Lambda env vars are always strings
-        FRAUD_SCORE_THRESHOLD: '60',
+        FRAUD_SCORE_THRESHOLD,
       },
     });
-    cdk.Tags.of(apiLambda).add('Project', PROJECT_TAG);
 
     // -------------------------------------------------------------------------
     // IAM grants
@@ -110,10 +123,7 @@ export class RuntimeStack extends cdk.Stack {
       new iam.PolicyStatement({
         sid: 'BedrockHaikuAccess',
         actions: ['bedrock:InvokeModel', 'bedrock:Converse'],
-        resources: [
-          'arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5*',
-          'arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5*',
-        ],
+        resources: BEDROCK_MODEL_FAMILY_ARNS,
       })
     );
 
@@ -143,8 +153,6 @@ export class RuntimeStack extends cdk.Stack {
       integration,
     });
 
-    cdk.Tags.of(api).add('Project', PROJECT_TAG);
-
     // Access logging on the default stage. Format keeps the JSON small so
     // CloudWatch ingestion cost stays in the cents-per-month range for the demo.
     const apiAccessLogGroup = new logs.LogGroup(this, 'ApiAccessLogGroup', {
@@ -166,6 +174,11 @@ export class RuntimeStack extends cdk.Stack {
           responseLength: '$context.responseLength',
           integrationErrorMessage: '$context.integrationErrorMessage',
         }),
+      };
+      // HttpApi v2 has no tracingEnabled prop; use the L1 escape hatch on the default stage.
+      defaultStage.defaultRouteSettings = {
+        ...(defaultStage.defaultRouteSettings as Record<string, unknown> | undefined),
+        detailedMetricsEnabled: true,
       };
     }
 
@@ -251,7 +264,28 @@ export class RuntimeStack extends cdk.Stack {
       )
     );
 
-    // Row 3: Fraud log query - real-time view of FRAUD log lines
+    // Row 3: X-Ray service metrics - throttles and concurrency
+    dashboard.addWidgets(
+      new cloudwatch.Row(
+        new cloudwatch.GraphWidget({
+          title: 'Lambda throttles',
+          left: [apiLambda.metricThrottles({ statistic: 'Sum', period: cdk.Duration.minutes(1) })],
+          width: 12,
+        }),
+        new cloudwatch.GraphWidget({
+          title: 'Lambda concurrent executions',
+          left: [
+            apiLambda.metric('ConcurrentExecutions', {
+              statistic: 'Maximum',
+              period: cdk.Duration.minutes(1),
+            }),
+          ],
+          width: 12,
+        })
+      )
+    );
+
+    // Row 4: Fraud log query - real-time view of FRAUD log lines
     dashboard.addWidgets(
       new cloudwatch.LogQueryWidget({
         title: 'Fraud-related log lines',
@@ -333,6 +367,12 @@ export class RuntimeStack extends cdk.Stack {
             'Resource::arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5*',
           ],
         },
+        {
+          id: 'AwsSolutions-IAM5',
+          reason:
+            'X-Ray PutTraceSegments and PutTelemetryRecords cannot be scoped to specific resource ARNs (AWS docs require Resource: *). Enabled by lambda.Tracing.ACTIVE so the runtime function appears in X-Ray traces.',
+          appliesTo: ['Resource::*'],
+        },
       ],
       true
     );
@@ -358,8 +398,9 @@ export class RuntimeStack extends cdk.Stack {
 
     // Publish the API URL to SSM so the frontend build can read it without
     // a coupled CloudFormation import. Avoids deadly-embrace on rename.
+    // Path is stage-scoped via ssmApiUrlPath so dev and prod do not collide.
     new ssm.StringParameter(this, 'ApiUrlParam', {
-      parameterName: '/signal-force/api-url',
+      parameterName: ssmApiUrlPath(stage),
       stringValue: api.apiEndpoint,
       description: 'HTTP API endpoint for the signal-force runtime stack',
     });

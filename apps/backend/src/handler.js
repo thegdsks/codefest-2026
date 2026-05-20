@@ -5,9 +5,8 @@ const {
   PutCommand,
   UpdateCommand,
   QueryCommand,
-  ScanCommand,
 } = require('@aws-sdk/lib-dynamodb');
-const { randomUUID } = require('crypto');
+const { randomUUID } = require('node:crypto');
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -93,17 +92,20 @@ async function getUserById(userId) {
 }
 
 async function findUserByUsername(username) {
-  // sf: scan
+  // Query the username-index GSI. The previous Scan + Limit:1 was buggy:
+  // DynamoDB applies Limit before FilterExpression, so it read one arbitrary
+  // row and then filtered, returning null whenever that row was not the user.
   const r = await ddb.send(
-    new ScanCommand({
+    new QueryCommand({
       TableName: CFG.tUserProfile,
-      FilterExpression: '#u = :u',
+      IndexName: 'username-index',
+      KeyConditionExpression: '#u = :u',
       ExpressionAttributeNames: { '#u': 'username' },
       ExpressionAttributeValues: { ':u': username },
       Limit: 1,
     })
   );
-  return r.Items && r.Items[0] ? r.Items[0] : null;
+  return r.Items?.[0] ?? null;
 }
 
 async function getState(userId) {
@@ -112,20 +114,15 @@ async function getState(userId) {
 }
 
 async function upsertLoginState(userId, loginTime, location, success) {
-  const exprNames = {
-    '#llt': 'lastLoginTime',
-    '#lll': 'lastLoginLocation',
-    '#u': 'updatedAt',
-    '#lflt': 'lastFailedLoginTime',
-  };
-  const exprValues = {
-    ':llt': loginTime,
-    ':lll': location,
-    ':u': nowSec(),
-    ':lflt': loginTime,
-  };
-
+  // DynamoDB rejects ExpressionAttributeNames/Values keys that the
+  // UpdateExpression does not reference, so build them per branch.
   const updateExpression = success ? 'SET #llt=:llt, #lll=:lll, #u=:u' : 'SET #lflt=:lflt, #u=:u';
+  const exprNames = success
+    ? { '#llt': 'lastLoginTime', '#lll': 'lastLoginLocation', '#u': 'updatedAt' }
+    : { '#lflt': 'lastFailedLoginTime', '#u': 'updatedAt' };
+  const exprValues = success
+    ? { ':llt': loginTime, ':lll': location, ':u': nowSec() }
+    : { ':lflt': loginTime, ':u': nowSec() };
 
   await ddb.send(
     new UpdateCommand({

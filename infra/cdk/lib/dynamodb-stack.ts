@@ -1,8 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import type { Construct } from 'constructs';
-
-const PROJECT_TAG = 'signal-force';
+import { TABLE_NAMES } from './config';
 
 export class DynamoDbStack extends cdk.Stack {
   public readonly userProfileTable: dynamodb.Table;
@@ -16,7 +15,7 @@ export class DynamoDbStack extends cdk.Stack {
 
     // UserProfile: PK userId, GSI username-index on username
     this.userProfileTable = new dynamodb.Table(this, 'UserProfileTable', {
-      tableName: 'UserProfile',
+      tableName: TABLE_NAMES.userProfile,
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -27,11 +26,10 @@ export class DynamoDbStack extends cdk.Stack {
       partitionKey: { name: 'username', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    cdk.Tags.of(this.userProfileTable).add('Project', PROJECT_TAG);
 
     // UserSession: PK sessionId, GSI userId-index on userId
     this.userSessionTable = new dynamodb.Table(this, 'UserSessionTable', {
-      tableName: 'UserSession',
+      tableName: TABLE_NAMES.userSession,
       partitionKey: { name: 'sessionId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -42,11 +40,10 @@ export class DynamoDbStack extends cdk.Stack {
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    cdk.Tags.of(this.userSessionTable).add('Project', PROJECT_TAG);
 
     // UserActivity: PK userId, SK activityTime (number), TTL on "ttl"
     this.userActivityTable = new dynamodb.Table(this, 'UserActivityTable', {
-      tableName: 'UserActivity',
+      tableName: TABLE_NAMES.userActivity,
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'activityTime', type: dynamodb.AttributeType.NUMBER },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -54,11 +51,10 @@ export class DynamoDbStack extends cdk.Stack {
       timeToLiveAttribute: 'ttl',
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
-    cdk.Tags.of(this.userActivityTable).add('Project', PROJECT_TAG);
 
     // DecisionStore: PK decisionId, GSI userId-timestamp-index (userId HASH + timestamp RANGE)
     this.decisionStoreTable = new dynamodb.Table(this, 'DecisionStoreTable', {
-      tableName: 'DecisionStore',
+      tableName: TABLE_NAMES.decisionStore,
       partitionKey: { name: 'decisionId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -70,17 +66,15 @@ export class DynamoDbStack extends cdk.Stack {
       sortKey: { name: 'timestamp', type: dynamodb.AttributeType.NUMBER },
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    cdk.Tags.of(this.decisionStoreTable).add('Project', PROJECT_TAG);
 
     // UserState: PK userId, no GSIs
     this.userStateTable = new dynamodb.Table(this, 'UserStateTable', {
-      tableName: 'UserState',
+      tableName: TABLE_NAMES.userState,
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
-    cdk.Tags.of(this.userStateTable).add('Project', PROJECT_TAG);
 
     // CfnOutputs: export each table name for cross-stack and backend reference
     new cdk.CfnOutput(this, 'UserProfileTableName', {
