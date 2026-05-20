@@ -98,6 +98,44 @@ async function callProxy(cfg, messages, extra, startMs) {
 }
 
 /**
+ * Emit a single EMF-formatted log line so CloudWatch auto-extracts the metric
+ * without a PutMetricData call. Caller provides outcome and latency.
+ *
+ * Namespace: SignalForce
+ * Metrics: LLMInvocations (Count), LLMLatencyMs (Milliseconds)
+ * Dimensions: Model, Outcome
+ *
+ * IMPORTANT: do NOT include user prompts, response content, or any PII here.
+ *
+ * @param {string} model
+ * @param {'success'|'error'} outcome
+ * @param {number} latencyMs
+ */
+function emitEmfMetric(model, outcome, latencyMs) {
+  console.log(
+    JSON.stringify({
+      _aws: {
+        Timestamp: Date.now(),
+        CloudWatchMetrics: [
+          {
+            Namespace: 'SignalForce',
+            Dimensions: [['Model', 'Outcome']],
+            Metrics: [
+              { Name: 'LLMInvocations', Unit: 'Count' },
+              { Name: 'LLMLatencyMs', Unit: 'Milliseconds' },
+            ],
+          },
+        ],
+      },
+      Model: model,
+      Outcome: outcome,
+      LLMInvocations: 1,
+      LLMLatencyMs: latencyMs,
+    })
+  );
+}
+
+/**
  * Send a classification prompt to the LLM and parse the JSON response.
  *
  * The system message instructs the model to respond with a JSON object
@@ -147,8 +185,11 @@ async function classify(prompt, schema) {
 
   if (typeof parsed.label !== 'string' || typeof parsed.confidence !== 'number') {
     console.error('[llm] classify: unexpected shape in response');
+    emitEmfMetric(result.model, 'error', result.latencyMs);
     return null;
   }
+
+  emitEmfMetric(result.model, 'success', result.latencyMs);
 
   return {
     label: parsed.label,
@@ -183,6 +224,8 @@ async function writeText(prompt, opts) {
   if (!result) return null;
 
   const text = result.body.choices?.[0]?.message?.content ?? '';
+
+  emitEmfMetric(result.model, 'success', result.latencyMs);
 
   return {
     text,
