@@ -136,6 +136,70 @@ function qstr(event, key) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Build the ExpressionAttributeNames and ExpressionAttributeValues for a
+ * time-window filter, optionally extended with a decisionType equality check.
+ *
+ * @param {number} cutoff - epoch seconds lower bound
+ * @param {string|null} typeFilter - optional decisionType value
+ * @returns {{ filterParts: string[], exprNames: object, exprValues: object }}
+ */
+function buildDecisionFilter(cutoff, typeFilter) {
+  const filterParts = ['#ts >= :cutoff'];
+  const exprNames = { '#ts': 'timestamp' };
+  const exprValues = { ':cutoff': cutoff };
+  if (typeFilter) {
+    filterParts.push('#dt = :dt');
+    exprNames['#dt'] = 'decisionType';
+    exprValues[':dt'] = typeFilter;
+  }
+  return { filterParts, exprNames, exprValues };
+}
+
+/**
+ * Fetch decision items for a given user via Query (efficient).
+ *
+ * @param {number} cutoff
+ * @param {string} userId
+ * @param {string|null} typeFilter
+ * @returns {Promise<object[]>}
+ */
+async function fetchDecisionsByUser(cutoff, userId, typeFilter) {
+  const { filterParts, exprNames, exprValues } = buildDecisionFilter(cutoff, typeFilter);
+  exprValues[':uid'] = userId;
+  const result = await ddb.send(
+    new QueryCommand({
+      TableName: TABLE_DECISION,
+      KeyConditionExpression: 'userId = :uid',
+      FilterExpression: filterParts.join(' AND '),
+      ExpressionAttributeNames: exprNames,
+      ExpressionAttributeValues: exprValues,
+    })
+  );
+  return result.Items || [];
+}
+
+/**
+ * Fetch decision items across all users via Scan.
+ * NOTE: switch to a GSI after the demo
+ *
+ * @param {number} cutoff
+ * @param {string|null} typeFilter
+ * @returns {Promise<object[]>}
+ */
+async function fetchDecisionsScan(cutoff, typeFilter) {
+  const { filterParts, exprNames, exprValues } = buildDecisionFilter(cutoff, typeFilter);
+  const result = await ddb.send(
+    new ScanCommand({
+      TableName: TABLE_DECISION,
+      FilterExpression: filterParts.join(' AND '),
+      ExpressionAttributeNames: exprNames,
+      ExpressionAttributeValues: exprValues,
+    })
+  );
+  return result.Items || [];
+}
+
+/**
  * Return a filtered, sorted list of decision records.
  *
  * Query params:
@@ -152,7 +216,6 @@ async function getDecisions(event, correlationId) {
   const authCheck = requireAdmin(event, correlationId);
   if (!authCheck.ok) return authCheck.response;
 
-  // -- Parse and validate query params --
   const windowParam = qstr(event, 'window') || '24h';
   if (!WINDOW_SECONDS[windowParam]) {
     return err(
@@ -162,8 +225,7 @@ async function getDecisions(event, correlationId) {
       `window must be one of: ${Object.keys(WINDOW_SECONDS).join(', ')}`
     );
   }
-  const windowSecs = WINDOW_SECONDS[windowParam];
-  const cutoff = nowSec() - windowSecs;
+  const cutoff = nowSec() - WINDOW_SECONDS[windowParam];
 
   const typeFilter = qstr(event, 'type');
   if (typeFilter && !VALID_TYPES.has(typeFilter)) {
@@ -176,52 +238,12 @@ async function getDecisions(event, correlationId) {
   }
 
   const userId = qstr(event, 'userId');
-
   const rawLimit = parseInt(qstr(event, 'limit') || '50', 10);
   const limit = Math.min(isNaN(rawLimit) ? 50 : rawLimit, 200);
 
-  // -- Fetch from DDB --
-  let items;
-  if (userId) {
-    // Use Query on the partition key for efficiency.
-    const filterParts = ['#ts >= :cutoff'];
-    const exprNames = { '#ts': 'timestamp' };
-    const exprValues = { ':cutoff': cutoff, ':uid': userId };
-    if (typeFilter) {
-      filterParts.push('#dt = :dt');
-      exprNames['#dt'] = 'decisionType';
-      exprValues[':dt'] = typeFilter;
-    }
-    const result = await ddb.send(
-      new QueryCommand({
-        TableName: TABLE_DECISION,
-        KeyConditionExpression: 'userId = :uid',
-        FilterExpression: filterParts.join(' AND '),
-        ExpressionAttributeNames: exprNames,
-        ExpressionAttributeValues: exprValues,
-      })
-    );
-    items = result.Items || [];
-  } else {
-    // NOTE: switch to a GSI after the demo
-    const filterParts = ['#ts >= :cutoff'];
-    const exprNames = { '#ts': 'timestamp' };
-    const exprValues = { ':cutoff': cutoff };
-    if (typeFilter) {
-      filterParts.push('#dt = :dt');
-      exprNames['#dt'] = 'decisionType';
-      exprValues[':dt'] = typeFilter;
-    }
-    const result = await ddb.send(
-      new ScanCommand({
-        TableName: TABLE_DECISION,
-        FilterExpression: filterParts.join(' AND '),
-        ExpressionAttributeNames: exprNames,
-        ExpressionAttributeValues: exprValues,
-      })
-    );
-    items = result.Items || [];
-  }
+  let items = userId
+    ? await fetchDecisionsByUser(cutoff, userId, typeFilter)
+    : await fetchDecisionsScan(cutoff, typeFilter);
 
   // Apply in-memory type filter (DDB FilterExpression is best-effort at scale;
   // this ensures correctness against the test fake and small datasets).
@@ -229,7 +251,6 @@ async function getDecisions(event, correlationId) {
     items = items.filter((i) => i.decisionType === typeFilter);
   }
 
-  // Sort desc by timestamp and apply limit
   items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   const decisions = items.slice(0, limit);
 
