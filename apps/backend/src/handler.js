@@ -16,7 +16,12 @@ const { profileCompleteness } = require('./rules/profile');
 const { route: engineRoute } = require('./engine/router');
 const admin = require('./admin');
 
-const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+let ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
+// test-only seam; not part of the public API
+function _setDdb(client) {
+  ddb = client;
+}
 
 const CFG = {
   clientId: process.env.CLIENT_ID || 'demoClient',
@@ -907,6 +912,8 @@ async function profileCompletenessEndpoint(event, correlationId) {
     data: { userId, percent, missingFields, nudgeText },
   });
 }
+
+exports._setDdb = _setDdb;
 
 exports.main = async (event) => {
   const correlationId = getHeader(event.headers, 'x-correlation-id') || '';
