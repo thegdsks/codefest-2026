@@ -8,6 +8,13 @@ const {
 } = require('@aws-sdk/lib-dynamodb');
 const { randomUUID } = require('node:crypto');
 
+const { scoreLogin } = require('./rules/login');
+const { scoreTransfer } = require('./rules/transfer');
+const { scoreOffer } = require('./rules/offers');
+const { scoreNudge } = require('./rules/nudges');
+const { profileCompleteness } = require('./rules/profile');
+const { route: engineRoute } = require('./engine/router');
+
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 const CFG = {
@@ -310,9 +317,10 @@ function decision(
   reason,
   explanation,
   channel,
-  correlationId
+  correlationId,
+  engineMeta
 ) {
-  return {
+  const base = {
     decisionId: `DEC#${Date.now()}`,
     userId,
     decisionType,
@@ -326,7 +334,15 @@ function decision(
     correlationId: correlationId || '',
     isFinalDecision: true,
     timestamp: nowSec(),
+    engineLayer: (engineMeta && engineMeta.engineLayer) || 'L1',
   };
+  if (engineMeta && typeof engineMeta.llmLatencyMs === 'number') {
+    base.llmLatencyMs = engineMeta.llmLatencyMs;
+  }
+  if (engineMeta && engineMeta.llmModel) {
+    base.llmModel = engineMeta.llmModel;
+  }
+  return base;
 }
 
 async function route(event, correlationId) {
@@ -383,16 +399,13 @@ async function login(event, correlationId) {
   const now = nowSec();
   const lastLoc = st ? st.lastLoginLocation : null;
   const lastTime = st ? st.lastLoginTime : null;
-  const impossibleTravel =
-    lastLoc &&
-    lastTime &&
-    lastLoc.toLowerCase() !== String(location).toLowerCase() &&
-    now - lastTime <= 600;
-  const block =
-    lastLoc &&
-    lastTime &&
-    lastLoc.toLowerCase() !== String(location).toLowerCase() &&
-    now - lastTime <= 300;
+
+  const l1Draft = scoreLogin({ lastLocation: lastLoc, lastTime, currentLocation: location, now });
+  const final = await engineRoute(l1Draft, {
+    userId,
+    category: 'AUTH',
+    payload: { currentLocation: location },
+  });
 
   const sessionId = `SESSION#${randomUUID().slice(0, 8)}`;
   await putSession({
@@ -410,18 +423,19 @@ async function login(event, correlationId) {
   });
   await putActivity(activityLogin(userId, now, location, ip, deviceId, correlationId));
 
-  if (block) {
+  if (final.action === 'BLOCK') {
     await putDecision(
       decision(
         userId,
         'FRAUD_LOGIN',
-        0.95,
-        'HIGH',
+        final.score,
+        final.riskLevel,
         'BLOCK',
-        'IMPOSSIBLE_TRAVEL',
-        'Impossible travel detected',
+        final.reasonCode,
+        final.reasonText,
         'AUTH',
-        correlationId
+        correlationId,
+        final
       )
     );
     return err(
@@ -432,25 +446,26 @@ async function login(event, correlationId) {
     );
   }
 
-  if (impossibleTravel) {
+  if (final.action === 'MFA') {
     await putDecision(
       decision(
         userId,
         'FRAUD_LOGIN',
-        0.75,
-        'MEDIUM',
+        final.score,
+        final.riskLevel,
         'MFA',
-        'IMPOSSIBLE_TRAVEL',
-        'Impossible travel detected',
+        final.reasonCode,
+        final.reasonText,
         'AUTH',
-        correlationId
+        correlationId,
+        final
       )
     );
     await upsertLoginState(userId, now, location, true);
     return json(200, correlationId, {
       data: {
         status: 'MFA_REQUIRED',
-        reason: 'IMPOSSIBLE_TRAVEL',
+        reason: final.reasonCode,
         sessionId,
         mfa: { type: 'OTP', expiresInSeconds: 300 },
       },
@@ -461,13 +476,14 @@ async function login(event, correlationId) {
     decision(
       userId,
       'FRAUD_LOGIN',
-      0.1,
-      'LOW',
+      final.score,
+      final.riskLevel,
       'ALLOW',
-      'NORMAL_LOGIN',
-      'Login allowed',
+      final.reasonCode,
+      final.reasonText,
       'AUTH',
-      correlationId
+      correlationId,
+      final
     )
   );
   await upsertLoginState(userId, now, location, true);
@@ -541,37 +557,43 @@ async function transfer(event, correlationId) {
   const st = await getState(userId);
   const tc1h = st && st.transferCount1h ? st.transferCount1h : 0;
 
+  const l1Draft = scoreTransfer({ tc1h });
+  const final = await engineRoute(l1Draft, { userId, category: 'EARN_REDEEM' });
+
   const transferId = `XFER#${randomUUID().slice(0, 8)}`;
   await putActivity(activityTransfer(userId, now, amount, recipientId, channel, correlationId));
 
-  if (tc1h >= 4) {
+  if (final.action === 'BLOCK') {
     await putDecision(
       decision(
         userId,
         'FRAUD_TRANSFER',
-        0.95,
-        'HIGH',
+        final.score,
+        final.riskLevel,
         'BLOCK',
-        'SUSPICIOUS_REDEMPTION',
-        'High velocity transfer',
+        final.reasonCode,
+        final.reasonText,
         'EARN_REDEEM',
-        correlationId
+        correlationId,
+        final
       )
     );
     return err(403, correlationId, 'TRANSFER_BLOCKED', 'Transfer blocked due to high fraud risk');
   }
-  if (tc1h >= 2) {
+
+  if (final.action === 'REVIEW') {
     await putDecision(
       decision(
         userId,
         'FRAUD_TRANSFER',
-        0.65,
-        'MEDIUM',
-        'ALLOW',
-        'SUSPICIOUS_REDEMPTION',
-        'Transfer allowed but under review',
+        final.score,
+        final.riskLevel,
+        'REVIEW',
+        final.reasonCode,
+        final.reasonText,
         'EARN_REDEEM',
-        correlationId
+        correlationId,
+        final
       )
     );
     return json(200, correlationId, {
@@ -583,13 +605,14 @@ async function transfer(event, correlationId) {
     decision(
       userId,
       'FRAUD_TRANSFER',
-      0.1,
-      'LOW',
+      final.score,
+      final.riskLevel,
       'ALLOW',
-      'NORMAL_TRANSFER',
-      'Transfer allowed',
+      final.reasonCode,
+      final.reasonText,
       'EARN_REDEEM',
-      correlationId
+      correlationId,
+      final
     )
   );
   return json(200, correlationId, {
@@ -609,11 +632,13 @@ async function getOffers(event, correlationId) {
   const st = await getState(userId);
   const cooldownUntil = st && st.offerCooldownUntil ? st.offerCooldownUntil : 0;
 
+  const l1Draft = scoreOffer({ loyaltyScore, tier, now, cooldownUntil });
+  // Offers has no gray zone; score is either 80 (OFFER) or 0 (ALLOW).
+  // The router will return L1 verbatim in both cases.
+  const final = await engineRoute(l1Draft, { userId, category: 'OFFERS' });
+
   const offers = [];
-  if (
-    now >= cooldownUntil &&
-    (loyaltyScore >= 700 || ['platinum', 'titanium', 'ambassador'].includes(tier.toLowerCase()))
-  ) {
+  if (final.action === 'OFFER') {
     const validUntil = now + 2 * 3600;
     offers.push({
       offerId: 'OFF#001',
@@ -626,13 +651,14 @@ async function getOffers(event, correlationId) {
       decision(
         userId,
         'ENGAGEMENT_OFFER',
-        0.85,
-        'HIGH',
+        final.score,
+        final.riskLevel,
         'OFFER',
-        'HIGH_INTENT',
-        'High intent; incentive improves conversion',
+        final.reasonCode,
+        final.reasonText,
         'OFFERS',
-        correlationId
+        correlationId,
+        final
       )
     );
   }
@@ -681,26 +707,32 @@ async function getNudges(event, correlationId) {
   const phoneVerified = !!profile.phoneVerified;
 
   const now = nowSec();
-  const nudges = [];
+  const { missingFields } = profileCompleteness({ profile });
 
-  if (completion < 0.8 || !emailVerified || !phoneVerified) {
+  const l1Draft = scoreNudge({ profileCompletion: completion, emailVerified, phoneVerified });
+  const final = await engineRoute(l1Draft, { userId, category: 'PROFILE', missingFields });
+
+  const nudges = [];
+  if (final.action === 'NUDGE') {
+    const nudgeMessage = final.generatedText || 'Complete your profile now to speed up booking';
     nudges.push({
       nudgeId: 'NUDGE#PROFILE',
-      message: 'Complete your profile now to speed up booking',
-      reason: 'PROFILE_INCOMPLETE',
+      message: nudgeMessage,
+      reason: final.reasonCode,
     });
     await bumpNudgeShown(userId, now);
     await putDecision(
       decision(
         userId,
         'NUDGE',
-        0.8,
-        'HIGH',
+        final.score,
+        final.riskLevel,
         'NUDGE',
-        'PROFILE_INCOMPLETE',
-        'Profile incomplete; completion reduces friction',
+        final.reasonCode,
+        final.reasonText,
         'PROFILE',
-        correlationId
+        correlationId,
+        final
       )
     );
   }
