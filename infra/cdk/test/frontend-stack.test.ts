@@ -84,7 +84,7 @@ describe('FrontendStack', () => {
 
   test('publishes SPA URL to SSM', () => {
     template.hasResourceProperties('AWS::SSM::Parameter', {
-      Name: '/signal-force/spa-url',
+      Name: '/signal-force/dev/spa-url',
       Type: 'String',
     });
   });

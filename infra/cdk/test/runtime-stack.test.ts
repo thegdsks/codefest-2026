@@ -15,7 +15,7 @@ describe('RuntimeStack', () => {
     template.hasResourceProperties('AWS::Lambda::Function', {
       Runtime: 'nodejs18.x',
       Architectures: ['arm64'],
-      Handler: 'src/handler.main',
+      Handler: 'index.main',
       MemorySize: 512,
       Timeout: 10,
     });
@@ -101,7 +101,7 @@ describe('RuntimeStack', () => {
 
   test('publishes API URL to SSM parameter store', () => {
     template.hasResourceProperties('AWS::SSM::Parameter', {
-      Name: '/signal-force/api-url',
+      Name: '/signal-force/dev/api-url',
       Type: 'String',
     });
   });

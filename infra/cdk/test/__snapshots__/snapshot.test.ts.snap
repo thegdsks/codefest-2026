@@ -1,0 +1,2206 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`signal-force CDK BudgetsStack matches snapshot 1`] = `
+{
+  "Outputs": {
+    "BudgetAlertTopicArn": {
+      "Export": {
+        "Name": "snap-budgets:BudgetAlertTopicArn",
+      },
+      "Value": {
+        "Ref": "BudgetAlertTopicF20DF526",
+      },
+    },
+  },
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "Budget100": {
+      "Properties": {
+        "Budget": {
+          "BudgetLimit": {
+            "Amount": 100,
+            "Unit": "USD",
+          },
+          "BudgetName": "signal-force-100usd",
+          "BudgetType": "COST",
+          "TimeUnit": "MONTHLY",
+        },
+        "NotificationsWithSubscribers": [
+          {
+            "Notification": {
+              "ComparisonOperator": "GREATER_THAN",
+              "NotificationType": "ACTUAL",
+              "Threshold": 80,
+              "ThresholdType": "PERCENTAGE",
+            },
+            "Subscribers": [
+              {
+                "Address": {
+                  "Ref": "BudgetAlertTopicF20DF526",
+                },
+                "SubscriptionType": "SNS",
+              },
+            ],
+          },
+          {
+            "Notification": {
+              "ComparisonOperator": "GREATER_THAN",
+              "NotificationType": "ACTUAL",
+              "Threshold": 100,
+              "ThresholdType": "PERCENTAGE",
+            },
+            "Subscribers": [
+              {
+                "Address": {
+                  "Ref": "BudgetAlertTopicF20DF526",
+                },
+                "SubscriptionType": "SNS",
+              },
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::Budgets::Budget",
+    },
+    "Budget200": {
+      "Properties": {
+        "Budget": {
+          "BudgetLimit": {
+            "Amount": 200,
+            "Unit": "USD",
+          },
+          "BudgetName": "signal-force-200usd",
+          "BudgetType": "COST",
+          "TimeUnit": "MONTHLY",
+        },
+        "NotificationsWithSubscribers": [
+          {
+            "Notification": {
+              "ComparisonOperator": "GREATER_THAN",
+              "NotificationType": "FORECASTED",
+              "Threshold": 100,
+              "ThresholdType": "PERCENTAGE",
+            },
+            "Subscribers": [
+              {
+                "Address": {
+                  "Ref": "BudgetAlertTopicF20DF526",
+                },
+                "SubscriptionType": "SNS",
+              },
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::Budgets::Budget",
+    },
+    "Budget25": {
+      "Properties": {
+        "Budget": {
+          "BudgetLimit": {
+            "Amount": 25,
+            "Unit": "USD",
+          },
+          "BudgetName": "signal-force-25usd",
+          "BudgetType": "COST",
+          "TimeUnit": "MONTHLY",
+        },
+        "NotificationsWithSubscribers": [
+          {
+            "Notification": {
+              "ComparisonOperator": "GREATER_THAN",
+              "NotificationType": "ACTUAL",
+              "Threshold": 80,
+              "ThresholdType": "PERCENTAGE",
+            },
+            "Subscribers": [
+              {
+                "Address": {
+                  "Ref": "BudgetAlertTopicF20DF526",
+                },
+                "SubscriptionType": "SNS",
+              },
+            ],
+          },
+          {
+            "Notification": {
+              "ComparisonOperator": "GREATER_THAN",
+              "NotificationType": "ACTUAL",
+              "Threshold": 100,
+              "ThresholdType": "PERCENTAGE",
+            },
+            "Subscribers": [
+              {
+                "Address": {
+                  "Ref": "BudgetAlertTopicF20DF526",
+                },
+                "SubscriptionType": "SNS",
+              },
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::Budgets::Budget",
+    },
+    "BudgetAlertTopicF20DF526": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-SNS3",
+              "reason": "Budget alert topic publishes only from the AWS Budgets service. Publishers are out of our control, and Budgets connects to SNS over TLS-encrypted internal AWS service endpoints.",
+            },
+            {
+              "id": "AwsSolutions-SNS2",
+              "reason": "Budget alert topic carries only cost metadata, not user data. KMS encryption deferred.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "DisplayName": "signal-force budget alerts",
+      },
+      "Type": "AWS::SNS::Topic",
+    },
+    "BudgetAlertTopicchangemeexamplecom1FBE832D": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-SNS3",
+              "reason": "Budget alert topic publishes only from the AWS Budgets service. Publishers are out of our control, and Budgets connects to SNS over TLS-encrypted internal AWS service endpoints.",
+            },
+            {
+              "id": "AwsSolutions-SNS2",
+              "reason": "Budget alert topic carries only cost metadata, not user data. KMS encryption deferred.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Endpoint": "change-me@example.com",
+        "Protocol": "email",
+        "TopicArn": {
+          "Ref": "BudgetAlertTopicF20DF526",
+        },
+      },
+      "Type": "AWS::SNS::Subscription",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`signal-force CDK DynamoDbStack matches snapshot 1`] = `
+{
+  "Outputs": {
+    "DecisionStoreTableName": {
+      "Export": {
+        "Name": "snap-dynamodb:DecisionStoreTableName",
+      },
+      "Value": {
+        "Ref": "DecisionStoreTable3E281CE6",
+      },
+    },
+    "ExportsOutputFnGetAttDecisionStoreTable3E281CE6Arn70033280": {
+      "Export": {
+        "Name": "snap-dynamodb:ExportsOutputFnGetAttDecisionStoreTable3E281CE6Arn70033280",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "DecisionStoreTable3E281CE6",
+          "Arn",
+        ],
+      },
+    },
+    "ExportsOutputFnGetAttUserActivityTableC1B8BF25Arn5B2CBB62": {
+      "Export": {
+        "Name": "snap-dynamodb:ExportsOutputFnGetAttUserActivityTableC1B8BF25Arn5B2CBB62",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "UserActivityTableC1B8BF25",
+          "Arn",
+        ],
+      },
+    },
+    "ExportsOutputFnGetAttUserProfileTable61BB5480Arn8F33ED73": {
+      "Export": {
+        "Name": "snap-dynamodb:ExportsOutputFnGetAttUserProfileTable61BB5480Arn8F33ED73",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "UserProfileTable61BB5480",
+          "Arn",
+        ],
+      },
+    },
+    "ExportsOutputFnGetAttUserSessionTableCD18DD22Arn426FD013": {
+      "Export": {
+        "Name": "snap-dynamodb:ExportsOutputFnGetAttUserSessionTableCD18DD22Arn426FD013",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "UserSessionTableCD18DD22",
+          "Arn",
+        ],
+      },
+    },
+    "ExportsOutputFnGetAttUserStateTable339B87E4Arn69FBB1B1": {
+      "Export": {
+        "Name": "snap-dynamodb:ExportsOutputFnGetAttUserStateTable339B87E4Arn69FBB1B1",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "UserStateTable339B87E4",
+          "Arn",
+        ],
+      },
+    },
+    "ExportsOutputRefDecisionStoreTable3E281CE6A2DD5580": {
+      "Export": {
+        "Name": "snap-dynamodb:ExportsOutputRefDecisionStoreTable3E281CE6A2DD5580",
+      },
+      "Value": {
+        "Ref": "DecisionStoreTable3E281CE6",
+      },
+    },
+    "ExportsOutputRefUserActivityTableC1B8BF2556CE349F": {
+      "Export": {
+        "Name": "snap-dynamodb:ExportsOutputRefUserActivityTableC1B8BF2556CE349F",
+      },
+      "Value": {
+        "Ref": "UserActivityTableC1B8BF25",
+      },
+    },
+    "ExportsOutputRefUserProfileTable61BB54804A17922C": {
+      "Export": {
+        "Name": "snap-dynamodb:ExportsOutputRefUserProfileTable61BB54804A17922C",
+      },
+      "Value": {
+        "Ref": "UserProfileTable61BB5480",
+      },
+    },
+    "ExportsOutputRefUserSessionTableCD18DD225383278D": {
+      "Export": {
+        "Name": "snap-dynamodb:ExportsOutputRefUserSessionTableCD18DD225383278D",
+      },
+      "Value": {
+        "Ref": "UserSessionTableCD18DD22",
+      },
+    },
+    "ExportsOutputRefUserStateTable339B87E474F22B71": {
+      "Export": {
+        "Name": "snap-dynamodb:ExportsOutputRefUserStateTable339B87E474F22B71",
+      },
+      "Value": {
+        "Ref": "UserStateTable339B87E4",
+      },
+    },
+    "UserActivityTableName": {
+      "Export": {
+        "Name": "snap-dynamodb:UserActivityTableName",
+      },
+      "Value": {
+        "Ref": "UserActivityTableC1B8BF25",
+      },
+    },
+    "UserProfileTableName": {
+      "Export": {
+        "Name": "snap-dynamodb:UserProfileTableName",
+      },
+      "Value": {
+        "Ref": "UserProfileTable61BB5480",
+      },
+    },
+    "UserSessionTableName": {
+      "Export": {
+        "Name": "snap-dynamodb:UserSessionTableName",
+      },
+      "Value": {
+        "Ref": "UserSessionTableCD18DD22",
+      },
+    },
+    "UserStateTableName": {
+      "Export": {
+        "Name": "snap-dynamodb:UserStateTableName",
+      },
+      "Value": {
+        "Ref": "UserStateTable339B87E4",
+      },
+    },
+  },
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "DecisionStoreTable3E281CE6": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "decisionId",
+            "AttributeType": "S",
+          },
+          {
+            "AttributeName": "userId",
+            "AttributeType": "S",
+          },
+          {
+            "AttributeName": "timestamp",
+            "AttributeType": "N",
+          },
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "userId-timestamp-index",
+            "KeySchema": [
+              {
+                "AttributeName": "userId",
+                "KeyType": "HASH",
+              },
+              {
+                "AttributeName": "timestamp",
+                "KeyType": "RANGE",
+              },
+            ],
+            "Projection": {
+              "ProjectionType": "ALL",
+            },
+          },
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "decisionId",
+            "KeyType": "HASH",
+          },
+        ],
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true,
+        },
+        "TableName": "DecisionStore",
+      },
+      "Type": "AWS::DynamoDB::Table",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "UserActivityTableC1B8BF25": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "userId",
+            "AttributeType": "S",
+          },
+          {
+            "AttributeName": "activityTime",
+            "AttributeType": "N",
+          },
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "KeySchema": [
+          {
+            "AttributeName": "userId",
+            "KeyType": "HASH",
+          },
+          {
+            "AttributeName": "activityTime",
+            "KeyType": "RANGE",
+          },
+        ],
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true,
+        },
+        "TableName": "UserActivity",
+        "TimeToLiveSpecification": {
+          "AttributeName": "ttl",
+          "Enabled": true,
+        },
+      },
+      "Type": "AWS::DynamoDB::Table",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "UserProfileTable61BB5480": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "userId",
+            "AttributeType": "S",
+          },
+          {
+            "AttributeName": "username",
+            "AttributeType": "S",
+          },
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "username-index",
+            "KeySchema": [
+              {
+                "AttributeName": "username",
+                "KeyType": "HASH",
+              },
+            ],
+            "Projection": {
+              "ProjectionType": "ALL",
+            },
+          },
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "userId",
+            "KeyType": "HASH",
+          },
+        ],
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true,
+        },
+        "TableName": "UserProfile",
+      },
+      "Type": "AWS::DynamoDB::Table",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "UserSessionTableCD18DD22": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "sessionId",
+            "AttributeType": "S",
+          },
+          {
+            "AttributeName": "userId",
+            "AttributeType": "S",
+          },
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "userId-index",
+            "KeySchema": [
+              {
+                "AttributeName": "userId",
+                "KeyType": "HASH",
+              },
+            ],
+            "Projection": {
+              "ProjectionType": "ALL",
+            },
+          },
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "sessionId",
+            "KeyType": "HASH",
+          },
+        ],
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true,
+        },
+        "TableName": "UserSession",
+      },
+      "Type": "AWS::DynamoDB::Table",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "UserStateTable339B87E4": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "userId",
+            "AttributeType": "S",
+          },
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "KeySchema": [
+          {
+            "AttributeName": "userId",
+            "KeyType": "HASH",
+          },
+        ],
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true,
+        },
+        "TableName": "UserState",
+      },
+      "Type": "AWS::DynamoDB::Table",
+      "UpdateReplacePolicy": "Delete",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`signal-force CDK FrontendStack matches snapshot 1`] = `
+{
+  "Outputs": {
+    "BucketName": {
+      "Export": {
+        "Name": "snap-frontend:BucketName",
+      },
+      "Value": {
+        "Ref": "SpaBucket48E1059F",
+      },
+    },
+    "DistributionId": {
+      "Export": {
+        "Name": "snap-frontend:DistributionId",
+      },
+      "Value": {
+        "Ref": "Distribution830FAC52",
+      },
+    },
+    "DistributionUrl": {
+      "Export": {
+        "Name": "snap-frontend:DistributionUrl",
+      },
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Fn::GetAtt": [
+                "Distribution830FAC52",
+                "DomainName",
+              ],
+            },
+          ],
+        ],
+      },
+    },
+  },
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536": {
+      "DependsOn": [
+        "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+        "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+      ],
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Helper Lambda runtime is pinned by the construct library and follows aws-cdk-lib upgrades, not project decisions.",
+            },
+            {
+              "id": "AwsSolutions-IAM4",
+              "reason": "CDK BucketDeployment uses the AWS-managed AWSLambdaBasicExecutionRole.",
+            },
+            {
+              "id": "AwsSolutions-IAM5",
+              "reason": "CDK BucketDeployment requires wildcard S3 permissions to copy and prune SPA assets between the staging bucket and the SPA bucket.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-000000000000-us-east-1",
+          "S3Key": "ASSET_HASH.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "AWS_CA_BUNDLE": "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
+          },
+        },
+        "Handler": "index.handler",
+        "Layers": [
+          {
+            "Ref": "SpaDeploymentAwsCliLayer0A2A7D9B",
+          },
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.13",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Helper Lambda runtime is pinned by the construct library and follows aws-cdk-lib upgrades, not project decisions.",
+            },
+            {
+              "id": "AwsSolutions-IAM4",
+              "reason": "CDK BucketDeployment uses the AWS-managed AWSLambdaBasicExecutionRole.",
+            },
+            {
+              "id": "AwsSolutions-IAM5",
+              "reason": "CDK BucketDeployment requires wildcard S3 permissions to copy and prune SPA assets between the staging bucket and the SPA bucket.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Helper Lambda runtime is pinned by the construct library and follows aws-cdk-lib upgrades, not project decisions.",
+            },
+            {
+              "id": "AwsSolutions-IAM4",
+              "reason": "CDK BucketDeployment uses the AWS-managed AWSLambdaBasicExecutionRole.",
+            },
+            {
+              "id": "AwsSolutions-IAM5",
+              "reason": "CDK BucketDeployment requires wildcard S3 permissions to copy and prune SPA assets between the staging bucket and the SPA bucket.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-000000000000-us-east-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-000000000000-us-east-1/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "SpaBucket48E1059F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "SpaBucket48E1059F",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "cloudfront:GetInvalidation",
+                "cloudfront:CreateInvalidation",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+        "Roles": [
+          {
+            "Ref": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F": {
+      "DependsOn": [
+        "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-000000000000-us-east-1",
+          "S3Key": "ASSET_HASH.zip",
+        },
+        "Description": {
+          "Fn::Join": [
+            "",
+            [
+              "Lambda function for auto-deleting objects in ",
+              {
+                "Ref": "SpaBucket48E1059F",
+              },
+              " S3 bucket.",
+            ],
+          ],
+        },
+        "Handler": "index.handler",
+        "MemorySize": 128,
+        "Role": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:\${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "Distribution830FAC52": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-CFR1",
+              "reason": "No geographic restrictions on the demo. Customer surface is open to evaluators globally.",
+            },
+            {
+              "id": "AwsSolutions-CFR2",
+              "reason": "WAF in front of CloudFront is documented as post-event work (see docs/architecture.md upgrade path).",
+            },
+            {
+              "id": "AwsSolutions-CFR3",
+              "reason": "Standard access logs deferred. Demo traffic is light enough that CloudWatch metrics are sufficient for the event.",
+            },
+            {
+              "id": "AwsSolutions-CFR4",
+              "reason": "Distribution explicitly sets minimumProtocolVersion to TLSv1.2_2021. The finding can fire on default cert configurations and is not applicable here.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "DistributionConfig": {
+          "Comment": "signal-force SPA distribution",
+          "CustomErrorResponses": [
+            {
+              "ErrorCachingMinTTL": 300,
+              "ErrorCode": 403,
+              "ResponseCode": 200,
+              "ResponsePagePath": "/index.html",
+            },
+            {
+              "ErrorCachingMinTTL": 300,
+              "ErrorCode": 404,
+              "ResponseCode": 200,
+              "ResponsePagePath": "/index.html",
+            },
+          ],
+          "DefaultCacheBehavior": {
+            "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+            "Compress": true,
+            "ResponseHeadersPolicyId": "67f7725c-6f97-4210-82d7-5512b31e9d03",
+            "TargetOriginId": "snapfrontendDistributionOrigin1F98BF7F1",
+            "ViewerProtocolPolicy": "redirect-to-https",
+          },
+          "DefaultRootObject": "index.html",
+          "Enabled": true,
+          "HttpVersion": "http2",
+          "IPV6Enabled": true,
+          "Origins": [
+            {
+              "DomainName": {
+                "Fn::GetAtt": [
+                  "SpaBucket48E1059F",
+                  "RegionalDomainName",
+                ],
+              },
+              "Id": "snapfrontendDistributionOrigin1F98BF7F1",
+              "OriginAccessControlId": {
+                "Fn::GetAtt": [
+                  "DistributionOrigin1S3OriginAccessControlEB606076",
+                  "Id",
+                ],
+              },
+              "S3OriginConfig": {
+                "OriginAccessIdentity": "",
+              },
+            },
+          ],
+          "PriceClass": "PriceClass_100",
+        },
+      },
+      "Type": "AWS::CloudFront::Distribution",
+    },
+    "DistributionOrigin1S3OriginAccessControlEB606076": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-CFR1",
+              "reason": "No geographic restrictions on the demo. Customer surface is open to evaluators globally.",
+            },
+            {
+              "id": "AwsSolutions-CFR2",
+              "reason": "WAF in front of CloudFront is documented as post-event work (see docs/architecture.md upgrade path).",
+            },
+            {
+              "id": "AwsSolutions-CFR3",
+              "reason": "Standard access logs deferred. Demo traffic is light enough that CloudWatch metrics are sufficient for the event.",
+            },
+            {
+              "id": "AwsSolutions-CFR4",
+              "reason": "Distribution explicitly sets minimumProtocolVersion to TLSv1.2_2021. The finding can fire on default cert configurations and is not applicable here.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": "snapfrontendDistributionOrigin1S3OriginAccessControlC55EE075",
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4",
+        },
+      },
+      "Type": "AWS::CloudFront::OriginAccessControl",
+    },
+    "SpaBucket48E1059F": {
+      "DeletionPolicy": "Delete",
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-S1",
+              "reason": "Server access logging on the SPA bucket is deferred. CloudFront standard logs cover the access path that actually matters for this stack.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256",
+              },
+            },
+          ],
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "Tags": [
+          {
+            "Key": "aws-cdk:auto-delete-objects",
+            "Value": "true",
+          },
+          {
+            "Key": "aws-cdk:cr-owned:f66d12c1",
+            "Value": "true",
+          },
+        ],
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "SpaBucketAutoDeleteObjectsCustomResourceDCF3398A": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "SpaBucketPolicy77D96634",
+      ],
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-S1",
+              "reason": "Server access logging on the SPA bucket is deferred. CloudFront standard logs cover the access path that actually matters for this stack.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "BucketName": {
+          "Ref": "SpaBucket48E1059F",
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::S3AutoDeleteObjects",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "SpaBucketPolicy77D96634": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-S1",
+              "reason": "Server access logging on the SPA bucket is deferred. CloudFront standard logs cover the access path that actually matters for this stack.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Bucket": {
+          "Ref": "SpaBucket48E1059F",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "SpaBucket48E1059F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "SpaBucket48E1059F",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:PutBucketPolicy",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::GetAtt": [
+                    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+                    "Arn",
+                  ],
+                },
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "SpaBucket48E1059F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "SpaBucket48E1059F",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "s3:GetObject",
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":cloudfront::",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":distribution/",
+                        {
+                          "Ref": "Distribution830FAC52",
+                        },
+                      ],
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com",
+              },
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::GetAtt": [
+                        "SpaBucket48E1059F",
+                        "Arn",
+                      ],
+                    },
+                    "/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "SpaDeploymentAwsCliLayer0A2A7D9B": {
+      "Properties": {
+        "Content": {
+          "S3Bucket": "cdk-hnb659fds-assets-000000000000-us-east-1",
+          "S3Key": "ASSET_HASH.zip",
+        },
+        "Description": "/opt/awscli/aws",
+      },
+      "Type": "AWS::Lambda::LayerVersion",
+    },
+    "SpaDeploymentCustomResourceB63B8AFC": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "DestinationBucketName": {
+          "Ref": "SpaBucket48E1059F",
+        },
+        "DistributionId": {
+          "Ref": "Distribution830FAC52",
+        },
+        "DistributionPaths": [
+          "/*",
+        ],
+        "OutputObjectKeys": true,
+        "Prune": true,
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536",
+            "Arn",
+          ],
+        },
+        "SourceBucketNames": [
+          "cdk-hnb659fds-assets-000000000000-us-east-1",
+        ],
+        "SourceObjectKeys": [
+          "ASSET_HASH.zip",
+        ],
+        "WaitForDistributionInvalidation": true,
+      },
+      "Type": "Custom::CDKBucketDeployment",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "SpaUrlParam62CA5096": {
+      "Properties": {
+        "Description": "Public URL for the signal-force SPA (CloudFront)",
+        "Name": "/signal-force/test/spa-url",
+        "Type": "String",
+        "Value": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::GetAtt": [
+                  "Distribution830FAC52",
+                  "DomainName",
+                ],
+              },
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`signal-force CDK RuntimeStack matches snapshot 1`] = `
+{
+  "Outputs": {
+    "ApiUrl": {
+      "Export": {
+        "Name": "snap-runtime:ApiUrl",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "ApiF70053CD",
+          "ApiEndpoint",
+        ],
+      },
+    },
+    "DashboardUrl": {
+      "Export": {
+        "Name": "snap-runtime:DashboardUrl",
+      },
+      "Value": "https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards:name=signal-force-demo",
+    },
+    "FraudAlertTopicArn": {
+      "Export": {
+        "Name": "snap-runtime:FraudAlertTopicArn",
+      },
+      "Value": {
+        "Ref": "FraudAlertTopic64F9CC35",
+      },
+    },
+    "LambdaFunctionName": {
+      "Export": {
+        "Name": "snap-runtime:LambdaFunctionName",
+      },
+      "Value": {
+        "Ref": "ApiLambda91D2282D",
+      },
+    },
+  },
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "ApiANYCA91118A": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-APIG4",
+              "reason": "Authorization is handled in-Lambda by the Basic Auth + static MFA OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event (see docs/architecture.md upgrade path).",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "ApiId": {
+          "Ref": "ApiF70053CD",
+        },
+        "AuthorizationType": "NONE",
+        "RouteKey": "ANY /",
+        "Target": {
+          "Fn::Join": [
+            "",
+            [
+              "integrations/",
+              {
+                "Ref": "ApiANYproxyLambdaIntegration97DD11AF",
+              },
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::ApiGatewayV2::Route",
+    },
+    "ApiANYLambdaIntegrationPermission17BF2DF7": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-APIG4",
+              "reason": "Authorization is handled in-Lambda by the Basic Auth + static MFA OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event (see docs/architecture.md upgrade path).",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiLambda91D2282D",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:us-east-1:000000000000:",
+              {
+                "Ref": "ApiF70053CD",
+              },
+              "/*/*/",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "ApiANYproxyA4087D62": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-APIG4",
+              "reason": "Authorization is handled in-Lambda by the Basic Auth + static MFA OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event (see docs/architecture.md upgrade path).",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "ApiId": {
+          "Ref": "ApiF70053CD",
+        },
+        "AuthorizationType": "NONE",
+        "RouteKey": "ANY /{proxy+}",
+        "Target": {
+          "Fn::Join": [
+            "",
+            [
+              "integrations/",
+              {
+                "Ref": "ApiANYproxyLambdaIntegration97DD11AF",
+              },
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::ApiGatewayV2::Route",
+    },
+    "ApiANYproxyLambdaIntegration97DD11AF": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-APIG4",
+              "reason": "Authorization is handled in-Lambda by the Basic Auth + static MFA OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event (see docs/architecture.md upgrade path).",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "ApiId": {
+          "Ref": "ApiF70053CD",
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "ApiLambda91D2282D",
+            "Arn",
+          ],
+        },
+        "PayloadFormatVersion": "2.0",
+      },
+      "Type": "AWS::ApiGatewayV2::Integration",
+    },
+    "ApiANYproxyLambdaIntegrationPermission95C4E694": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-APIG4",
+              "reason": "Authorization is handled in-Lambda by the Basic Auth + static MFA OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event (see docs/architecture.md upgrade path).",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiLambda91D2282D",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:us-east-1:000000000000:",
+              {
+                "Ref": "ApiF70053CD",
+              },
+              "/*/*/{proxy+}",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "ApiAccessLogGroupCEA70788": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "RetentionInDays": 7,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "ApiDefaultStage189A7074": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-APIG4",
+              "reason": "Authorization is handled in-Lambda by the Basic Auth + static MFA OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event (see docs/architecture.md upgrade path).",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AccessLogSettings": {
+          "DestinationArn": {
+            "Fn::GetAtt": [
+              "ApiAccessLogGroupCEA70788",
+              "Arn",
+            ],
+          },
+          "Format": "{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","integrationErrorMessage":"$context.integrationErrorMessage"}",
+        },
+        "ApiId": {
+          "Ref": "ApiF70053CD",
+        },
+        "AutoDeploy": true,
+        "DefaultRouteSettings": {
+          "DetailedMetricsEnabled": true,
+        },
+        "StageName": "$default",
+      },
+      "Type": "AWS::ApiGatewayV2::Stage",
+    },
+    "ApiF70053CD": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-APIG4",
+              "reason": "Authorization is handled in-Lambda by the Basic Auth + static MFA OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event (see docs/architecture.md upgrade path).",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "CorsConfiguration": {
+          "AllowHeaders": [
+            "*",
+          ],
+          "AllowMethods": [
+            "*",
+          ],
+          "AllowOrigins": [
+            "*",
+          ],
+        },
+        "Name": "Api",
+        "ProtocolType": "HTTP",
+      },
+      "Type": "AWS::ApiGatewayV2::Api",
+    },
+    "ApiLambda91D2282D": {
+      "DependsOn": [
+        "ApiLambdaServiceRoleDefaultPolicyF1B57697",
+        "ApiLambdaServiceRole1CC7D0F3",
+      ],
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Node.js 18 is the documented runtime for this hackathon (see AGENTS.md). Bump tracked as post-event work before Lambda EOL.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-000000000000-us-east-1",
+          "S3Key": "ASSET_HASH.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "BEDROCK_MODEL_ID": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            "CLIENT_ID": "demoClient",
+            "CLIENT_SECRET": "demoSecret",
+            "FRAUD_ALERT_TOPIC_ARN": {
+              "Ref": "FraudAlertTopic64F9CC35",
+            },
+            "FRAUD_SCORE_THRESHOLD": "60",
+            "MFA_OTP": "123456",
+            "TABLE_DECISION_STORE": {
+              "Fn::ImportValue": "snap-dynamodb:ExportsOutputRefDecisionStoreTable3E281CE6A2DD5580",
+            },
+            "TABLE_USER_ACTIVITY": {
+              "Fn::ImportValue": "snap-dynamodb:ExportsOutputRefUserActivityTableC1B8BF2556CE349F",
+            },
+            "TABLE_USER_PROFILE": {
+              "Fn::ImportValue": "snap-dynamodb:ExportsOutputRefUserProfileTable61BB54804A17922C",
+            },
+            "TABLE_USER_SESSION": {
+              "Fn::ImportValue": "snap-dynamodb:ExportsOutputRefUserSessionTableCD18DD225383278D",
+            },
+            "TABLE_USER_STATE": {
+              "Fn::ImportValue": "snap-dynamodb:ExportsOutputRefUserStateTable339B87E474F22B71",
+            },
+          },
+        },
+        "Handler": "index.main",
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "ApiLambdaLogGroup3846CFFB",
+          },
+        },
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "ApiLambdaServiceRole1CC7D0F3",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs18.x",
+        "Timeout": 10,
+        "TracingConfig": {
+          "Mode": "Active",
+        },
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "ApiLambdaLogGroup3846CFFB": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "RetentionInDays": 1,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "ApiLambdaServiceRole1CC7D0F3": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Node.js 18 is the documented runtime for this hackathon (see AGENTS.md). Bump tracked as post-event work before Lambda EOL.",
+            },
+            {
+              "applies_to": [
+                "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+              "id": "AwsSolutions-IAM4",
+              "reason": "AWSLambdaBasicExecutionRole is the CDK default for Lambda CloudWatch Logs access and is acceptable.",
+            },
+            {
+              "applies_to": [
+                "Resource::<UserProfileTable61BB5480.Arn>/index/*",
+                "Resource::<UserSessionTableCD18DD22.Arn>/index/*",
+                "Resource::<DecisionStoreTable3E281CE6.Arn>/index/*",
+              ],
+              "id": "AwsSolutions-IAM5",
+              "reason": "GSI wildcards are required by Table.grantReadWriteData so the function can query the indexes attached to each table.",
+            },
+            {
+              "applies_to": [
+                "Resource::arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5*",
+                "Resource::arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5*",
+              ],
+              "id": "AwsSolutions-IAM5",
+              "reason": "Bedrock foundation-model and inference-profile ARNs use a model-family wildcard so the function works across Haiku 4.5 minor versions without redeploy.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "ApiLambdaServiceRoleDefaultPolicyF1B57697": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Node.js 18 is the documented runtime for this hackathon (see AGENTS.md). Bump tracked as post-event work before Lambda EOL.",
+            },
+            {
+              "applies_to": [
+                "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+              "id": "AwsSolutions-IAM4",
+              "reason": "AWSLambdaBasicExecutionRole is the CDK default for Lambda CloudWatch Logs access and is acceptable.",
+            },
+            {
+              "applies_to": [
+                "Resource::<UserProfileTable61BB5480.Arn>/index/*",
+                "Resource::<UserSessionTableCD18DD22.Arn>/index/*",
+                "Resource::<DecisionStoreTable3E281CE6.Arn>/index/*",
+              ],
+              "id": "AwsSolutions-IAM5",
+              "reason": "GSI wildcards are required by Table.grantReadWriteData so the function can query the indexes attached to each table.",
+            },
+            {
+              "applies_to": [
+                "Resource::arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5*",
+                "Resource::arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5*",
+              ],
+              "id": "AwsSolutions-IAM5",
+              "reason": "Bedrock foundation-model and inference-profile ARNs use a model-family wildcard so the function works across Haiku 4.5 minor versions without redeploy.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserProfileTable61BB5480Arn8F33ED73",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserProfileTable61BB5480Arn8F33ED73",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserProfileTable61BB5480Arn8F33ED73",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserProfileTable61BB5480Arn8F33ED73",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserSessionTableCD18DD22Arn426FD013",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserSessionTableCD18DD22Arn426FD013",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserSessionTableCD18DD22Arn426FD013",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserSessionTableCD18DD22Arn426FD013",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserActivityTableC1B8BF25Arn5B2CBB62",
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserActivityTableC1B8BF25Arn5B2CBB62",
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttDecisionStoreTable3E281CE6Arn70033280",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttDecisionStoreTable3E281CE6Arn70033280",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttDecisionStoreTable3E281CE6Arn70033280",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttDecisionStoreTable3E281CE6Arn70033280",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserStateTable339B87E4Arn69FBB1B1",
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "snap-dynamodb:ExportsOutputFnGetAttUserStateTable339B87E4Arn69FBB1B1",
+                },
+              ],
+            },
+            {
+              "Action": "sns:Publish",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "FraudAlertTopic64F9CC35",
+              },
+            },
+            {
+              "Action": [
+                "bedrock:InvokeModel",
+                "bedrock:Converse",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5*",
+                "arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5*",
+              ],
+              "Sid": "BedrockHaikuAccess",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "ApiLambdaServiceRoleDefaultPolicyF1B57697",
+        "Roles": [
+          {
+            "Ref": "ApiLambdaServiceRole1CC7D0F3",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "ApiUrlParam8AD347B3": {
+      "Properties": {
+        "Description": "HTTP API endpoint for the signal-force runtime stack",
+        "Name": "/signal-force/test/api-url",
+        "Type": "String",
+        "Value": {
+          "Fn::GetAtt": [
+            "ApiF70053CD",
+            "ApiEndpoint",
+          ],
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "Dashboard9E4231ED": {
+      "Properties": {
+        "DashboardBody": {
+          "Fn::Join": [
+            "",
+            [
+              "{"widgets":[{"type":"metric","width":12,"height":6,"x":0,"y":0,"properties":{"view":"timeSeries","title":"Lambda invocations and errors","region":"",
+              {
+                "Ref": "AWS::Region",
+              },
+              "","metrics":[["AWS/Lambda","Invocations","FunctionName","",
+              {
+                "Ref": "ApiLambda91D2282D",
+              },
+              "",{"period":60,"stat":"Sum"}],["AWS/Lambda","Errors","FunctionName","",
+              {
+                "Ref": "ApiLambda91D2282D",
+              },
+              "",{"period":60,"stat":"Sum","yAxis":"right"}]],"yAxis":{}}},{"type":"metric","width":12,"height":6,"x":12,"y":0,"properties":{"view":"timeSeries","title":"Lambda duration (ms) - p50 / p95 / p99","region":"",
+              {
+                "Ref": "AWS::Region",
+              },
+              "","metrics":[["AWS/Lambda","Duration","FunctionName","",
+              {
+                "Ref": "ApiLambda91D2282D",
+              },
+              "",{"label":"p50","period":60,"stat":"p50"}],["AWS/Lambda","Duration","FunctionName","",
+              {
+                "Ref": "ApiLambda91D2282D",
+              },
+              "",{"label":"p95","period":60,"stat":"p95"}],["AWS/Lambda","Duration","FunctionName","",
+              {
+                "Ref": "ApiLambda91D2282D",
+              },
+              "",{"label":"p99","period":60,"stat":"p99"}]],"yAxis":{}}},{"type":"metric","width":12,"height":6,"x":0,"y":6,"properties":{"view":"timeSeries","title":"API Gateway 4xx / 5xx / latency","region":"",
+              {
+                "Ref": "AWS::Region",
+              },
+              "","metrics":[["AWS/ApiGateway","4xx","ApiId","",
+              {
+                "Ref": "ApiF70053CD",
+              },
+              "",{"label":"4xx","period":60,"stat":"Sum"}],["AWS/ApiGateway","5xx","ApiId","",
+              {
+                "Ref": "ApiF70053CD",
+              },
+              "",{"label":"5xx","period":60,"stat":"Sum"}],["AWS/ApiGateway","Latency","ApiId","",
+              {
+                "Ref": "ApiF70053CD",
+              },
+              "",{"label":"latency p99","period":60,"stat":"p99","yAxis":"right"}]],"yAxis":{}}},{"type":"metric","width":12,"height":3,"x":12,"y":6,"properties":{"view":"singleValue","title":"DecisionStore writes (last hour)","region":"",
+              {
+                "Ref": "AWS::Region",
+              },
+              "","metrics":[["AWS/DynamoDB","ConsumedWriteCapacityUnits","TableName","",
+              {
+                "Fn::ImportValue": "snap-dynamodb:ExportsOutputRefDecisionStoreTable3E281CE6A2DD5580",
+              },
+              "",{"label":"Write CU","period":3600,"stat":"Sum"}]]}},{"type":"metric","width":12,"height":6,"x":0,"y":12,"properties":{"view":"timeSeries","title":"Lambda throttles","region":"",
+              {
+                "Ref": "AWS::Region",
+              },
+              "","metrics":[["AWS/Lambda","Throttles","FunctionName","",
+              {
+                "Ref": "ApiLambda91D2282D",
+              },
+              "",{"period":60,"stat":"Sum"}]],"yAxis":{}}},{"type":"metric","width":12,"height":6,"x":12,"y":12,"properties":{"view":"timeSeries","title":"Lambda concurrent executions","region":"",
+              {
+                "Ref": "AWS::Region",
+              },
+              "","metrics":[["AWS/Lambda","ConcurrentExecutions","FunctionName","",
+              {
+                "Ref": "ApiLambda91D2282D",
+              },
+              "",{"period":60,"stat":"Maximum"}]],"yAxis":{}}},{"type":"log","width":24,"height":6,"x":0,"y":18,"properties":{"view":"table","title":"Fraud-related log lines","region":"",
+              {
+                "Ref": "AWS::Region",
+              },
+              "","query":"SOURCE '",
+              {
+                "Ref": "ApiLambdaLogGroup3846CFFB",
+              },
+              "' | fields @timestamp, @message\\n| filter @message like /FRAUD/\\n| sort @timestamp desc\\n| limit 50"}}]}",
+            ],
+          ],
+        },
+        "DashboardName": "signal-force-demo",
+      },
+      "Type": "AWS::CloudWatch::Dashboard",
+    },
+    "FraudAlertTopic64F9CC35": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-SNS3",
+              "reason": "Demo topic for internal fraud notifications. AWS SDK and Lambda publish over TLS by default. SSE will be revisited when the topic carries real user data.",
+            },
+            {
+              "id": "AwsSolutions-SNS2",
+              "reason": "Demo topic. KMS-managed encryption deferred until the topic carries production payloads.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "DisplayName": "signal-force fraud alerts",
+      },
+      "Type": "AWS::SNS::Topic",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
