@@ -292,3 +292,74 @@ describe('score clamping', () => {
     assert.ok(final.score >= 0 && final.score <= 100, `score out of range: ${final.score}`);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 10. Budget guard: gray-zone falls back to L1 with breakerOpen when exceeded
+// ---------------------------------------------------------------------------
+
+describe('budget guard exceeded - gray-zone falls back to L1', () => {
+  test('returns engineLayer L1 and breakerOpen true when budget is exceeded', async () => {
+    const budget = require('./budget');
+    budget._reset({ maxCalls: 0, windowSec: 300 }); // cap at 0 so first call is always refused
+
+    const stub = fakeClassify({
+      label: 'BLOCK',
+      confidence: 0.9,
+      latencyMs: 30,
+      model: 'claude-haiku-4-5',
+    });
+    const { route } = require('./router');
+    const draft = makeDraft({
+      score: 60,
+      riskLevel: 'MEDIUM',
+      action: 'REVIEW',
+      needsExplanation: true,
+      category: 'EARN_REDEEM',
+    });
+    const final = await route(draft, makeCtx({ category: 'EARN_REDEEM' }), { llm: stub });
+
+    assert.equal(stub.wasCalled(), false, 'classify must not be called when budget is exceeded');
+    assert.equal(final.engineLayer, 'L1', 'engineLayer must be L1 when budget guard fires');
+    assert.equal(final.breakerOpen, true, 'breakerOpen must be true when guard fires');
+
+    // Reset budget to non-zero so remaining tests are unaffected
+    budget._reset({ maxCalls: 50, windowSec: 300 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11. Budget guard exceeded - NUDGE falls back to L1 with breakerOpen
+// ---------------------------------------------------------------------------
+
+describe('budget guard exceeded - NUDGE falls back to L1', () => {
+  test('NUDGE with budget exceeded returns L1 fallback with breakerOpen true', async () => {
+    const budget = require('./budget');
+    budget._reset({ maxCalls: 0, windowSec: 300 });
+
+    const stub = fakeWriteText({
+      text: 'Some personalized nudge.',
+      latencyMs: 25,
+      model: 'claude-haiku-4-5',
+    });
+    const { route } = require('./router');
+    const draft = makeDraft({
+      score: 70,
+      riskLevel: 'MEDIUM',
+      action: 'NUDGE',
+      needsExplanation: true,
+      category: 'PROFILE',
+    });
+    const final = await route(draft, makeCtx({ category: 'PROFILE' }), { llm: stub });
+
+    assert.equal(stub.wasCalled(), false, 'writeText must not be called when budget is exceeded');
+    assert.equal(final.engineLayer, 'L1', 'NUDGE fallback must be L1 when guard fires');
+    assert.equal(final.breakerOpen, true, 'breakerOpen must be true for NUDGE fallback');
+    assert.equal(
+      final.generatedText,
+      'Complete your profile to speed up booking',
+      'default nudge text must be used when guard fires'
+    );
+
+    budget._reset({ maxCalls: 50, windowSec: 300 });
+  });
+});

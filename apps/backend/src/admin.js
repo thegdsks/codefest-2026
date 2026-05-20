@@ -11,6 +11,7 @@
  * gateway already validates the secret; this layer validates the subject role.
  */
 
+const { getStats: getBudgetStats } = require('./engine/budget');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const {
   DynamoDBDocumentClient,
@@ -327,6 +328,7 @@ async function getMetrics(event, correlationId) {
       totals: { total, l1, l1plus_l2, by_type, by_action },
       costEstimateUsd,
       asOf: nowSec(),
+      guard: getBudgetStats(),
     },
   });
 }

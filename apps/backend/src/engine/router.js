@@ -18,6 +18,7 @@
  */
 
 const defaultLlm = require('./llm');
+const budget = require('./budget');
 
 const NUDGE_DEFAULT_TEXT = 'Complete your profile to speed up booking';
 
@@ -132,8 +133,27 @@ async function route(l1Draft, ctx, deps) {
 
   // --- Tier 3: nudge - generate personalized text ---
   if (l1Draft.action === 'NUDGE') {
+    const reservation = budget.tryReserve();
+    if (!reservation.ok) {
+      // Budget exceeded: skip the LLM call, return default nudge with breaker flag
+      return finalise(l1Draft, {
+        engineLayer: 'L1',
+        generatedText: NUDGE_DEFAULT_TEXT,
+        breakerOpen: true,
+      });
+    }
     const prompt = buildNudgePrompt(ctx);
-    const result = await llm.writeText(prompt, { maxTokens: 80 });
+    let result = null;
+    try {
+      result = await llm.writeText(prompt, { maxTokens: 80 });
+    } finally {
+      budget.recordResult({
+        callId: reservation.callId,
+        success: result !== null,
+        latencyMs: result ? result.latencyMs : 0,
+        model: result ? result.model : 'unknown',
+      });
+    }
     if (result) {
       return finalise(l1Draft, {
         engineLayer: 'L1+L2',
@@ -150,8 +170,24 @@ async function route(l1Draft, ctx, deps) {
   }
 
   // --- Tier 4: gray zone - classify with LLM ---
+  const reservation = budget.tryReserve();
+  if (!reservation.ok) {
+    // Budget exceeded: fall back to L1 verbatim with breaker flag
+    return finalise(l1Draft, { engineLayer: 'L1', breakerOpen: true });
+  }
+
   const prompt = buildClassifyPrompt(l1Draft, ctx);
-  const result = await llm.classify(prompt);
+  let result = null;
+  try {
+    result = await llm.classify(prompt);
+  } finally {
+    budget.recordResult({
+      callId: reservation.callId,
+      success: result !== null,
+      latencyMs: result ? result.latencyMs : 0,
+      model: result ? result.model : 'unknown',
+    });
+  }
 
   if (!result) {
     // LLM unavailable or timed out: fall back to L1 verbatim
