@@ -164,6 +164,25 @@ Customer SPA                Gateway+Lambda           DynamoDB     L1 Rules   L2 
 
 Activity stream context (Akamai logs, web hits, page events) is the longer-term input that fills `UserActivity`. For the demo it is replayed by the seed loader; in production it would arrive over a stream (Kinesis or EventBridge Pipes).
 
+## API surface
+
+- `POST /auth/login` - customer login, returns sessionId and risk decision
+- `POST /auth/mfa/verify` - verify static OTP to complete login
+- `POST /transactions/transfer` - points transfer with fraud scoring
+- `GET /user/profile` - fetch loyalty profile for a user
+- `GET /user/profile-completeness?userId=` - completeness percent, missing fields, nudge text
+- `GET /offers?userId=` - personalized offers for a user
+- `POST /offers/action` - track offer interaction (IMPRESSION, CLICK, BOOK)
+- `GET /nudges?userId=` - active nudges for a user
+- `POST /nudges/action` - track nudge interaction (SHOWN, DISMISSED, COMPLETED)
+- `GET /dashboard?userId=` - customer dashboard: profile, fraud status, offers, nudges, activity
+- `GET /admin/decisions?window=&type=&userId=&limit=` - decision feed, admin only
+- `GET /admin/metrics?window=` - aggregate counts and L1 vs L1+L2 split, admin only
+- `POST /admin/decisions/{id}/release` - override a HOLD or BLOCK decision, admin only
+- `GET /admin/users?limit=&cursor=` - paginated user list, admin only
+
+Full request/response shapes and curl examples are in `docs/api-quickstart.md` -> Endpoint index.
+
 ## Quick start
 
 ```bash
