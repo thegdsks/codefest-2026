@@ -140,22 +140,20 @@ async function incrementTransferCounters(userId, nowTs) {
   const lastTransferTime = st && st.lastTransferTime ? st.lastTransferTime : 0;
   const reset1h = lastTransferTime && nowTs - lastTransferTime > 3600;
 
+  // DynamoDB rejects ExpressionAttributeNames/Values keys that the
+  // UpdateExpression does not reference, so build them per branch.
+  const updateExpression = reset1h
+    ? 'SET #tc1=:reset, #ltt=:now, #u=:u ADD #tc24 :one'
+    : 'ADD #tc1 :one, #tc24 :one SET #ltt=:now, #u=:u';
   const exprNames = {
     '#tc1': 'transferCount1h',
     '#tc24': 'transferCount24h',
     '#ltt': 'lastTransferTime',
     '#u': 'updatedAt',
   };
-  const exprValues = {
-    ':one': 1,
-    ':now': nowTs,
-    ':u': nowSec(),
-    ':reset': 1,
-  };
-
-  const updateExpression = reset1h
-    ? 'SET #tc1=:reset, #ltt=:now, #u=:u ADD #tc24 :one'
-    : 'ADD #tc1 :one, #tc24 :one SET #ltt=:now, #u=:u';
+  const exprValues = reset1h
+    ? { ':reset': 1, ':one': 1, ':now': nowTs, ':u': nowSec() }
+    : { ':one': 1, ':now': nowTs, ':u': nowSec() };
 
   await ddb.send(
     new UpdateCommand({
