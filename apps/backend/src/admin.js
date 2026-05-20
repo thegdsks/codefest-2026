@@ -3,7 +3,8 @@
 /**
  * Admin endpoints module.
  *
- * Exports: getDecisions, getMetrics, releaseDecision, getUsers
+ * Exports: getDecisions, getMetrics, releaseDecision, getUsers,
+ *          getDecisionById, exportDecisions, extractIdFromPath
  * Test seam: _setDdb(client) - injects a DDB client stub for unit tests.
  *
  * Auth: every exported function checks that the Basic Auth subject belongs to
@@ -130,6 +131,28 @@ function requireAdmin(event, correlationId) {
 
 function qstr(event, key) {
   return (event.queryStringParameters && event.queryStringParameters[key]) || null;
+}
+
+/**
+ * Extract a path segment between a known prefix and suffix from a raw path
+ * string. Handles HTTP API v2 catch-all routes that do not populate
+ * event.pathParameters.
+ *
+ * Example:
+ *   extractIdFromPath('/admin/decisions/DEC%23abc/release', '/admin/decisions', '/release')
+ *   // => 'DEC%23abc'
+ *
+ * @param {string} rawPath
+ * @param {string} prefix  - path segment before the id
+ * @param {string} suffix  - path segment after the id (empty string for detail routes)
+ * @returns {string|null}
+ */
+function extractIdFromPath(rawPath, prefix, suffix) {
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedSuffix = suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp('^' + escapedPrefix + '\\/([^/]+)' + escapedSuffix + '$');
+  const m = rawPath && rawPath.match(pattern);
+  return m ? m[1] : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -347,6 +370,9 @@ async function getMetrics(event, correlationId) {
  *   2. Write a DECISION_RELEASE row referencing the original.
  *   3. If the user's UserState has isBlocked=true, clear it.
  *
+ * HTTP API v2 catch-all routing does NOT populate event.pathParameters.id.
+ * The id is extracted from rawPath using extractIdFromPath.
+ *
  * @param {object} event
  * @param {string} correlationId
  * @returns {Promise<object>}
@@ -355,9 +381,14 @@ async function releaseDecision(event, correlationId) {
   const authCheck = requireAdmin(event, correlationId);
   if (!authCheck.ok) return authCheck.response;
 
-  const decisionId =
+  // HTTP API v2 catch-all routes do not populate event.pathParameters.
+  // Extract the id from rawPath (or path) directly.
+  const rawPath = event.rawPath || event.path || '';
+  const encoded =
+    extractIdFromPath(rawPath, '/admin/decisions', '/release') ||
     (event.pathParameters && event.pathParameters.id) ||
-    (event.pathParameters && event.pathParameters['id']);
+    null;
+  const decisionId = encoded ? decodeURIComponent(encoded) : null;
 
   if (!decisionId) {
     return err(400, correlationId, 'VALIDATION_ERROR', 'Missing path parameter: id');
@@ -478,4 +509,11 @@ async function getUsers(event, correlationId) {
 // Exports
 // ---------------------------------------------------------------------------
 
-module.exports = { getDecisions, getMetrics, releaseDecision, getUsers, _setDdb };
+module.exports = {
+  getDecisions,
+  getMetrics,
+  releaseDecision,
+  getUsers,
+  extractIdFromPath,
+  _setDdb,
+};

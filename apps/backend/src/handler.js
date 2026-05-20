@@ -14,7 +14,11 @@ const { scoreOffer } = require('./rules/offers');
 const { scoreNudge } = require('./rules/nudges');
 const { profileCompleteness } = require('./rules/profile');
 const { route: engineRoute } = require('./engine/router');
+const { getStats: getBudgetStats } = require('./engine/budget');
 const admin = require('./admin');
+
+// Read version once at module load.
+const PACKAGE_VERSION = require('../package.json').version;
 
 let ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -349,6 +353,35 @@ function decision(
     base.llmModel = engineMeta.llmModel;
   }
   return base;
+}
+
+// ---------------------------------------------------------------------------
+// GET /health  (unauthenticated pre-flight check)
+// ---------------------------------------------------------------------------
+
+function healthEndpoint() {
+  const stats = getBudgetStats();
+  const body = {
+    status: 'ok',
+    version: PACKAGE_VERSION,
+    commit: process.env.GIT_COMMIT_SHA || 'unknown',
+    engineLayer: {
+      breakerOpen: stats.breakerOpen,
+      callsInWindow: stats.callsInWindow,
+      maxCalls: stats.maxCalls,
+    },
+    asOf: Date.now(),
+  };
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Methods': '*',
+    },
+    body: JSON.stringify(body),
+  };
 }
 
 async function route(event, correlationId) {
@@ -919,6 +952,16 @@ exports.main = async (event) => {
   const correlationId = getHeader(event.headers, 'x-correlation-id') || '';
 
   try {
+    // /health is intentionally unauthenticated - resolve it before the auth gate.
+    const method =
+      (event.requestContext && event.requestContext.http && event.requestContext.http.method) ||
+      event.httpMethod;
+    const rawP =
+      (event.requestContext && event.requestContext.http && event.requestContext.http.path) ||
+      event.path ||
+      '/';
+    if (method === 'GET' && rawP === '/health') return healthEndpoint();
+
     if (!basicAuthOk(event)) {
       return err(401, correlationId, 'UNAUTHORIZED_CLIENT', 'Missing/invalid Basic Auth');
     }

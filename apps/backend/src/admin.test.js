@@ -446,3 +446,72 @@ describe('getUsers', () => {
     assert.equal(resp.statusCode, 403);
   });
 });
+
+// ---------------------------------------------------------------------------
+// extractIdFromPath helper
+// ---------------------------------------------------------------------------
+
+describe('extractIdFromPath', () => {
+  test('extracts id between prefix and suffix in a release path', () => {
+    loadAdmin(fakeDdb({}));
+    const id = admin.extractIdFromPath(
+      '/admin/decisions/DEC%23abc-123/release',
+      '/admin/decisions',
+      '/release'
+    );
+    assert.equal(id, 'DEC%23abc-123');
+  });
+
+  test('returns null when path does not match', () => {
+    loadAdmin(fakeDdb({}));
+    const id = admin.extractIdFromPath('/admin/decisions', '/admin/decisions', '/release');
+    assert.equal(id, null);
+  });
+
+  test('extracts id from a detail path (no suffix)', () => {
+    loadAdmin(fakeDdb({}));
+    const id = admin.extractIdFromPath('/admin/decisions/DEC%23xyz-789', '/admin/decisions', '');
+    assert.equal(id, 'DEC%23xyz-789');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// releaseDecision - path extraction from rawPath (bug fix)
+// ---------------------------------------------------------------------------
+
+describe('releaseDecision path extraction from rawPath', () => {
+  test('finds the decision id from rawPath when pathParameters is absent', async () => {
+    const putCapture = [];
+    const originalDecisionId = 'DEC#rawpath-001';
+    const blockedUser = {
+      userId: 'user-raw',
+      decisionId: originalDecisionId,
+      decisionType: 'FRAUD_LOGIN',
+      isBlocked: true,
+    };
+    const ddb = {
+      send: async (cmd) => {
+        const name = cmd.constructor.name;
+        if (name === 'ScanCommand') return { Items: [blockedUser], LastEvaluatedKey: null };
+        if (name === 'PutCommand') {
+          putCapture.push(cmd.input);
+          return {};
+        }
+        if (name === 'UpdateCommand') return {};
+        return { Items: [], Item: null };
+      },
+    };
+    loadAdmin(ddb);
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      pathParameters: null,
+      rawPath: `/admin/decisions/${encodeURIComponent(originalDecisionId)}/release`,
+      queryStringParameters: {},
+    };
+    const resp = await admin.releaseDecision(event, 'cid-018');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.released, true);
+  });
+});
