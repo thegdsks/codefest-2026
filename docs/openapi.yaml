@@ -1,0 +1,1550 @@
+openapi: 3.1.0
+info:
+  title: Signal Force API
+  version: 0.1.0
+  license:
+    name: Private - Marriott Codefest 2026 demo
+    identifier: LicenseRef-private
+  description: >
+    Fraud-aware loyalty platform demo. L1 deterministic rules with L2 LLM
+    router on gray-zone decisions.
+
+    All endpoints require HTTP Basic authentication at the gateway level
+    (client ID and secret). Admin endpoints additionally verify that the
+    Basic Auth subject is listed in the ADMIN_USERNAMES environment variable.
+
+servers:
+  - url: https://55p8lbxf9g.execute-api.us-east-1.amazonaws.com
+    description: Demo deploy (us-east-1)
+
+security:
+  - basicAuth: []
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: >
+        Gateway-level Basic Auth. Credentials: demoClient / demoSecret for the
+        demo stack. Admin endpoints additionally require the subject to be in
+        the ADMIN_USERNAMES env var.
+
+  parameters:
+    UserId:
+      name: userId
+      in: query
+      required: true
+      description: User identifier (URL-encode the # character as %23, e.g. USER%23001).
+      schema:
+        type: string
+        example: USER%23001
+
+    Window:
+      name: window
+      in: query
+      required: false
+      description: Time window for filtering decisions or metrics.
+      schema:
+        type: string
+        enum: ['1h', '24h', '7d']
+        default: '24h'
+
+  schemas:
+    # ------------------------------------------------------------------
+    # Shared envelope
+    # ------------------------------------------------------------------
+    Error:
+      type: object
+      required: [correlationId, error]
+      properties:
+        correlationId:
+          type: string
+          description: >
+            Echo of the X-Correlation-Id request header. Empty string when
+            the header was absent.
+          example: 'req-abc123'
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code.
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable detail.
+              example: 'Missing required field: username'
+
+    # ------------------------------------------------------------------
+    # Decision
+    # ------------------------------------------------------------------
+    EngineLayer:
+      type: string
+      enum: ['L1', 'L1+L2']
+      description: >
+        L1 - fast rule-based heuristic only.
+        L1+L2 - L1 raised a gray-zone score (40-70) so the event was escalated
+        to the L2 LLM router for a second assessment.
+
+    DecisionType:
+      type: string
+      enum:
+        - FRAUD_LOGIN
+        - FRAUD_TRANSFER
+        - ENGAGEMENT_OFFER
+        - NUDGE
+        - PROFILE_COMPLETENESS
+        - MFA_VERIFY
+        - DECISION_RELEASE
+      description: Category of the decision record.
+
+    DecisionAction:
+      type: string
+      enum: ['ALLOW', 'BLOCK', 'MFA', 'REVIEW', 'OFFER', 'NUDGE', 'HOLD', 'RELEASE']
+      description: Outcome written by the engine.
+
+    RiskLevel:
+      type: string
+      enum: ['LOW', 'MEDIUM', 'HIGH']
+
+    Decision:
+      type: object
+      description: >
+        A single decision row from DecisionStore. Every request that passes
+        through the fraud or engagement engine writes one of these.
+      required:
+        - decisionId
+        - userId
+        - decisionType
+        - action
+        - score
+        - riskLevel
+        - engineLayer
+        - channel
+        - correlationId
+        - isFinalDecision
+        - timestamp
+        - modelVersion
+      properties:
+        decisionId:
+          type: string
+          description: Partition key. Format DEC#<epoch-ms> for normal rows, DEC#REL#<uuid> for release rows.
+          example: 'DEC#1716211200000'
+        userId:
+          type: string
+          example: 'USER#001'
+        decisionType:
+          $ref: '#/components/schemas/DecisionType'
+        action:
+          $ref: '#/components/schemas/DecisionAction'
+        score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Risk or engagement score from the engine.
+          example: 48
+        riskLevel:
+          $ref: '#/components/schemas/RiskLevel'
+        reason:
+          type: string
+          description: Machine-readable reason code (reasonCode in the engine).
+          example: GEO_VELOCITY
+        explanation:
+          type: string
+          description: Human-readable explanation (reasonText in the engine).
+          example: Rapid location change detected
+        engineLayer:
+          $ref: '#/components/schemas/EngineLayer'
+        channel:
+          type: string
+          description: Decision channel (AUTH, EARN_REDEEM, OFFERS, PROFILE, ADMIN).
+          example: AUTH
+        correlationId:
+          type: string
+          example: 'req-abc123'
+        isFinalDecision:
+          type: boolean
+          example: true
+        timestamp:
+          type: integer
+          description: Unix epoch seconds when the decision was written.
+          example: 1716211200
+        modelVersion:
+          type: string
+          example: v1
+        llmLatencyMs:
+          type: number
+          description: Round-trip time to the L2 LLM router in milliseconds. Present only when engineLayer is L1+L2.
+          example: 320
+        llmModel:
+          type: string
+          description: Model identifier returned by the LiteLLM proxy. Present only when engineLayer is L1+L2.
+          example: gpt-4o-mini
+        originalDecisionId:
+          type: string
+          description: Present on DECISION_RELEASE rows only - references the decision that was released.
+          example: 'DEC#1716211100000'
+
+    # ------------------------------------------------------------------
+    # Profile
+    # ------------------------------------------------------------------
+    UserProfile:
+      type: object
+      description: >
+        Safe projection of a UserProfile row. The passwordHash field is
+        never included in API responses.
+      required: [userId, username, tier, loyaltyScore, profileCompletion, emailVerified, phoneVerified]
+      properties:
+        userId:
+          type: string
+          example: 'USER#001'
+        username:
+          type: string
+          example: user001
+        tier:
+          type: string
+          description: Loyalty tier (e.g. SILVER, GOLD, PLATINUM, TITANIUM, AMBASSADOR).
+          example: GOLD
+        loyaltyScore:
+          type: number
+          description: Numeric engagement/loyalty score used by the offer engine.
+          example: 720
+        profileCompletion:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Fraction of required profile fields completed (0.0 - 1.0).
+          example: 0.75
+        emailVerified:
+          type: boolean
+          example: true
+        phoneVerified:
+          type: boolean
+          example: false
+
+    ProfileCompleteness:
+      type: object
+      required: [userId, percent, missingFields, nudgeText]
+      properties:
+        userId:
+          type: string
+          example: 'USER#001'
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Profile completeness as a whole-number percentage.
+          example: 60
+        missingFields:
+          type: array
+          items:
+            type: string
+          description: Attribute names that are absent or null on the profile row.
+          example: ['phone', 'homeAddress', 'tier']
+        nudgeText:
+          type: string
+          description: Suggested copy to display to the user as a nudge prompt.
+          example: Add your phone number to unlock faster account recovery.
+
+    # ------------------------------------------------------------------
+    # Offers and nudges
+    # ------------------------------------------------------------------
+    Offer:
+      type: object
+      required: [offerId, title, reason, validUntil]
+      properties:
+        offerId:
+          type: string
+          example: 'OFF#001'
+        title:
+          type: string
+          example: Free night award + 2000 points
+        reason:
+          type: string
+          description: Machine-readable reason code for why this offer was surfaced.
+          example: HIGH_ENGAGEMENT_SCORE
+        validUntil:
+          type: integer
+          description: Unix epoch seconds when the offer expires.
+          example: 1716218400
+
+    Nudge:
+      type: object
+      required: [nudgeId, message, reason]
+      properties:
+        nudgeId:
+          type: string
+          example: 'NUDGE#PROFILE'
+        message:
+          type: string
+          description: Copy to display to the user. May be LLM-generated (L2) or a static template (L1).
+          example: Complete your profile now to speed up booking
+        reason:
+          type: string
+          description: Machine-readable reason code.
+          example: PROFILE_INCOMPLETE
+
+    # ------------------------------------------------------------------
+    # Dashboard
+    # ------------------------------------------------------------------
+    FraudStatus:
+      type: object
+      required: [isBlocked, transferCount1h, lastLoginLocation]
+      properties:
+        isBlocked:
+          type: boolean
+          description: True if the user's account is currently blocked by a fraud decision.
+          example: false
+        transferCount1h:
+          type: integer
+          description: Number of transfer events in the current rolling 1-hour window.
+          example: 2
+        lastLoginLocation:
+          type: ['string', 'null']
+          description: Location string from the most recent successful login, or null.
+          example: New York
+
+    ActivityItem:
+      type: object
+      properties:
+        activityTime:
+          type: integer
+          description: Unix epoch seconds.
+          example: 1716211200
+        activityType:
+          type: string
+          description: >
+            One of LOGIN, TRANSFER, OFFER_IMPRESSION, OFFER_CLICK, OFFER_BOOK,
+            NUDGE_SHOWN, NUDGE_DISMISSED, NUDGE_COMPLETED.
+          example: LOGIN
+        channel:
+          type: string
+          example: AUTH
+        amount:
+          type: number
+          description: Points amount for TRANSFER events; 0 for others.
+          example: 500
+        recipientId:
+          type: string
+          description: Recipient user ID for TRANSFER events; empty string for others.
+          example: 'USER#002'
+        searchQuery:
+          type: string
+          description: Reserved for future search activity tracking. Currently always empty.
+          example: ''
+
+    DashboardUser:
+      type: object
+      required: [userId, tier]
+      properties:
+        userId:
+          type: string
+          example: 'USER#001'
+        tier:
+          type: string
+          example: GOLD
+
+    # ------------------------------------------------------------------
+    # Admin metrics
+    # ------------------------------------------------------------------
+    MetricsByType:
+      type: object
+      description: Decision counts keyed by decisionType.
+      additionalProperties:
+        type: integer
+      example:
+        FRAUD_LOGIN: 60
+        FRAUD_TRANSFER: 40
+        ENGAGEMENT_OFFER: 30
+        NUDGE: 12
+
+    MetricsByAction:
+      type: object
+      description: Decision counts keyed by action.
+      additionalProperties:
+        type: integer
+      example:
+        ALLOW: 120
+        BLOCK: 7
+        MFA: 10
+        REVIEW: 5
+
+    BudgetGuard:
+      type: object
+      description: >
+        Snapshot from the budget guard that caps LLM spending during the demo.
+        Fields reflect the guard's internal counters and are informational only.
+      additionalProperties: true
+
+    MetricsTotals:
+      type: object
+      required: [total, l1, l1plus_l2, by_type, by_action]
+      properties:
+        total:
+          type: integer
+          description: Total decisions in the selected window.
+          example: 142
+        l1:
+          type: integer
+          description: Decisions resolved by L1 rules only.
+          example: 98
+        l1plus_l2:
+          type: integer
+          description: Decisions that escalated to the L2 LLM router.
+          example: 44
+        by_type:
+          $ref: '#/components/schemas/MetricsByType'
+        by_action:
+          $ref: '#/components/schemas/MetricsByAction'
+
+    AdminMetrics:
+      type: object
+      required: [totals, costEstimateUsd, asOf]
+      properties:
+        totals:
+          $ref: '#/components/schemas/MetricsTotals'
+        costEstimateUsd:
+          type: number
+          format: double
+          description: Estimated LiteLLM proxy spend for the window based on L1+L2 call count.
+          example: 0.0264
+        asOf:
+          type: integer
+          description: Unix epoch seconds when the snapshot was taken.
+          example: 1716214800
+        guard:
+          $ref: '#/components/schemas/BudgetGuard'
+
+# ==============================================================================
+# Paths
+# ==============================================================================
+
+paths:
+
+  # ----------------------------------------------------------------------------
+  # Auth
+  # ----------------------------------------------------------------------------
+
+  /auth/login:
+    post:
+      operationId: login
+      summary: Customer login with fraud scoring
+      description: >
+        Validates username and password against UserProfile, runs L1 login-risk
+        scoring (and optionally L2 LLM escalation), then returns a session token.
+
+        Possible outcomes:
+        - SUCCESS - login allowed; sessionId returned.
+        - MFA_REQUIRED - score in gray zone or other trigger; client must call
+          POST /auth/mfa/verify with the sessionId.
+        - 403 ACCOUNT_BLOCKED - L1 or L2 determined the login is high-risk, or
+          the user's account was already blocked by a prior decision.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, location, deviceId]
+              properties:
+                username:
+                  type: string
+                  example: user001
+                password:
+                  type: string
+                  format: password
+                  example: Password1
+                location:
+                  type: string
+                  description: Human-readable location string (city, country).
+                  example: New York
+                deviceId:
+                  type: string
+                  description: Opaque device fingerprint, stable per device.
+                  example: device-abc
+                ipAddress:
+                  type: string
+                  description: Client IP address. Optional; recorded in activity log.
+                  example: '203.0.113.42'
+                deviceType:
+                  type: string
+                  description: Device category (e.g. mobile, desktop). Optional.
+                  example: mobile
+                browser:
+                  type: string
+                  description: Browser identifier. Optional.
+                  example: Chrome/124
+      responses:
+        '200':
+          description: >
+            Login processed. Inspect data.status for the outcome.
+            status=SUCCESS means the user is authenticated.
+            status=MFA_REQUIRED means an OTP challenge is needed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    oneOf:
+                      - title: Success
+                        type: object
+                        required: [status, userId, sessionId]
+                        properties:
+                          status:
+                            type: string
+                            enum: [SUCCESS]
+                          userId:
+                            type: string
+                            example: 'USER#001'
+                          sessionId:
+                            type: string
+                            example: 'SESSION#a1b2c3d4'
+                      - title: MFA required
+                        type: object
+                        required: [status, reason, sessionId, mfa]
+                        properties:
+                          status:
+                            type: string
+                            enum: [MFA_REQUIRED]
+                          reason:
+                            type: string
+                            description: Machine-readable reason code from the engine.
+                            example: GEO_VELOCITY
+                          sessionId:
+                            type: string
+                            example: 'SESSION#a1b2c3d4'
+                          mfa:
+                            type: object
+                            required: [type, expiresInSeconds]
+                            properties:
+                              type:
+                                type: string
+                                enum: [OTP]
+                              expiresInSeconds:
+                                type: integer
+                                example: 300
+        '400':
+          description: Validation error - required field missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid username or password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                correlationId: ''
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: Invalid username/password
+        '403':
+          description: Account is blocked by a prior fraud decision.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                correlationId: ''
+                error:
+                  code: ACCOUNT_BLOCKED
+                  message: Access denied. Account temporarily blocked.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/mfa/verify:
+    post:
+      operationId: mfaVerify
+      summary: Verify OTP to complete MFA-gated login
+      description: >
+        Validates the one-time password against the static demo OTP (123456).
+        The session must have been created by a prior POST /auth/login call that
+        returned status=MFA_REQUIRED.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, otp]
+              properties:
+                sessionId:
+                  type: string
+                  description: Value returned by POST /auth/login.
+                  example: 'SESSION#a1b2c3d4'
+                otp:
+                  type: string
+                  description: One-time password. Static value is 123456 in the demo.
+                  example: '123456'
+      responses:
+        '200':
+          description: OTP accepted; login complete.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [status, message]
+                    properties:
+                      status:
+                        type: string
+                        enum: [SUCCESS]
+                      message:
+                        type: string
+                        example: MFA verified
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: OTP invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                correlationId: ''
+                error:
+                  code: OTP_INVALID
+                  message: OTP invalid
+        '404':
+          description: Session not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                correlationId: ''
+                error:
+                  code: SESSION_NOT_FOUND
+                  message: Session not found
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Transactions
+  # ----------------------------------------------------------------------------
+
+  /transactions/transfer:
+    post:
+      operationId: transfer
+      summary: Transfer loyalty points between users
+      description: >
+        Deducts points from the sender and credits the recipient. Runs L1
+        transfer-velocity scoring (transferCount1h threshold) and optionally
+        escalates to L2. Returns UNDER_REVIEW when the score is in the gray
+        zone, or 403 when the action is BLOCK.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, recipientId, amount]
+              properties:
+                userId:
+                  type: string
+                  description: Sender user ID.
+                  example: 'USER#001'
+                recipientId:
+                  type: string
+                  description: Recipient user ID.
+                  example: 'USER#002'
+                amount:
+                  type: number
+                  description: Points to transfer. Must be a positive finite number.
+                  example: 500
+                channel:
+                  type: string
+                  description: Originating channel. Defaults to APP.
+                  example: APP
+      responses:
+        '200':
+          description: Transfer processed. Inspect data.status for the outcome.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    oneOf:
+                      - title: Success
+                        type: object
+                        required: [status, transferId, message]
+                        properties:
+                          status:
+                            type: string
+                            enum: [SUCCESS]
+                          transferId:
+                            type: string
+                            example: 'XFER#a1b2c3d4'
+                          message:
+                            type: string
+                            example: Transfer completed
+                      - title: Under review
+                        type: object
+                        required: [status, transferId, reason]
+                        properties:
+                          status:
+                            type: string
+                            enum: [UNDER_REVIEW]
+                          transferId:
+                            type: string
+                            example: 'XFER#a1b2c3d4'
+                          reason:
+                            type: string
+                            example: SUSPICIOUS_TRANSFER_PATTERN
+        '400':
+          description: Validation error - missing or invalid field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Transfer blocked (sender blocked or high-risk transfer).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                correlationId: ''
+                error:
+                  code: TRANSFER_BLOCKED
+                  message: Transfer blocked due to high fraud risk
+        '404':
+          description: Sender or recipient not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # User
+  # ----------------------------------------------------------------------------
+
+  /user/profile:
+    get:
+      operationId: getProfile
+      summary: Fetch loyalty profile for a user
+      description: >
+        Returns a safe projection of the UserProfile row. The passwordHash field
+        is never included.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Profile found.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Missing userId query parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/profile-completeness:
+    get:
+      operationId: getProfileCompleteness
+      summary: Profile completeness score with personalized nudge text
+      description: >
+        Returns the percentage of required profile fields completed, a list of
+        missing field names, and a suggested nudge message. The nudge message
+        may be LLM-generated when the engine routes the request to L2.
+
+        A PROFILE_COMPLETENESS decision row is written on every call so the
+        admin metrics endpoint can track this call type.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Completeness data returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/ProfileCompleteness'
+        '400':
+          description: Missing userId parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Offers
+  # ----------------------------------------------------------------------------
+
+  /offers:
+    get:
+      operationId: getOffers
+      summary: Personalized offers for a user
+      description: >
+        Runs the offer-scoring engine (loyaltyScore and tier thresholds) and
+        returns any active offers. Returns 204 with an empty offers array when
+        no offer is surfaced (e.g. user is in a cooldown window or does not
+        meet the score threshold).
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: One or more offers available.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [userId, offers]
+                    properties:
+                      userId:
+                        type: string
+                        example: 'USER#001'
+                      offers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Offer'
+        '204':
+          description: >
+            No offers available for this user right now. The response body is
+            present and contains an empty offers array (non-standard; follows
+            the current handler implementation).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [userId, offers]
+                    properties:
+                      userId:
+                        type: string
+                      offers:
+                        type: array
+                        items: {}
+                        maxItems: 0
+        '400':
+          description: Missing userId parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /offers/action:
+    post:
+      operationId: offerAction
+      summary: Track an offer interaction
+      description: >
+        Records an IMPRESSION, CLICK, or BOOK interaction for an offer and
+        writes an activity row. No offer-availability check is performed; the
+        offerId is trusted as provided.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, offerId, action]
+              properties:
+                userId:
+                  type: string
+                  example: 'USER#001'
+                offerId:
+                  type: string
+                  example: 'OFF#001'
+                action:
+                  type: string
+                  enum: [IMPRESSION, CLICK, BOOK]
+                  description: Interaction type.
+      responses:
+        '200':
+          description: Interaction tracked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [status]
+                    properties:
+                      status:
+                        type: string
+                        enum: [TRACKED]
+        '400':
+          description: Validation error - missing field or invalid action value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Nudges
+  # ----------------------------------------------------------------------------
+
+  /nudges:
+    get:
+      operationId: getNudges
+      summary: Active nudges for a user
+      description: >
+        Evaluates the user's profile completeness and verification status, runs
+        the nudge-scoring engine, and returns any active nudge. Returns 204 with
+        an empty nudges array when no nudge is warranted.
+
+        The nudge message may be LLM-generated when the engine routes to L2.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: One or more nudges active.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [userId, nudges]
+                    properties:
+                      userId:
+                        type: string
+                        example: 'USER#001'
+                      nudges:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Nudge'
+        '204':
+          description: >
+            No nudges for this user. The response body is present with an empty
+            nudges array (follows the current handler implementation).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [userId, nudges]
+                    properties:
+                      userId:
+                        type: string
+                      nudges:
+                        type: array
+                        items: {}
+                        maxItems: 0
+        '400':
+          description: Missing userId parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /nudges/action:
+    post:
+      operationId: nudgeAction
+      summary: Track a nudge interaction
+      description: >
+        Records a SHOWN, DISMISSED, or COMPLETED interaction for a nudge and
+        writes an activity row.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, nudgeId, action]
+              properties:
+                userId:
+                  type: string
+                  example: 'USER#001'
+                nudgeId:
+                  type: string
+                  example: 'NUDGE#PROFILE'
+                action:
+                  type: string
+                  enum: [SHOWN, DISMISSED, COMPLETED]
+                  description: Interaction type.
+      responses:
+        '200':
+          description: Interaction recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [status]
+                    properties:
+                      status:
+                        type: string
+                        enum: [UPDATED]
+        '400':
+          description: Validation error - missing field or invalid action value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Dashboard
+  # ----------------------------------------------------------------------------
+
+  /dashboard:
+    get:
+      operationId: dashboard
+      summary: Aggregate customer dashboard
+      description: >
+        Returns the user's tier, current fraud status, any active offers and
+        nudges, and up to 10 recent activity events. This is the primary
+        composite endpoint for the frontend home screen.
+
+        Offer and nudge eligibility is evaluated inline using the same
+        thresholds as the dedicated /offers and /nudges endpoints.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Dashboard data returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [user, fraudStatus, offers, nudges, recentActivity]
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/DashboardUser'
+                      fraudStatus:
+                        $ref: '#/components/schemas/FraudStatus'
+                      offers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Offer'
+                      nudges:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Nudge'
+                      recentActivity:
+                        type: array
+                        maxItems: 10
+                        items:
+                          $ref: '#/components/schemas/ActivityItem'
+        '400':
+          description: Missing userId parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Admin - Decisions
+  # ----------------------------------------------------------------------------
+
+  /admin/decisions:
+    get:
+      operationId: adminGetDecisions
+      summary: Decision feed sorted newest-first
+      description: >
+        Returns decision rows from DecisionStore within a time window, sorted
+        descending by timestamp. Optionally filtered by decisionType and/or
+        userId.
+
+        When userId is provided the handler uses a DynamoDB Query (efficient).
+        Without userId it performs a table Scan (acceptable for the demo scale).
+      x-internal-only: true
+      parameters:
+        - $ref: '#/components/parameters/Window'
+        - name: type
+          in: query
+          required: false
+          description: >
+            Filter by decisionType. Must be one of the valid enum values.
+          schema:
+            $ref: '#/components/schemas/DecisionType'
+        - name: userId
+          in: query
+          required: false
+          description: Filter to a single user.
+          schema:
+            type: string
+            example: USER%23001
+        - name: limit
+          in: query
+          required: false
+          description: Max rows to return. Capped at 200. Defaults to 50.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Decision list returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [decisions, count]
+                    properties:
+                      decisions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Decision'
+                      count:
+                        type: integer
+                        description: Number of rows returned (after limit is applied).
+                        example: 10
+        '400':
+          description: Invalid window or type parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                correlationId: ''
+                error:
+                  code: FORBIDDEN
+                  message: Admin access required
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/metrics:
+    get:
+      operationId: adminGetMetrics
+      summary: Aggregate decision counts and LLM cost estimate
+      description: >
+        Returns tile counts for the admin dashboard: total decisions, L1-only
+        vs L1+L2 split, breakdown by decisionType and action, estimated LiteLLM
+        proxy cost, and a snapshot of the budget guard counters.
+      x-internal-only: true
+      parameters:
+        - $ref: '#/components/parameters/Window'
+      responses:
+        '200':
+          description: Metrics snapshot returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/AdminMetrics'
+        '400':
+          description: Invalid window parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Admin - Release
+  # ----------------------------------------------------------------------------
+
+  /admin/decisions/{id}/release:
+    post:
+      operationId: adminReleaseDecision
+      summary: Override a blocked decision and unblock the user
+      description: >
+        Looks up the original decision by decisionId, writes a DECISION_RELEASE
+        row, and sets UserState.isBlocked to false for the affected user.
+
+        The id path parameter is the full decisionId value (e.g. DEC#1716211200000).
+        URL-encode the # as %23 in the path.
+      x-internal-only: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The decisionId of the HOLD or BLOCK decision to release.
+            URL-encode # as %23 (e.g. DEC%231716211200000).
+          schema:
+            type: string
+            example: DEC%231716211200000
+      responses:
+        '200':
+          description: Decision released and user unblocked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [released, originalDecisionId, releasedAt]
+                    properties:
+                      released:
+                        type: boolean
+                        example: true
+                      originalDecisionId:
+                        type: string
+                        example: 'DEC#1716211200000'
+                      releasedAt:
+                        type: integer
+                        description: Unix epoch seconds when the release was written.
+                        example: 1716214800
+        '400':
+          description: Missing or invalid id path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Decision not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                correlationId: ''
+                error:
+                  code: NOT_FOUND
+                  message: 'Decision not found: DEC#1716211200000'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Admin - Users
+  # ----------------------------------------------------------------------------
+
+  /admin/users:
+    get:
+      operationId: adminGetUsers
+      summary: Paginated user list
+      description: >
+        Returns a page of UserProfile rows with passwordHash stripped. Use the
+        nextCursor value from each response as the cursor parameter on the next
+        call to advance through the list. When nextCursor is absent the list is
+        exhausted.
+
+        The cursor is a base64-encoded DynamoDB LastEvaluatedKey. Its internal
+        structure is opaque and subject to change.
+      x-internal-only: true
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Page size. Capped at 100. Defaults to 50.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          required: false
+          description: >
+            Pagination cursor from the nextCursor field of a previous response.
+            Opaque base64-encoded string.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User page returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [users, nextCursor]
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserProfile'
+                      nextCursor:
+                        type: ['string', 'null']
+                        description: >
+                          Opaque cursor for the next page. Null when the list is
+                          exhausted.
+                        example: eyJ1c2VySWQiOiJVU0VSIzAxMCJ9
+        '400':
+          description: Invalid cursor value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
