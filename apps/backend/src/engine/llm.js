@@ -1,7 +1,8 @@
 'use strict';
 
 /**
- * Thin wrapper around the Marriott-hosted LiteLLM proxy.
+ * Thin wrapper around the Marriott-hosted LiteLLM proxy, using the Vercel AI SDK
+ * with the @ai-sdk/openai-compatible provider. LiteLLM speaks OpenAI wire format.
  *
  * Required env vars:
  *   LITELLM_BASE_URL  - base URL of the proxy (no trailing slash)
@@ -14,28 +15,51 @@
  * without attempting a network call. This allows the app to run in a
  * rules-only mode until credentials are available.
  *
- * Timeout: 1500 ms via AbortController. No retries. On timeout or
- * non-2xx response the method returns null and logs the failure class
- * and HTTP status (when available).
+ * Timeout: 1500 ms via AbortSignal.timeout(). No retries. On timeout or
+ * any error the method returns null.
  */
 
-const TIMEOUT_MS = 1500;
+const { createOpenAICompatible } = require('@ai-sdk/openai-compatible');
+const { generateObject, generateText } = require('ai');
+const { z } = require('zod');
+
 const DEFAULT_MODEL = 'claude-haiku-4-5';
 
-/**
- * Return a configured AbortController that fires after TIMEOUT_MS.
- * The caller is responsible for clearing the timer via the returned handle.
- *
- * @returns {{ controller: AbortController, timerId: NodeJS.Timeout }}
- */
-function makeAbortController() {
-  const controller = new AbortController();
-  const timerId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  return { controller, timerId };
-}
+// ---------------------------------------------------------------------------
+// Zod schema for classify responses
+// ---------------------------------------------------------------------------
+
+const ClassifySchema = z.object({
+  label: z.enum(['ALLOW', 'REVIEW', 'BLOCK', 'MFA']),
+  confidence: z.number().min(0).max(1),
+  rationale: z.string().max(200),
+});
+
+// ---------------------------------------------------------------------------
+// Internal provider state. _setProvider() is the DI seam for tests.
+// In production the provider is created lazily from env vars.
+// Tests can inject a fake { generateObject, generateText } to avoid real HTTP.
+// ---------------------------------------------------------------------------
+
+/** @type {{ generateObject: Function, generateText: Function } | null} */
+let _injectedProvider = null;
 
 /**
- * Read the three env vars and return them, or null when required ones are missing.
+ * Override the SDK functions used internally. Pass null to revert to real SDK.
+ * Exported only for use in tests.
+ *
+ * @param {{ generateObject: Function, generateText: Function } | null} p
+ */
+function _setProvider(p) {
+  _injectedProvider = p;
+}
+
+// ---------------------------------------------------------------------------
+// Config helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the three env vars. Returns null when required ones are missing.
  *
  * @returns {{ baseUrl: string, apiKey: string, model: string } | null}
  */
@@ -48,115 +72,120 @@ function readConfig() {
 }
 
 /**
- * POST to the LiteLLM chat completions endpoint and return the parsed body,
- * or null on any failure.
+ * Build a LiteLLM-compatible language model reference using the real SDK.
  *
  * @param {{ baseUrl: string, apiKey: string, model: string }} cfg
- * @param {Array<{ role: string, content: string }>} messages
- * @param {object} extra - additional body fields (e.g. max_tokens, response_format)
- * @param {number} startMs - Date.now() captured before the call for latency tracking
- * @returns {Promise<{ body: object, latencyMs: number, model: string } | null>}
+ * @returns {object} language model object for generateObject/generateText
  */
-async function callProxy(cfg, messages, extra, startMs) {
-  const { controller, timerId } = makeAbortController();
-  try {
-    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${cfg.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: cfg.model,
-        messages,
-        temperature: 0,
-        ...extra,
-      }),
-    });
-
-    clearTimeout(timerId);
-    const latencyMs = Date.now() - startMs;
-
-    if (!res.ok) {
-      console.error(`[llm] non-2xx response status=${res.status}`);
-      return null;
-    }
-
-    const body = await res.json();
-    return { body, latencyMs, model: cfg.model };
-  } catch (err) {
-    clearTimeout(timerId);
-    const latencyMs = Date.now() - startMs;
-    if (err.name === 'AbortError') {
-      console.error(`[llm] request timed out after ${latencyMs}ms`);
-    } else {
-      console.error(`[llm] fetch error class=${err.name} message=${err.message}`);
-    }
-    return null;
-  }
+function buildModel(cfg) {
+  const provider = createOpenAICompatible({
+    baseURL: `${cfg.baseUrl}`,
+    apiKey: cfg.apiKey,
+    name: 'litellm',
+  });
+  return provider(cfg.model);
 }
 
+// ---------------------------------------------------------------------------
+// EMF metric emission (shape must stay identical - CloudWatch alarm depends on it)
+// ---------------------------------------------------------------------------
+
 /**
- * Send a classification prompt to the LLM and parse the JSON response.
+ * Emit a single EMF-formatted log line so CloudWatch auto-extracts the metric
+ * without a PutMetricData call.
  *
- * The system message instructs the model to respond with a JSON object
- * containing `label` (string) and `confidence` (number 0-1). The raw
- * content string is also returned so callers can inspect or log it.
+ * Namespace: SignalForce
+ * Metrics: LLMInvocations (Count), LLMLatencyMs (Milliseconds)
+ * Dimensions: Model, Outcome
  *
- * @param {string} prompt - the user-facing text to classify
- * @param {object} [schema] - reserved for future schema enforcement; unused now
+ * IMPORTANT: do NOT include user prompts, response content, or any PII here.
+ *
+ * @param {string} model
+ * @param {'success'|'error'} outcome
+ * @param {number} latencyMs
+ */
+function emitEmfMetric(model, outcome, latencyMs) {
+  console.log(
+    JSON.stringify({
+      _aws: {
+        Timestamp: Date.now(),
+        CloudWatchMetrics: [
+          {
+            Namespace: 'SignalForce',
+            Dimensions: [['Model', 'Outcome']],
+            Metrics: [
+              { Name: 'LLMInvocations', Unit: 'Count' },
+              { Name: 'LLMLatencyMs', Unit: 'Milliseconds' },
+            ],
+          },
+        ],
+      },
+      Model: model,
+      Outcome: outcome,
+      LLMInvocations: 1,
+      LLMLatencyMs: latencyMs,
+    })
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Send a classification prompt to the LLM and return a validated result.
+ *
+ * Uses generateObject with a Zod schema so the response is structurally
+ * guaranteed (label, confidence, rationale). Any error (network, timeout,
+ * schema mismatch) causes a null return with an EMF error metric.
+ *
+ * @param {string} prompt - the event description to classify
+ * @param {object} [_schema] - reserved for future use; ignored
  * @returns {Promise<{
  *   label: string,
  *   confidence: number,
- *   raw: string,
+ *   rationale: string,
  *   latencyMs: number,
  *   model: string
  * } | null>}
  */
-async function classify(prompt, schema) {
+async function classify(prompt, _schema) {
   const cfg = readConfig();
   if (!cfg) return null;
 
   const startMs = Date.now();
-  const systemMsg =
-    'You are a classifier. Respond with valid JSON only. ' +
-    'Schema: { "label": "<string>", "confidence": <number 0-1> }. ' +
-    'No extra keys, no markdown fences.';
+  const sdkFns = _injectedProvider || { generateObject, generateText };
 
-  const result = await callProxy(
-    cfg,
-    [
-      { role: 'system', content: systemMsg },
-      { role: 'user', content: prompt },
-    ],
-    { response_format: { type: 'json_object' } },
-    startMs
-  );
-
-  if (!result) return null;
-
-  const raw = result.body.choices?.[0]?.message?.content ?? '';
-  let parsed;
   try {
-    parsed = JSON.parse(raw);
-  } catch (_) {
-    console.error('[llm] classify: response is not valid JSON, raw=' + raw.slice(0, 120));
+    const model = _injectedProvider ? null : buildModel(cfg);
+
+    const { object } = await sdkFns.generateObject({
+      model,
+      schema: ClassifySchema,
+      prompt,
+      abortSignal: AbortSignal.timeout(1500),
+    });
+
+    const latencyMs = Date.now() - startMs;
+    emitEmfMetric(cfg.model, 'success', latencyMs);
+
+    return {
+      label: object.label,
+      confidence: object.confidence,
+      rationale: object.rationale,
+      latencyMs,
+      model: cfg.model,
+    };
+  } catch (err) {
+    const latencyMs = Date.now() - startMs;
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      console.error(`[llm] classify timed out after ${latencyMs}ms`);
+    } else {
+      console.error(`[llm] classify error class=${err.name} message=${err.message}`);
+    }
+    emitEmfMetric(cfg.model, 'error', latencyMs);
     return null;
   }
-
-  if (typeof parsed.label !== 'string' || typeof parsed.confidence !== 'number') {
-    console.error('[llm] classify: unexpected shape in response');
-    return null;
-  }
-
-  return {
-    label: parsed.label,
-    confidence: parsed.confidence,
-    raw,
-    latencyMs: result.latencyMs,
-    model: result.model,
-  };
 }
 
 /**
@@ -170,25 +199,37 @@ async function writeText(prompt, opts) {
   const cfg = readConfig();
   if (!cfg) return null;
 
-  const maxTokens = opts?.maxTokens ?? 80;
   const startMs = Date.now();
+  const sdkFns = _injectedProvider || { generateObject, generateText };
 
-  const result = await callProxy(
-    cfg,
-    [{ role: 'user', content: prompt }],
-    { max_tokens: maxTokens },
-    startMs
-  );
+  try {
+    const model = _injectedProvider ? null : buildModel(cfg);
 
-  if (!result) return null;
+    const { text } = await sdkFns.generateText({
+      model,
+      prompt,
+      abortSignal: AbortSignal.timeout(1500),
+      maxTokens: opts?.maxTokens ?? 80,
+    });
 
-  const text = result.body.choices?.[0]?.message?.content ?? '';
+    const latencyMs = Date.now() - startMs;
+    emitEmfMetric(cfg.model, 'success', latencyMs);
 
-  return {
-    text,
-    latencyMs: result.latencyMs,
-    model: result.model,
-  };
+    return {
+      text,
+      latencyMs,
+      model: cfg.model,
+    };
+  } catch (err) {
+    const latencyMs = Date.now() - startMs;
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      console.error(`[llm] writeText timed out after ${latencyMs}ms`);
+    } else {
+      console.error(`[llm] writeText error class=${err.name} message=${err.message}`);
+    }
+    emitEmfMetric(cfg.model, 'error', latencyMs);
+    return null;
+  }
 }
 
-module.exports = { classify, writeText };
+module.exports = { classify, writeText, _setProvider };

@@ -14,9 +14,18 @@ const { scoreOffer } = require('./rules/offers');
 const { scoreNudge } = require('./rules/nudges');
 const { profileCompleteness } = require('./rules/profile');
 const { route: engineRoute } = require('./engine/router');
+const { getStats: getBudgetStats } = require('./engine/budget');
 const admin = require('./admin');
 
-const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+// Read version once at module load.
+const PACKAGE_VERSION = require('../package.json').version;
+
+let ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
+// test-only seam; not part of the public API
+function _setDdb(client) {
+  ddb = client;
+}
 
 const CFG = {
   clientId: process.env.CLIENT_ID || 'demoClient',
@@ -346,6 +355,35 @@ function decision(
   return base;
 }
 
+// ---------------------------------------------------------------------------
+// GET /health  (unauthenticated pre-flight check)
+// ---------------------------------------------------------------------------
+
+function healthEndpoint() {
+  const stats = getBudgetStats();
+  const body = {
+    status: 'ok',
+    version: PACKAGE_VERSION,
+    commit: process.env.GIT_COMMIT_SHA || 'unknown',
+    engineLayer: {
+      breakerOpen: stats.breakerOpen,
+      callsInWindow: stats.callsInWindow,
+      maxCalls: stats.maxCalls,
+    },
+    asOf: Date.now(),
+  };
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Methods': '*',
+    },
+    body: JSON.stringify(body),
+  };
+}
+
 async function route(event, correlationId) {
   const method =
     (event.requestContext && event.requestContext.http && event.requestContext.http.method) ||
@@ -369,9 +407,13 @@ async function route(event, correlationId) {
     return profileCompletenessEndpoint(event, correlationId);
   if (method === 'GET' && p === '/dashboard') return dashboard(event, correlationId);
   if (method === 'GET' && p === '/admin/decisions') return admin.getDecisions(event, correlationId);
+  if (method === 'GET' && p === '/admin/decisions/export')
+    return admin.exportDecisions(event, correlationId);
   if (method === 'GET' && p === '/admin/metrics') return admin.getMetrics(event, correlationId);
   if (method === 'POST' && p.match(/^\/admin\/decisions\/[^/]+\/release$/))
     return admin.releaseDecision(event, correlationId);
+  if (method === 'GET' && p.match(/^\/admin\/decisions\/[^/]+$/) && p !== '/admin/decisions/export')
+    return admin.getDecisionById(event, correlationId);
   if (method === 'GET' && p === '/admin/users') return admin.getUsers(event, correlationId);
 
   return err(404, correlationId, 'NOT_FOUND', `Unknown endpoint: ${method} ${p}`);
@@ -908,10 +950,22 @@ async function profileCompletenessEndpoint(event, correlationId) {
   });
 }
 
+exports._setDdb = _setDdb;
+
 exports.main = async (event) => {
   const correlationId = getHeader(event.headers, 'x-correlation-id') || '';
 
   try {
+    // /health is intentionally unauthenticated - resolve it before the auth gate.
+    const method =
+      (event.requestContext && event.requestContext.http && event.requestContext.http.method) ||
+      event.httpMethod;
+    const rawP =
+      (event.requestContext && event.requestContext.http && event.requestContext.http.path) ||
+      event.path ||
+      '/';
+    if (method === 'GET' && rawP === '/health') return healthEndpoint();
+
     if (!basicAuthOk(event)) {
       return err(401, correlationId, 'UNAUTHORIZED_CLIENT', 'Missing/invalid Basic Auth');
     }

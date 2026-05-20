@@ -88,6 +88,11 @@ export class RuntimeStack extends cdk.Stack {
         target: 'node18',
         externalModules: ['@aws-sdk/*'],
       },
+      // Caps the thundering-herd multiplier so a load spike cannot multiplicatively
+      // call the LLM across many concurrent instances. Each instance has its own
+      // in-process sliding-window cap (LLM_GUARD_MAX_CALLS), so worst-case LLM
+      // burst = reservedConcurrentExecutions * LLM_GUARD_MAX_CALLS per window.
+      reservedConcurrentExecutions: 5,
       tracing: lambda.Tracing.ACTIVE,
       logGroup,
       environment: {
@@ -129,10 +134,23 @@ export class RuntimeStack extends cdk.Stack {
     );
 
     // -------------------------------------------------------------------------
-    // API Gateway HTTP API
+    // Lambda version + Live alias for rollback safety.
+    // CDK publishes a new immutable version on every deploy via currentVersion.
+    // The Live alias points at that version so the API always hits a pinned
+    // artefact. Rollback is a one-liner that does not require a redeploy:
+    //   aws lambda update-alias --function-name <name> --name live \
+    //     --function-version <prior-version-number>
     // -------------------------------------------------------------------------
-    const integration = new HttpLambdaIntegration('LambdaIntegration', apiLambda);
+    const liveAlias = new lambda.Alias(this, 'LiveAlias', {
+      aliasName: 'live',
+      version: apiLambda.currentVersion,
+    });
 
+    // -------------------------------------------------------------------------
+    // API Gateway HTTP API (v2 - HttpApi)
+    // The integration targets the Live alias, not $LATEST, so every request
+    // runs against the published version pinned by the alias above.
+    // -------------------------------------------------------------------------
     const api = new apigatewayv2.HttpApi(this, 'Api', {
       corsPreflight: {
         allowOrigins: ['*'],
@@ -141,17 +159,19 @@ export class RuntimeStack extends cdk.Stack {
       },
     });
 
+    const aliasIntegration = new HttpLambdaIntegration('AliasIntegration', liveAlias);
+
     api.addRoutes({
       path: '/{proxy+}',
       methods: [apigatewayv2.HttpMethod.ANY],
-      integration,
+      integration: aliasIntegration,
     });
 
     // Catch the root path too
     api.addRoutes({
       path: '/',
       methods: [apigatewayv2.HttpMethod.ANY],
-      integration,
+      integration: aliasIntegration,
     });
 
     // Access logging on the default stage. Format keeps the JSON small so
@@ -177,127 +197,111 @@ export class RuntimeStack extends cdk.Stack {
         }),
       };
       // HttpApi v2 has no tracingEnabled prop; use the L1 escape hatch on the default stage.
+      // Throttling: 20 rps steady-state, burst cap of 40 (2x steady, generous for a demo
+      // with 5 reserved concurrency slots). UsagePlan is RestApi (v1) only; for HttpApi v2
+      // the throttle lives on defaultRouteSettings via the CfnStage L1 escape hatch.
       defaultStage.defaultRouteSettings = {
         ...(defaultStage.defaultRouteSettings as Record<string, unknown> | undefined),
         detailedMetricsEnabled: true,
+        throttlingRateLimit: 20,
+        throttlingBurstLimit: 40,
       };
     }
 
     // -------------------------------------------------------------------------
-    // CloudWatch dashboard
+    // CloudWatch dashboard - signal-force-demo
+    // Four tiles arranged 2x2 (12 wide x 6 tall each).
     // -------------------------------------------------------------------------
-    const dashboard = new cloudwatch.Dashboard(this, 'Dashboard', {
+    const dashboard = new cloudwatch.Dashboard(this, 'SignalForceDemoDashboard', {
       dashboardName: 'signal-force-demo',
+      defaultInterval: cdk.Duration.hours(1),
     });
 
-    // Row 1: Lambda invocations/errors | Lambda duration percentiles
+    // Tile 1: Lambda invocations (sum) + errors (sum) overlay, 1-min resolution
+    // Tile 2: Lambda duration p50 / p95, 1-min resolution
     dashboard.addWidgets(
-      new cloudwatch.Row(
-        new cloudwatch.GraphWidget({
-          title: 'Lambda invocations and errors',
-          left: [
-            apiLambda.metricInvocations({ statistic: 'Sum', period: cdk.Duration.minutes(1) }),
-          ],
-          right: [apiLambda.metricErrors({ statistic: 'Sum', period: cdk.Duration.minutes(1) })],
-          width: 12,
-        }),
-        new cloudwatch.GraphWidget({
-          title: 'Lambda duration (ms) - p50 / p95 / p99',
-          left: [
-            apiLambda.metricDuration({
-              statistic: 'p50',
-              period: cdk.Duration.minutes(1),
-              label: 'p50',
-            }),
-            apiLambda.metricDuration({
-              statistic: 'p95',
-              period: cdk.Duration.minutes(1),
-              label: 'p95',
-            }),
-            apiLambda.metricDuration({
-              statistic: 'p99',
-              period: cdk.Duration.minutes(1),
-              label: 'p99',
-            }),
-          ],
-          width: 12,
-        })
-      )
-    );
-
-    // Row 2: API Gateway error counts and latency | DecisionStore write activity
-    dashboard.addWidgets(
-      new cloudwatch.Row(
-        new cloudwatch.GraphWidget({
-          title: 'API Gateway 4xx / 5xx / latency',
-          left: [
-            api.metricClientError({
-              statistic: 'Sum',
-              period: cdk.Duration.minutes(1),
-              label: '4xx',
-            }),
-            api.metricServerError({
-              statistic: 'Sum',
-              period: cdk.Duration.minutes(1),
-              label: '5xx',
-            }),
-          ],
-          right: [
-            api.metricLatency({
-              statistic: 'p99',
-              period: cdk.Duration.minutes(1),
-              label: 'latency p99',
-            }),
-          ],
-          width: 12,
-        }),
-        new cloudwatch.SingleValueWidget({
-          title: 'DecisionStore writes (last hour)',
-          metrics: [
-            dynamoDbStack.decisionStoreTable.metricConsumedWriteCapacityUnits({
-              statistic: 'Sum',
-              period: cdk.Duration.hours(1),
-              label: 'Write CU',
-            }),
-          ],
-          width: 12,
-        })
-      )
-    );
-
-    // Row 3: X-Ray service metrics - throttles and concurrency
-    dashboard.addWidgets(
-      new cloudwatch.Row(
-        new cloudwatch.GraphWidget({
-          title: 'Lambda throttles',
-          left: [apiLambda.metricThrottles({ statistic: 'Sum', period: cdk.Duration.minutes(1) })],
-          width: 12,
-        }),
-        new cloudwatch.GraphWidget({
-          title: 'Lambda concurrent executions',
-          left: [
-            apiLambda.metric('ConcurrentExecutions', {
-              statistic: 'Maximum',
-              period: cdk.Duration.minutes(1),
-            }),
-          ],
-          width: 12,
-        })
-      )
-    );
-
-    // Row 4: Fraud log query - real-time view of FRAUD log lines
-    dashboard.addWidgets(
-      new cloudwatch.LogQueryWidget({
-        title: 'Fraud-related log lines',
-        logGroupNames: [logGroup.logGroupName],
-        queryLines: [
-          'fields @timestamp, @message',
-          'filter @message like /FRAUD/',
-          'sort @timestamp desc',
-          'limit 50',
+      new cloudwatch.GraphWidget({
+        title: 'Lambda invocations and errors',
+        left: [
+          apiLambda.metricInvocations({
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(1),
+            label: 'Invocations',
+          }),
         ],
-        width: 24,
+        right: [
+          apiLambda.metricErrors({
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(1),
+            label: 'Errors',
+          }),
+        ],
+        width: 12,
+        height: 6,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Lambda duration p50 / p95',
+        left: [
+          apiLambda.metricDuration({
+            statistic: 'p50',
+            period: cdk.Duration.minutes(1),
+            label: 'p50',
+          }),
+          apiLambda.metricDuration({
+            statistic: 'p95',
+            period: cdk.Duration.minutes(1),
+            label: 'p95',
+          }),
+        ],
+        width: 12,
+        height: 6,
+      })
+    );
+
+    // Tile 3: API Gateway 4xx / 5xx overlay, 1-min resolution
+    // Tile 4: LLMInvocations (sum, stacked) + LLMLatencyMs p95 overlay, 1-min resolution
+    dashboard.addWidgets(
+      new cloudwatch.GraphWidget({
+        title: 'API Gateway 4xx / 5xx',
+        left: [
+          api.metricClientError({
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(1),
+            label: '4xx',
+          }),
+          api.metricServerError({
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(1),
+            label: '5xx',
+          }),
+        ],
+        width: 12,
+        height: 6,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'LLM invocations (stacked area) and latency p95',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'SignalForce',
+            metricName: 'LLMInvocations',
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(1),
+            label: 'LLM Invocations',
+          }),
+        ],
+        right: [
+          new cloudwatch.Metric({
+            namespace: 'SignalForce',
+            metricName: 'LLMLatencyMs',
+            statistic: 'p95',
+            period: cdk.Duration.minutes(1),
+            label: 'LLM Latency p95 (ms)',
+          }),
+        ],
+        leftYAxis: { label: 'Count', showUnits: false },
+        rightYAxis: { label: 'ms', showUnits: false },
+        stacked: true,
+        width: 12,
         height: 6,
       })
     );
@@ -342,6 +346,28 @@ export class RuntimeStack extends cdk.Stack {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
     apiGateway5xxAlarm.addAlarmAction(snsAlarmAction);
+
+    // Alarm 3: LLM invocation rate exceeds 200 calls/hour across all instances.
+    // The EMF metric is emitted from llm.js on every real LLM call; CloudWatch
+    // aggregates it across all dimensions. Firing here means the sliding-window
+    // guard may not be enough on its own - investigate for bugs or attack traffic.
+    const llmBudgetAlarm = new cloudwatch.Alarm(this, 'LlmBudgetAlarm', {
+      alarmName: 'signal-force-llm-budget',
+      alarmDescription:
+        'LLM invocations exceeded 200/hr. Check for bug loops or unexpected traffic. ' +
+        'Tune LLM_GUARD_MAX_CALLS and LLM_GUARD_WINDOW_SEC env vars if thresholds need adjustment.',
+      metric: new cloudwatch.Metric({
+        namespace: 'SignalForce',
+        metricName: 'LLMInvocations',
+        statistic: 'Sum',
+        period: cdk.Duration.hours(1),
+      }),
+      threshold: 200,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    llmBudgetAlarm.addAlarmAction(snsAlarmAction);
 
     // -------------------------------------------------------------------------
     // cdk-nag suppressions: documented architecture choices, not oversights.
@@ -455,6 +481,11 @@ export class RuntimeStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'FraudAlertTopicArn', {
       value: fraudAlertTopic.topicArn,
       exportName: `${this.stackName}:FraudAlertTopicArn`,
+    });
+
+    new cdk.CfnOutput(this, 'LiveAliasArn', {
+      value: liveAlias.functionArn,
+      exportName: `${this.stackName}:LiveAliasArn`,
     });
 
     new cdk.CfnOutput(this, 'DashboardUrl', {
