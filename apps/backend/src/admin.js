@@ -3,7 +3,8 @@
 /**
  * Admin endpoints module.
  *
- * Exports: getDecisions, getMetrics, releaseDecision, getUsers
+ * Exports: getDecisions, getMetrics, releaseDecision, getUsers,
+ *          getDecisionById, exportDecisions, extractIdFromPath
  * Test seam: _setDdb(client) - injects a DDB client stub for unit tests.
  *
  * Auth: every exported function checks that the Basic Auth subject belongs to
@@ -130,6 +131,28 @@ function requireAdmin(event, correlationId) {
 
 function qstr(event, key) {
   return (event.queryStringParameters && event.queryStringParameters[key]) || null;
+}
+
+/**
+ * Extract a path segment between a known prefix and suffix from a raw path
+ * string. Handles HTTP API v2 catch-all routes that do not populate
+ * event.pathParameters.
+ *
+ * Example:
+ *   extractIdFromPath('/admin/decisions/DEC%23abc/release', '/admin/decisions', '/release')
+ *   // => 'DEC%23abc'
+ *
+ * @param {string} rawPath
+ * @param {string} prefix  - path segment before the id
+ * @param {string} suffix  - path segment after the id (empty string for detail routes)
+ * @returns {string|null}
+ */
+function extractIdFromPath(rawPath, prefix, suffix) {
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedSuffix = suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp('^' + escapedPrefix + '\\/([^/]+)' + escapedSuffix + '$');
+  const m = rawPath && rawPath.match(pattern);
+  return m ? m[1] : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -347,6 +370,9 @@ async function getMetrics(event, correlationId) {
  *   2. Write a DECISION_RELEASE row referencing the original.
  *   3. If the user's UserState has isBlocked=true, clear it.
  *
+ * HTTP API v2 catch-all routing does NOT populate event.pathParameters.id.
+ * The id is extracted from rawPath using extractIdFromPath.
+ *
  * @param {object} event
  * @param {string} correlationId
  * @returns {Promise<object>}
@@ -355,9 +381,14 @@ async function releaseDecision(event, correlationId) {
   const authCheck = requireAdmin(event, correlationId);
   if (!authCheck.ok) return authCheck.response;
 
-  const decisionId =
+  // HTTP API v2 catch-all routes do not populate event.pathParameters.
+  // Extract the id from rawPath (or path) directly.
+  const rawPath = event.rawPath || event.path || '';
+  const encoded =
+    extractIdFromPath(rawPath, '/admin/decisions', '/release') ||
     (event.pathParameters && event.pathParameters.id) ||
-    (event.pathParameters && event.pathParameters['id']);
+    null;
+  const decisionId = encoded ? decodeURIComponent(encoded) : null;
 
   if (!decisionId) {
     return err(400, correlationId, 'VALIDATION_ERROR', 'Missing path parameter: id');
@@ -475,7 +506,237 @@ async function getUsers(event, correlationId) {
 }
 
 // ---------------------------------------------------------------------------
+// Shared filter helper used by getDecisions and exportDecisions
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and filter decisions from DynamoDB based on event query params.
+ * Shared by exportDecisions so the filtering logic is not duplicated.
+ *
+ * @param {object} event
+ * @param {string} correlationId
+ * @param {{ maxItems?: number }} opts
+ * @returns {Promise<{ ok: boolean, response?: object, items?: object[] }>}
+ */
+async function fetchFilteredDecisions(event, correlationId, opts) {
+  const windowParam = qstr(event, 'window') || '24h';
+  if (!WINDOW_SECONDS[windowParam]) {
+    return {
+      ok: false,
+      response: err(
+        400,
+        correlationId,
+        'VALIDATION_ERROR',
+        `window must be one of: ${Object.keys(WINDOW_SECONDS).join(', ')}`
+      ),
+    };
+  }
+  const cutoff = nowSec() - WINDOW_SECONDS[windowParam];
+
+  const typeFilter = qstr(event, 'type');
+  if (typeFilter && !VALID_TYPES.has(typeFilter)) {
+    return {
+      ok: false,
+      response: err(
+        400,
+        correlationId,
+        'VALIDATION_ERROR',
+        `type must be one of: ${[...VALID_TYPES].join(', ')}`
+      ),
+    };
+  }
+
+  const userId = qstr(event, 'userId');
+  let items = userId
+    ? await fetchDecisionsByUser(cutoff, userId, typeFilter)
+    : await fetchDecisionsScan(cutoff, typeFilter);
+
+  if (typeFilter) {
+    items = items.filter((i) => i.decisionType === typeFilter);
+  }
+
+  items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+  const cap = opts && opts.maxItems ? opts.maxItems : 10000;
+  return { ok: true, items: items.slice(0, cap) };
+}
+
+// ---------------------------------------------------------------------------
+// GET /admin/decisions/{id}
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a synthetic audit trail from a decision row.
+ *
+ * If engineLayer === 'L1+L2': two steps (L1 rule fired, L2 LLM called).
+ * Otherwise: one step (L1 rule only).
+ *
+ * @param {object} row
+ * @returns {object[]}
+ */
+function buildAuditTrail(row) {
+  const l1Step = {
+    step: 'L1 rule evaluated',
+    score: row.score,
+    riskLevel: row.riskLevel,
+    action: row.action,
+    reasonCode: row.reasonCode || row.reason || null,
+  };
+
+  if (row.engineLayer === 'L1+L2') {
+    return [
+      l1Step,
+      {
+        step: 'L2 LLM called',
+        llmModel: row.llmModel || null,
+        llmLatencyMs: row.llmLatencyMs !== undefined ? row.llmLatencyMs : null,
+        label: row.action,
+      },
+    ];
+  }
+
+  return [l1Step];
+}
+
+/**
+ * Return a single decision row plus a synthetic audit trail.
+ *
+ * The id is extracted from rawPath (HTTP API v2 does not populate pathParameters).
+ * NOTE: switch to GetItem after we add a PK index.
+ *
+ * @param {object} event
+ * @param {string} correlationId
+ * @returns {Promise<object>}
+ */
+async function getDecisionById(event, correlationId) {
+  const authCheck = requireAdmin(event, correlationId);
+  if (!authCheck.ok) return authCheck.response;
+
+  const rawPath = event.rawPath || event.path || '';
+  const encoded = extractIdFromPath(rawPath, '/admin/decisions', '');
+  const decisionId = encoded ? decodeURIComponent(encoded) : null;
+
+  if (!decisionId) {
+    return err(400, correlationId, 'VALIDATION_ERROR', 'Missing path parameter: id');
+  }
+
+  // NOTE: switch to GetItem after we add a PK index
+  const scanResult = await ddb.send(
+    new ScanCommand({
+      TableName: TABLE_DECISION,
+      FilterExpression: 'decisionId = :did',
+      ExpressionAttributeValues: { ':did': decisionId },
+    })
+  );
+  const row = (scanResult.Items || [])[0];
+
+  if (!row) {
+    return err(404, correlationId, 'NOT_FOUND', `Decision not found: ${decisionId}`);
+  }
+
+  return json(200, correlationId, { data: { decision: row, auditTrail: buildAuditTrail(row) } });
+}
+
+// ---------------------------------------------------------------------------
+// GET /admin/decisions/export
+// ---------------------------------------------------------------------------
+
+const CSV_COLUMNS = [
+  'decisionId',
+  'userId',
+  'timestamp',
+  'decisionType',
+  'score',
+  'riskLevel',
+  'action',
+  'engineLayer',
+  'llmModel',
+  'llmLatencyMs',
+  'reason',
+];
+
+/**
+ * Escape a single value for RFC 4180 CSV.
+ * Wraps in double-quotes when the value contains a comma, double-quote, or newline.
+ *
+ * @param {unknown} val
+ * @returns {string}
+ */
+function csvCell(val) {
+  const s = val === undefined || val === null ? '' : String(val);
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+/**
+ * Convert an array of decision objects to a CSV string with header row.
+ *
+ * @param {object[]} rows
+ * @returns {string}
+ */
+function decisionsToCsv(rows) {
+  const header = CSV_COLUMNS.join(',');
+  const lines = rows.map((row) => CSV_COLUMNS.map((col) => csvCell(row[col])).join(','));
+  return [header].concat(lines).join('\n');
+}
+
+/**
+ * Export decisions as JSON or CSV.
+ *
+ * Query params: window, type, userId (same semantics as getDecisions), format (json|csv).
+ * format defaults to json. Capped at 10,000 rows.
+ *
+ * NOTE on streaming: Lambda synchronous response payloads are capped at 6 MB.
+ * At demo scale (30 seed records) a single response is well within limits.
+ * For larger exports, switch to a pre-signed S3 URL pattern or Lambda Function
+ * URL response streaming (requires a different invocation mode).
+ *
+ * @param {object} event
+ * @param {string} correlationId
+ * @returns {Promise<object>}
+ */
+async function exportDecisions(event, correlationId) {
+  const authCheck = requireAdmin(event, correlationId);
+  if (!authCheck.ok) return authCheck.response;
+
+  const result = await fetchFilteredDecisions(event, correlationId, { maxItems: 10000 });
+  if (!result.ok) return result.response;
+
+  const format = (qstr(event, 'format') || 'json').toLowerCase();
+
+  if (format === 'csv') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="decisions.csv"',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': '*',
+        'Access-Control-Allow-Methods': '*',
+      },
+      body: decisionsToCsv(result.items),
+    };
+  }
+
+  // Default: JSON
+  return json(200, correlationId, {
+    data: { decisions: result.items, count: result.items.length },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
-module.exports = { getDecisions, getMetrics, releaseDecision, getUsers, _setDdb };
+module.exports = {
+  getDecisions,
+  getMetrics,
+  releaseDecision,
+  getUsers,
+  getDecisionById,
+  exportDecisions,
+  extractIdFromPath,
+  _setDdb,
+};

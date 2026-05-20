@@ -69,12 +69,20 @@ function makeDdb(handlers = {}) {
 // ---------------------------------------------------------------------------
 
 let handler;
+let admin;
 
 before(async () => {
   // Clear module cache so _setDdb affects a fresh module instance.
   // Using require inside before() is fine for node:test.
   handler = require('./handler');
+  admin = require('./admin');
 });
+
+/** Set the DDB stub on both handler and admin (admin has its own ddb instance). */
+function setAllDdb(stub) {
+  handler._setDdb(stub);
+  admin._setDdb(stub);
+}
 
 // ---------------------------------------------------------------------------
 // Auth tests
@@ -586,5 +594,140 @@ describe('GET /nudges', () => {
     );
     const body = JSON.parse(res.body);
     assert.equal(body.data.userId, 'U003');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /health (unauthenticated)
+// ---------------------------------------------------------------------------
+
+describe('GET /health', () => {
+  it('returns 200 without any Authorization header', async () => {
+    handler._setDdb(makeDdb());
+    const event = {
+      httpMethod: 'GET',
+      path: '/health',
+      headers: {},
+      queryStringParameters: null,
+      body: null,
+    };
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+  });
+
+  it('returns status ok with version, commit, engineLayer, asOf fields', async () => {
+    handler._setDdb(makeDdb());
+    const event = {
+      httpMethod: 'GET',
+      path: '/health',
+      headers: {},
+      queryStringParameters: null,
+      body: null,
+    };
+    const res = await handler.main(event);
+    const body = JSON.parse(res.body);
+    assert.equal(body.status, 'ok');
+    assert.ok(body.version, 'version field missing');
+    assert.ok('commit' in body, 'commit field missing');
+    assert.ok(body.engineLayer, 'engineLayer field missing');
+    assert.ok(typeof body.asOf === 'number', 'asOf must be a number');
+  });
+
+  it('returns 200 even with wrong Basic Auth credentials', async () => {
+    handler._setDdb(makeDdb());
+    const event = {
+      httpMethod: 'GET',
+      path: '/health',
+      headers: { authorization: basicAuth('wrong', 'creds') },
+      queryStringParameters: null,
+      body: null,
+    };
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200, '/health must not require auth');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /admin/decisions/{id}
+// ---------------------------------------------------------------------------
+
+describe('GET /admin/decisions/{id}', () => {
+  it('returns 200 with decision and auditTrail for an existing id', async () => {
+    const nowTs = Math.floor(Date.now() / 1000);
+    const dec = {
+      decisionId: 'DEC#handler-001',
+      userId: 'U001',
+      decisionType: 'FRAUD_LOGIN',
+      score: 10,
+      riskLevel: 'LOW',
+      action: 'ALLOW',
+      engineLayer: 'L1',
+      timestamp: nowTs,
+    };
+    setAllDdb(
+      makeDdb({
+        ScanCommand: () => ({ Items: [dec], LastEvaluatedKey: undefined }),
+      })
+    );
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/admin/decisions/DEC%23handler-001',
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.data.decision, 'decision field missing');
+    assert.ok(Array.isArray(body.data.auditTrail), 'auditTrail must be an array');
+  });
+
+  it('returns 404 when the decision does not exist', async () => {
+    setAllDdb(makeDdb({ ScanCommand: () => ({ Items: [], LastEvaluatedKey: undefined }) }));
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/admin/decisions/DEC%23missing',
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 404);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /admin/decisions/export
+// ---------------------------------------------------------------------------
+
+describe('GET /admin/decisions/export', () => {
+  it('returns 200 with JSON decisions by default', async () => {
+    setAllDdb(makeDdb({ ScanCommand: () => ({ Items: [], LastEvaluatedKey: undefined }) }));
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/admin/decisions/export',
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(Array.isArray(body.data.decisions));
+  });
+
+  it('returns CSV content-type when format=csv', async () => {
+    const nowTs = Math.floor(Date.now() / 1000);
+    const dec = {
+      decisionId: 'DEC#exp-001',
+      userId: 'U001',
+      decisionType: 'FRAUD_LOGIN',
+      score: 10,
+      riskLevel: 'LOW',
+      action: 'ALLOW',
+      engineLayer: 'L1',
+      timestamp: nowTs,
+    };
+    setAllDdb(makeDdb({ ScanCommand: () => ({ Items: [dec], LastEvaluatedKey: undefined }) }));
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/admin/decisions/export',
+      queryStringParameters: { format: 'csv' },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    assert.match(res.headers['Content-Type'], /text\/csv/);
   });
 });

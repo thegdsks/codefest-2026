@@ -446,3 +446,237 @@ describe('getUsers', () => {
     assert.equal(resp.statusCode, 403);
   });
 });
+
+// ---------------------------------------------------------------------------
+// extractIdFromPath helper
+// ---------------------------------------------------------------------------
+
+describe('extractIdFromPath', () => {
+  test('extracts id between prefix and suffix in a release path', () => {
+    loadAdmin(fakeDdb({}));
+    const id = admin.extractIdFromPath(
+      '/admin/decisions/DEC%23abc-123/release',
+      '/admin/decisions',
+      '/release'
+    );
+    assert.equal(id, 'DEC%23abc-123');
+  });
+
+  test('returns null when path does not match', () => {
+    loadAdmin(fakeDdb({}));
+    const id = admin.extractIdFromPath('/admin/decisions', '/admin/decisions', '/release');
+    assert.equal(id, null);
+  });
+
+  test('extracts id from a detail path (no suffix)', () => {
+    loadAdmin(fakeDdb({}));
+    const id = admin.extractIdFromPath('/admin/decisions/DEC%23xyz-789', '/admin/decisions', '');
+    assert.equal(id, 'DEC%23xyz-789');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// releaseDecision - path extraction from rawPath (bug fix)
+// ---------------------------------------------------------------------------
+
+describe('releaseDecision path extraction from rawPath', () => {
+  test('finds the decision id from rawPath when pathParameters is absent', async () => {
+    const putCapture = [];
+    const originalDecisionId = 'DEC#rawpath-001';
+    const blockedUser = {
+      userId: 'user-raw',
+      decisionId: originalDecisionId,
+      decisionType: 'FRAUD_LOGIN',
+      isBlocked: true,
+    };
+    const ddb = {
+      send: async (cmd) => {
+        const name = cmd.constructor.name;
+        if (name === 'ScanCommand') return { Items: [blockedUser], LastEvaluatedKey: null };
+        if (name === 'PutCommand') {
+          putCapture.push(cmd.input);
+          return {};
+        }
+        if (name === 'UpdateCommand') return {};
+        return { Items: [], Item: null };
+      },
+    };
+    loadAdmin(ddb);
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      pathParameters: null,
+      rawPath: `/admin/decisions/${encodeURIComponent(originalDecisionId)}/release`,
+      queryStringParameters: {},
+    };
+    const resp = await admin.releaseDecision(event, 'cid-018');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.released, true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getDecisionById
+// ---------------------------------------------------------------------------
+
+describe('getDecisionById', () => {
+  test('returns 200 with decision and L1-only audit trail', async () => {
+    const dec = makeDecision({ decisionId: 'DEC#001', engineLayer: 'L1', score: 15 });
+    loadAdmin(fakeDdb({ scanItems: [dec] }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      rawPath: '/admin/decisions/DEC%23001',
+      pathParameters: null,
+      queryStringParameters: {},
+    };
+    const resp = await admin.getDecisionById(event, 'cid-019');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.ok(body.data.decision, 'decision field missing');
+    assert.ok(Array.isArray(body.data.auditTrail), 'auditTrail must be an array');
+    assert.equal(body.data.auditTrail.length, 1);
+    assert.match(body.data.auditTrail[0].step, /L1/i);
+  });
+
+  test('returns 200 with L1+L2 audit trail of two steps', async () => {
+    const dec = makeDecision({
+      decisionId: 'DEC#002',
+      engineLayer: 'L1+L2',
+      score: 75,
+      llmLatencyMs: 320,
+      llmModel: 'gpt-4o-mini',
+    });
+    loadAdmin(fakeDdb({ scanItems: [dec] }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      rawPath: '/admin/decisions/DEC%23002',
+      pathParameters: null,
+      queryStringParameters: {},
+    };
+    const resp = await admin.getDecisionById(event, 'cid-020');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.auditTrail.length, 2);
+    const llmStep = body.data.auditTrail[1];
+    assert.ok(llmStep.llmLatencyMs !== undefined, 'L2 step should include llmLatencyMs');
+    assert.equal(llmStep.llmModel, 'gpt-4o-mini');
+  });
+
+  test('returns 404 when decision does not exist', async () => {
+    loadAdmin(fakeDdb({ scanItems: [] }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      rawPath: '/admin/decisions/DEC%23missing',
+      pathParameters: null,
+      queryStringParameters: {},
+    };
+    const resp = await admin.getDecisionById(event, 'cid-021');
+    assert.equal(resp.statusCode, 404);
+  });
+
+  test('returns 403 for non-admin caller', async () => {
+    const token = Buffer.from('nobody:secret').toString('base64');
+    const event = {
+      headers: { authorization: `Basic ${token}` },
+      rawPath: '/admin/decisions/DEC%23001',
+      pathParameters: null,
+      queryStringParameters: {},
+    };
+    loadAdmin(fakeDdb({}));
+    const resp = await admin.getDecisionById(event, 'cid-022');
+    assert.equal(resp.statusCode, 403);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// exportDecisions
+// ---------------------------------------------------------------------------
+
+describe('exportDecisions', () => {
+  test('returns JSON array matching decisions shape (format=json)', async () => {
+    const ts = nowSec();
+    const items = [
+      makeDecision({ timestamp: ts, score: 20, riskLevel: 'LOW', action: 'ALLOW' }),
+      makeDecision({ timestamp: ts - 5, score: 80, riskLevel: 'HIGH', action: 'BLOCK' }),
+    ];
+    loadAdmin(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: { window: '24h', format: 'json' },
+    };
+    const resp = await admin.exportDecisions(event, 'cid-023');
+    assert.equal(resp.statusCode, 200);
+    assert.match(resp.headers['Content-Type'], /application\/json/);
+    const body = JSON.parse(resp.body);
+    assert.ok(Array.isArray(body.data.decisions));
+    assert.equal(body.data.decisions.length, 2);
+  });
+
+  test('returns CSV with header row and correct column count (format=csv)', async () => {
+    const ts = nowSec();
+    const items = [
+      makeDecision({
+        timestamp: ts,
+        score: 30,
+        riskLevel: 'LOW',
+        action: 'ALLOW',
+        reason: 'OK',
+        engineLayer: 'L1',
+      }),
+    ];
+    loadAdmin(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: { format: 'csv' },
+    };
+    const resp = await admin.exportDecisions(event, 'cid-024');
+    assert.equal(resp.statusCode, 200);
+    assert.match(resp.headers['Content-Type'], /text\/csv/);
+    const lines = resp.body.trim().split('\n');
+    assert.ok(lines.length >= 2, 'expected at least header + one data row');
+    const headerCols = lines[0].split(',');
+    assert.equal(headerCols.length, 11, 'CSV must have 11 columns');
+  });
+
+  test('CSV escapes values that contain commas', async () => {
+    const ts = nowSec();
+    const items = [makeDecision({ timestamp: ts, reason: 'score, high risk' })];
+    loadAdmin(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: { format: 'csv' },
+    };
+    const resp = await admin.exportDecisions(event, 'cid-025');
+    assert.ok(resp.body.includes('"score, high risk"'), 'comma-containing value must be quoted');
+  });
+
+  test('defaults to json when format is omitted', async () => {
+    loadAdmin(fakeDdb({ scanItems: [] }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.exportDecisions(event, 'cid-026');
+    assert.equal(resp.statusCode, 200);
+    assert.match(resp.headers['Content-Type'], /application\/json/);
+  });
+
+  test('returns 403 for non-admin caller', async () => {
+    const token = Buffer.from('nobody:x').toString('base64');
+    const event = {
+      headers: { authorization: `Basic ${token}` },
+      queryStringParameters: {},
+    };
+    loadAdmin(fakeDdb({}));
+    const resp = await admin.exportDecisions(event, 'cid-027');
+    assert.equal(resp.statusCode, 403);
+  });
+});
