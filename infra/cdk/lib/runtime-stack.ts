@@ -3,6 +3,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -300,6 +301,47 @@ export class RuntimeStack extends cdk.Stack {
         height: 6,
       })
     );
+
+    // -------------------------------------------------------------------------
+    // CloudWatch alarms - demo-day alerting via the fraud SNS topic.
+    // Both alarms use a 1-minute period and a threshold of 1 so the team is
+    // notified at the first sign of trouble during the presentation. They
+    // auto-reset after one minute of no breach (treatMissingData NOT_BREACHING).
+    // -------------------------------------------------------------------------
+    const snsAlarmAction = new cloudwatchActions.SnsAction(fraudAlertTopic);
+
+    // Alarm 1: Lambda errors (any 5xx produced by the function itself)
+    const lambdaErrorAlarm = new cloudwatch.Alarm(this, 'LambdaErrorAlarm', {
+      alarmName: 'signal-force-lambda-5xx',
+      alarmDescription:
+        'Lambda emitted a 5xx during the codefest demo. Check CloudWatch Logs for the root cause.',
+      metric: apiLambda.metricErrors({
+        period: cdk.Duration.minutes(1),
+        statistic: 'Sum',
+      }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    lambdaErrorAlarm.addAlarmAction(snsAlarmAction);
+
+    // Alarm 2: API Gateway HTTP API 5xx errors
+    // HttpApi.metricServerError() returns the 5XXError metric for the default stage.
+    const apiGateway5xxAlarm = new cloudwatch.Alarm(this, 'ApiGateway5xxAlarm', {
+      alarmName: 'signal-force-api-5xx',
+      alarmDescription:
+        'API Gateway 5xx during demo. Likely a Lambda integration failure or timeout.',
+      metric: api.metricServerError({
+        period: cdk.Duration.minutes(1),
+        statistic: 'Sum',
+      }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    apiGateway5xxAlarm.addAlarmAction(snsAlarmAction);
 
     // -------------------------------------------------------------------------
     // cdk-nag suppressions: documented architecture choices, not oversights.
