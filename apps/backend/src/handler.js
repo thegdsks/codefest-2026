@@ -14,6 +14,7 @@ const { scoreOffer } = require('./rules/offers');
 const { scoreNudge } = require('./rules/nudges');
 const { profileCompleteness } = require('./rules/profile');
 const { route: engineRoute } = require('./engine/router');
+const admin = require('./admin');
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -364,7 +365,14 @@ async function route(event, correlationId) {
   if (method === 'GET' && p === '/nudges') return getNudges(event, correlationId);
   if (method === 'POST' && p === '/nudges/action') return nudgeAction(event, correlationId);
   if (method === 'GET' && p === '/user/profile') return getProfile(event, correlationId);
+  if (method === 'GET' && p === '/user/profile-completeness')
+    return profileCompletenessEndpoint(event, correlationId);
   if (method === 'GET' && p === '/dashboard') return dashboard(event, correlationId);
+  if (method === 'GET' && p === '/admin/decisions') return admin.getDecisions(event, correlationId);
+  if (method === 'GET' && p === '/admin/metrics') return admin.getMetrics(event, correlationId);
+  if (method === 'POST' && p.match(/^\/admin\/decisions\/[^/]+\/release$/))
+    return admin.releaseDecision(event, correlationId);
+  if (method === 'GET' && p === '/admin/users') return admin.getUsers(event, correlationId);
 
   return err(404, correlationId, 'NOT_FOUND', `Unknown endpoint: ${method} ${p}`);
 }
@@ -844,6 +852,59 @@ async function dashboard(event, correlationId) {
 
   return json(200, correlationId, {
     data: { user, fraudStatus, offers, nudges, recentActivity: activityList },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// GET /user/profile-completeness  (T8)
+// ---------------------------------------------------------------------------
+
+/**
+ * Return profile completeness percent, missing fields, and a personalized
+ * nudge text. The nudge text is generated via the engine router (L2 LLM when
+ * available, templated fallback when not).
+ *
+ * A PROFILE_COMPLETENESS decision row is written each time so the admin
+ * metrics endpoint can account for this call type.
+ *
+ * @param {object} event
+ * @param {string} correlationId
+ * @returns {Promise<object>}
+ */
+async function profileCompletenessEndpoint(event, correlationId) {
+  const userId = qparam(event, 'userId');
+  const profile = await getUserById(userId);
+  if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
+
+  const { percent, missingFields } = profileCompleteness({ profile });
+
+  const completion = Number(profile.profileCompletion || 0);
+  const emailVerified = !!profile.emailVerified;
+  const phoneVerified = !!profile.phoneVerified;
+
+  // Build an L1 draft via scoreNudge so the router decides whether to call LLM.
+  const l1Draft = scoreNudge({ profileCompletion: completion, emailVerified, phoneVerified });
+  const final = await engineRoute(l1Draft, { userId, category: 'PROFILE', missingFields });
+
+  const nudgeText =
+    final.generatedText || 'Complete your profile to unlock faster booking and exclusive rewards';
+
+  const decRow = decision(
+    userId,
+    'PROFILE_COMPLETENESS',
+    final.score,
+    final.riskLevel,
+    final.action,
+    final.reasonCode,
+    final.reasonText,
+    'PROFILE',
+    correlationId,
+    final
+  );
+  await putDecision(decRow);
+
+  return json(200, correlationId, {
+    data: { userId, percent, missingFields, nudgeText },
   });
 }
 
