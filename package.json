@@ -17,6 +17,7 @@
     "typecheck:cdk": "tsc -p infra/cdk --noEmit",
     "synth": "npm --workspace=infra/cdk exec -- cdk synth --quiet",
     "build:frontend": "npm --workspace=apps/frontend run build",
+    "seed:reset": "node scripts/seed-ddb.js",
     "snapshot:demo": "bash scripts/snapshot-demo.sh"
   },
   "devDependencies": {
