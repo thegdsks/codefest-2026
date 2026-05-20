@@ -134,10 +134,23 @@ export class RuntimeStack extends cdk.Stack {
     );
 
     // -------------------------------------------------------------------------
-    // API Gateway HTTP API
+    // Lambda version + Live alias for rollback safety.
+    // CDK publishes a new immutable version on every deploy via currentVersion.
+    // The Live alias points at that version so the API always hits a pinned
+    // artefact. Rollback is a one-liner that does not require a redeploy:
+    //   aws lambda update-alias --function-name <name> --name live \
+    //     --function-version <prior-version-number>
     // -------------------------------------------------------------------------
-    const integration = new HttpLambdaIntegration('LambdaIntegration', apiLambda);
+    const liveAlias = new lambda.Alias(this, 'LiveAlias', {
+      aliasName: 'live',
+      version: apiLambda.currentVersion,
+    });
 
+    // -------------------------------------------------------------------------
+    // API Gateway HTTP API (v2 - HttpApi)
+    // The integration targets the Live alias, not $LATEST, so every request
+    // runs against the published version pinned by the alias above.
+    // -------------------------------------------------------------------------
     const api = new apigatewayv2.HttpApi(this, 'Api', {
       corsPreflight: {
         allowOrigins: ['*'],
@@ -146,17 +159,19 @@ export class RuntimeStack extends cdk.Stack {
       },
     });
 
+    const aliasIntegration = new HttpLambdaIntegration('AliasIntegration', liveAlias);
+
     api.addRoutes({
       path: '/{proxy+}',
       methods: [apigatewayv2.HttpMethod.ANY],
-      integration,
+      integration: aliasIntegration,
     });
 
     // Catch the root path too
     api.addRoutes({
       path: '/',
       methods: [apigatewayv2.HttpMethod.ANY],
-      integration,
+      integration: aliasIntegration,
     });
 
     // Access logging on the default stage. Format keeps the JSON small so
@@ -466,6 +481,11 @@ export class RuntimeStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'FraudAlertTopicArn', {
       value: fraudAlertTopic.topicArn,
       exportName: `${this.stackName}:FraudAlertTopicArn`,
+    });
+
+    new cdk.CfnOutput(this, 'LiveAliasArn', {
+      value: liveAlias.functionArn,
+      exportName: `${this.stackName}:LiveAliasArn`,
     });
 
     new cdk.CfnOutput(this, 'DashboardUrl', {
