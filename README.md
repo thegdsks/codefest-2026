@@ -3,7 +3,7 @@
 [![Node](https://img.shields.io/badge/Node-18-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![AWS CDK](https://img.shields.io/badge/AWS_CDK-v2-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com/cdk)
-[![Bedrock](https://img.shields.io/badge/Bedrock-Claude_Haiku_4.5-7B5BFF?logo=amazonaws&logoColor=white)](https://aws.amazon.com/bedrock)
+[![LiteLLM](https://img.shields.io/badge/LiteLLM-proxy-7B5BFF)](https://github.com/BerriAI/litellm)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
 [![Tailwind](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
@@ -41,15 +41,35 @@ Three apps, one repo. The customer surface and the admin console share one SPA f
 |  API Gateway HTTP API  ->  Lambda (Node 18, arm64, 512 MB, 10 s)         |
 |       routes: /auth/*  /transactions/*  /offers  /nudges                 |
 |               /user/*  /dashboard  /decisions/evaluate                   |
+|                                                                          |
+|   DECISION ENGINE                                                        |
+|   +-----------------------------------------------------------------+    |
+|   |  L1: deterministic rules  (apps/backend/src/rules/)             |    |
+|   |      score, apply rules, emit L1Draft                           |    |
+|   |             |                                                   |    |
+|   |             v                                                   |    |
+|   |  Router     (apps/backend/src/engine/router.js)                 |    |
+|   |      score < 40  -> use L1Draft as final decision               |    |
+|   |      score 40-70 -> gray zone: forward to L2                    |    |
+|   |      score > 70  -> use L1Draft as final decision               |    |
+|   |             |  (gray zone path only)                            |    |
+|   |             v                                                   |    |
+|   |  L2: LLM call  (apps/backend/src/engine/llm.js)                 |    |
+|   |      LiteLLM proxy (Marriott-hosted, OpenAI-compatible)         |    |
+|   |      returns enriched decision + llmTelemetry                   |    |
+|   |             |                                                   |    |
+|   |             v                                                   |    |
+|   |  DecisionStore write  (engineLayer, llmTelemetry, decision)     |    |
+|   +-----------------------------------------------------------------+    |
 +--+----------------+-----------------+-----------------+------------------+
    |                |                 |                 |
    v                v                 v                 v
-+--------+    +-----------+    +-----------+    +------------------+
-| Bedrock|    | DynamoDB  |    |  SNS      |    | CloudWatch       |
-| Claude |    | 5 tables  |    | fraud     |    | Logs + Dashboard |
-| Haiku  |    | PAY/req   |    | alerts    |    | X-Ray traces     |
-| 4.5    |    | + PITR    |    | email sub |    | budget alarms    |
-+--------+    +-----------+    +-----------+    +------------------+
++----------+  +-----------+    +-----------+    +------------------+
+| LiteLLM  |  | DynamoDB  |    |  SNS      |    | CloudWatch       |
+| proxy    |  | 5 tables  |    | fraud     |    | Logs + Dashboard |
+|(Marriott |  | PAY/req   |    | alerts    |    | alarms (see      |
+| hosted)  |  | + PITR    |    | email sub |    | Observability)   |
++----------+  +-----------+    +-----------+    +------------------+
                                                           ^
                                                           | $25 / $100 / $200
                                                           | actual + forecast
@@ -59,6 +79,15 @@ Three apps, one repo. The customer surface and the admin console share one SPA f
                                                   | (DenyAll @ $80)    |
                                                   +--------------------+
 ```
+
+The **gray zone** (score 40-70) is where L1 rules fire but confidence is low enough that an LLM call adds value. Decisions in this range incur an extra LiteLLM round-trip (~50-200 ms, minimal token cost). Scores outside that band never hit the LLM, keeping the majority of requests fast and cost-free.
+
+#### Observability
+
+CloudWatch alarms wired to the fraud SNS topic:
+
+- **Lambda 5xx alarm** - triggers when the Lambda error rate exceeds threshold, publishes to the fraud SNS topic.
+- **API Gateway 5xx alarm** - triggers on API-level server errors, also publishes to the same fraud SNS topic.
 
 ### DynamoDB tables
 
@@ -72,39 +101,44 @@ Three apps, one repo. The customer surface and the admin console share one SPA f
 
 ### Request lifecycle (clean evaluate)
 
+UC1: geo-clean login, score below gray zone. L1 rules resolve, no LLM call.
+
 ```
-Customer SPA                Gateway+Lambda           DynamoDB       Bedrock        DecisionStore
-     |                            |                     |              |                |
- 1.  | POST /auth/login           |                     |              |                |
-     |--------------------------->|                     |              |                |
-     |                            | 2. lookup user      |              |                |
-     |                            |-------------------->|              |                |
-     |                            |<-- profile ---------|              |                |
-     |                            | 3. seed session     |              |                |
-     |                            |-------------------->|              |                |
-     |<-- 200 {sessionId} --------|                     |              |                |
-     |                            |                     |              |                |
- 4.  | POST /auth/mfa/verify      |                     |              |                |
-     |--------------------------->|                     |              |                |
-     |<-- 200 {mfaOk:true} -------|                     |              |                |
-     |                            |                     |              |                |
- 5.  | GET  /offers?ctx=login     |                     |              |                |
-     |--------------------------->|                     |              |                |
-     |                            | 6. read state       |              |                |
-     |                            |-------------------->|              |                |
-     |                            |<-- counters --------|              |                |
-     |                            | 7. generate offer (Converse)       |                |
-     |                            |--------------------------------->  |                |
-     |                            |<-- offer json --------------------- |                |
-     |                            | 8. write decision                                    |
+Customer SPA                Gateway+Lambda           DynamoDB     L1 Rules   DecisionStore
+     |                            |                     |              |          |
+ 1.  | POST /auth/login           |                     |              |          |
+     |--------------------------->|                     |              |          |
+     |                            | 2. lookup user      |              |          |
+     |                            |-------------------->|              |          |
+     |                            |<-- profile ---------|              |          |
+     |                            | 3. seed session     |              |          |
+     |                            |-------------------->|              |          |
+     |<-- 200 {sessionId} --------|                     |              |          |
+     |                            |                     |              |          |
+ 4.  | POST /auth/mfa/verify      |                     |              |          |
+     |--------------------------->|                     |              |          |
+     |<-- 200 {mfaOk:true} -------|                     |              |          |
+     |                            |                     |              |          |
+ 5.  | GET  /offers?ctx=login     |                     |              |          |
+     |--------------------------->|                     |              |          |
+     |                            | 6. read state       |              |          |
+     |                            |-------------------->|              |          |
+     |                            |<-- counters --------|              |          |
+     |                            | 7. L1 rules score (geo ok -> 20)  |          |
+     |                            |------------------------------>    |          |
+     |                            |<-- L1Draft (score 20, ALLOW) ---- |          |
+     |                            | router: score<40, skip L2         |          |
+     |                            | 8. write decision (engineLayer=L1)           |
      |                            |---------------------------------------------------->|
-     |<-- 200 {offer} ------------|                                                      |
+     |<-- 200 {offer} ------------|                                               |
 ```
 
 ### Request lifecycle (suspicious points transfer, fraud hold)
 
+UC2: transfer velocity anomaly, score lands in gray zone (40-70). Router forwards to L2 for the adaptive nudge.
+
 ```
-Customer SPA                Gateway+Lambda           DynamoDB     Heuristics    Bedrock       SNS
+Customer SPA                Gateway+Lambda           DynamoDB     L1 Rules   L2 LiteLLM    SNS
      |                            |                     |              |           |          |
  1.  | POST /transactions/transfer|                     |              |           |          |
      |  body: {amount, recipient} |                     |              |           |          |
@@ -112,13 +146,14 @@ Customer SPA                Gateway+Lambda           DynamoDB     Heuristics    
      |                            | 2. load state + recent activity    |           |          |
      |                            |-------------------->|              |           |          |
      |                            |<-- counters --------|              |           |          |
-     |                            | 3. compute risk score              |           |          |
-     |                            |-------------------------->         |           |          |
-     |                            |<-- score=82 (over 60) ------------ |           |          |
-     |                            | 4. generate adaptive nudge         |           |          |
+     |                            | 3. L1 rules score (velocity -> 62) |           |          |
+     |                            |------------------------------>    |           |          |
+     |                            |<-- L1Draft (score 62, HOLD) ------ |           |          |
+     |                            | router: 40<score<70, forward L2   |           |          |
+     |                            | 4. L2 LLM call (adaptive nudge)   |           |          |
      |                            |---------------------------------------------> |          |
-     |                            |<-- nudge text ------------------------------- |          |
-     |                            | 5. write decision (status=HELD)    |           |          |
+     |                            |<-- enriched decision + llmTelemetry --------- |          |
+     |                            | 5. write decision (engineLayer=L2, HELD)       |          |
      |                            |-------------------->|              |           |          |
      |                            | 6. publish fraud alert             |           |          |
      |                            |--------------------------------------------------------->|
@@ -184,7 +219,7 @@ cd infra/cdk
 npx cdk bootstrap aws://<ACCOUNT_ID>/<REGION>
 ```
 
-Before the first deploy, enable Anthropic Claude Haiku 4.5 in the Bedrock console for `us-east-1` (one-time, ~5 clicks in the AWS console). The runtime stack deploys without it, but Lambda calls will fail at runtime until the model is enabled.
+The L2 engine calls the Marriott-hosted LiteLLM proxy. Set `LLM_BASE_URL` and `LLM_API_KEY` in your environment or SSM before deploying. No AWS Bedrock model activation is required.
 
 Standard deploy:
 
@@ -201,9 +236,9 @@ Outputs include the API URL and CloudWatch dashboard URL.
 
 The hackathon demo walks through three scenarios that show the engine across all three surfaces:
 
-1. **Clean user**: high-tier member logs in, page-view triggers `/decisions/evaluate`, the engine returns a personalized credit-card promotion dynamically generated by Bedrock. Customer surface renders it as a nudge popup.
-2. **Suspicious transfer**: same user attempts a 10x normal points transfer from a new geolocation. Heuristic risk score crosses the threshold. Bedrock generates the adaptive nudge ("we paused this transfer, here is what to do"). Fraud alert SNS publishes. Admin console shows the hold in real time.
-3. **Admin rule change**: admin opens `/admin`, toggles a promotion eligibility rule, the next customer evaluate picks it up. Demonstrates the closed loop between marketing config and live decisions.
+1. **UC1 - geo-clean login (personalization)**: high-tier member logs in from a known location. L1 rules score the event below 40 (no gray zone). The engine returns a personalized credit-card promotion. L2 is not called. Customer surface renders the offer as a nudge popup.
+2. **UC2 - transfer velocity anomaly (fraud hold)**: same user attempts a 10x normal points transfer. L1 rules score the event in the 40-70 gray zone, so the router calls L2. The LiteLLM proxy generates the adaptive nudge ("we paused this transfer, here is what to do"). Fraud alert SNS publishes. Admin console shows the hold in real time.
+3. **UC3 - profile completeness nudge (engagement)**: user with an incomplete loyalty profile triggers `/decisions/evaluate`. L1 rules detect low profile completeness and surface a targeted fill-in prompt. The decision is written with `engineLayer=L1` and `profileScore` in the telemetry field.
 
 ## See also
 
