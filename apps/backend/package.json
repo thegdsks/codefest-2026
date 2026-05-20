@@ -9,7 +9,8 @@
     "remove": "serverless remove",
     "offline": "serverless offline",
     "lint": "node -c src/handler.js",
-    "test": "node --test src/engine/*.test.js"
+    "test": "node --test src/engine/*.test.js",
+    "test:rules": "node --test src/rules/*.test.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.600.0",
