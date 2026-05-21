@@ -28,6 +28,8 @@ const {
   listRules,
   getRule: getEngagementRule,
   putRule,
+  aiSuggestRule,
+  testRule,
 } = require('./routes/engagement');
 
 // test-only seam; delegates to lib/ddb so every module in the graph sees the stub
@@ -115,6 +117,9 @@ async function route(event, correlationId) {
   if (method === 'POST' && p === '/engagement/event') return trackEvent(event, correlationId);
   if (method === 'GET' && p === '/admin/rules') return listRules(event, correlationId);
   if (method === 'POST' && p === '/admin/rules') return putRule(event, correlationId);
+  if (method === 'POST' && p === '/admin/rules/ai-suggest')
+    return aiSuggestRule(event, correlationId);
+  if (method === 'POST' && p === '/admin/rules/test') return testRule(event, correlationId);
   if (method === 'GET' && p.match(/^\/admin\/rules\/[^/]+$/))
     return getEngagementRule(event, correlationId);
   if (method === 'PUT' && p.match(/^\/admin\/rules\/[^/]+$/)) return putRule(event, correlationId);
