@@ -7,7 +7,7 @@ import Header from '@/components/hotel/Header';
 const montserrat = Montserrat({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-montserrat',
+  variable: '--font-sans',
   display: 'swap',
 });
 
@@ -15,21 +15,28 @@ const playfair = Playfair_Display({
   subsets: ['latin'],
   weight: ['400', '600', '700'],
   style: ['normal', 'italic'],
-  variable: '--font-playfair',
+  variable: '--font-display',
+  display: 'swap',
+});
+
+const playfairSerif = Playfair_Display({
+  subsets: ['latin'],
+  weight: ['400', '600', '700'],
+  variable: '--font-serif',
   display: 'swap',
 });
 
 const jetbrains = JetBrains_Mono({
   subsets: ['latin'],
   weight: ['400', '500'],
-  variable: '--font-jetbrains',
+  variable: '--font-mono',
   display: 'swap',
 });
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className={`${montserrat.variable} ${playfair.variable} ${jetbrains.variable} font-sans bg-[#fbf9f8] text-black selection:bg-[#ffdea5] selection:text-[#261900]`}
+      className={`${montserrat.variable} ${playfair.variable} ${playfairSerif.variable} ${jetbrains.variable} font-sans bg-[#fbf9f8] text-black selection:bg-[#ffdea5] selection:text-[#261900]`}
     >
       <CustomerProvider>
         <EngagementWrapper>
