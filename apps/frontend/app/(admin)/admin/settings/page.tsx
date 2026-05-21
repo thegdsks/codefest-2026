@@ -2,6 +2,7 @@
 
 import { Check, Circle, X } from '@phosphor-icons/react';
 import { useCallback, useEffect, useState } from 'react';
+import AiModelCatalog from '@/components/admin/AiModelCatalog';
 import AuthGate from '@/components/admin/AuthGate';
 import Skeleton from '@/components/admin/Skeleton';
 import {
@@ -99,6 +100,8 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
+        <AiModelCatalog />
+
         <section className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
           <div className="border-b border-[var(--border)] px-4 py-3 text-base font-semibold text-[var(--text)]">
             Frontend env

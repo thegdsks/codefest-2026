@@ -11,14 +11,16 @@
   --border: rgba(9, 9, 11, 0.08);
   --border-strong: rgba(9, 9, 11, 0.14);
   --text: #09090b;
-  --text-muted: #52525b;
-  --text-dim: #a1a1aa;
-  --accent: #6366f1;
-  --accent-fg: #ffffff;
+  --text-muted: #3f3f46;
+  --text-dim: #71717a;
+  --accent: #09090b;
+  --accent-fg: #fafafa;
+  --hover: rgba(9, 9, 11, 0.05);
+  --hover-strong: rgba(9, 9, 11, 0.08);
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #f43f5e;
-  --shadow-float: 0 10px 32px -12px rgba(9, 9, 11, 0.14), 0 2px 6px -2px rgba(9, 9, 11, 0.08);
+  --shadow-float: 0 10px 32px -12px rgba(9, 9, 11, 0.18), 0 2px 6px -2px rgba(9, 9, 11, 0.1);
 }
 
 /* Dark mode overrides — layered surfaces with alpha-white tints */
@@ -32,8 +34,10 @@
   --text: #fafafa;
   --text-muted: #a1a1aa;
   --text-dim: #71717a;
-  --accent: #6366f1;
-  --accent-fg: #ffffff;
+  --accent: #fafafa;
+  --accent-fg: #09090b;
+  --hover: rgba(255, 255, 255, 0.04);
+  --hover-strong: rgba(255, 255, 255, 0.06);
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #f43f5e;

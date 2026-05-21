@@ -85,7 +85,7 @@ export default function DecisionsOverTimeChart({ window: windowKey, height = 280
     return (
       <div
         role="img"
-        className="w-full rounded bg-zinc-800 motion-safe:animate-pulse"
+        className="w-full rounded bg-[color:var(--bg-elevated)] motion-safe:animate-pulse"
         style={{ height }}
         aria-label="Loading decisions over time chart"
       />

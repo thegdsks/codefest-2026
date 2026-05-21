@@ -223,7 +223,7 @@ scripts/hooks          commit-msg and pre-push scripts called by lefthook
 | New work | `git checkout -b feat/<short-name>` |
 | Commit | `git commit -m "Imperative subject under 72 chars"` |
 | Push and open PR | `git push -u origin <branch>` then `gh pr create` |
-| Merge | `gh pr merge --merge --delete-branch` |
+| Merge | `gh pr merge --squash --delete-branch` |
 
 Direct push to `main` is blocked by both a local hook and GitHub branch protection. Always PR.
 
@@ -238,7 +238,9 @@ cd infra/cdk
 npx cdk bootstrap aws://<ACCOUNT_ID>/<REGION>
 ```
 
-The L2 engine calls the Marriott-hosted LiteLLM proxy. Set `LLM_BASE_URL` and `LLM_API_KEY` in your environment or SSM before deploying. No AWS Bedrock model activation is required.
+The L2 engine talks to a Marriott-hosted LiteLLM proxy (OpenAI-compatible wire format, backed by Bedrock under the hood). Set `LITELLM_BASE_URL`, `LITELLM_API_KEY`, and `LITELLM_MODEL` on the Lambda before deploying. The proxy already has Bedrock model access, so the Lambda itself does **not** need direct AWS Bedrock model activation for the demo path. The catalog of models the proxy exposes is in `apps/backend/src/lib/aiModels.js` and visible at `/admin/settings`. For one-shot setup against a deployed function use `./scripts/enable-litellm.sh`.
+
+The Bedrock IAM policy in `infra/cdk/lib/runtime-stack.ts` is retained for the alternate production path where the Lambda would call Bedrock directly (provisioned throughput, lower latency). It is unused on the LiteLLM path and harmless to leave attached.
 
 Standard deploy:
 

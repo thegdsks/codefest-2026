@@ -42,7 +42,8 @@ const TYPE_TONE: Record<string, string> = {
   PROFILE_COMPLETENESS: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
   DECISION_RELEASE: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
 };
-const TYPE_FALLBACK = 'bg-zinc-800 text-zinc-300 border-zinc-700';
+const TYPE_FALLBACK =
+  'bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)] border-[color:var(--border-strong)]';
 
 function typeTone(t: string): string {
   return TYPE_TONE[t] ?? TYPE_FALLBACK;
@@ -79,12 +80,12 @@ export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedPro
 
   return (
     <>
-      <section className="flex h-full flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60">
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+      <section className="flex h-full flex-col overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60">
+        <div className="flex items-center justify-between border-b border-[color:var(--border)] px-4 py-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
             Live activity
           </h2>
-          <span className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+          <span className="flex items-center gap-1.5 text-[11px] text-[color:var(--text-dim)]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse" />
             polling 2s
           </span>
@@ -97,7 +98,7 @@ export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedPro
           className="flex-1 overflow-y-auto"
         >
           {isLoading && (
-            <ul className="divide-y divide-zinc-800">
+            <ul className="divide-y divide-[color:var(--border)]">
               {SKELETON_KEYS.map((k) => (
                 <li key={k} className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -117,13 +118,15 @@ export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedPro
 
           {isEmpty && (
             <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
-              <p className="text-sm text-zinc-500">Waiting for activity</p>
-              <p className="text-[11px] text-zinc-600">New decisions will appear here within 2s</p>
+              <p className="text-sm text-[color:var(--text-dim)]">Waiting for activity</p>
+              <p className="text-[11px] text-[color:var(--text-dim)]">
+                New decisions will appear here within 2s
+              </p>
             </div>
           )}
 
           {!isLoading && !isError && rows.length > 0 && (
-            <ul className="divide-y divide-zinc-800/60">
+            <ul className="divide-y divide-[color:var(--border)]/60">
               {rows.map((row) => {
                 const reason =
                   row.reasonText || row.reasonCode || row.explanation || row.reason || '';
@@ -132,11 +135,11 @@ export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedPro
                     <button
                       type="button"
                       onClick={() => setSelectedId(row.decisionId)}
-                      className="w-full px-4 py-2 text-left transition-colors hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400/70"
+                      className="w-full px-4 py-2 text-left transition-colors hover:bg-[color:var(--bg-elevated)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400/70"
                     >
                       <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="shrink-0 tabular-nums text-[11px] text-zinc-500">
+                          <span className="shrink-0 tabular-nums text-[11px] text-[color:var(--text-dim)]">
                             {formatHMS(row.timestamp)}
                           </span>
                           <span
@@ -146,7 +149,7 @@ export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedPro
                           </span>
                           <ActionPill action={row.action} />
                           <span className="flex-1" />
-                          <span className="truncate max-w-[80px] font-mono text-[11px] text-zinc-400">
+                          <span className="truncate max-w-[80px] font-mono text-[11px] text-[color:var(--text-muted)]">
                             {row.userId}
                           </span>
                           <span
@@ -154,11 +157,15 @@ export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedPro
                           >
                             {Math.round(row.score)}
                           </span>
-                          <span className="shrink-0 rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] text-zinc-400">
+                          <span className="shrink-0 rounded-full border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-2 py-0.5 text-[11px] text-[color:var(--text-muted)]">
                             {row.engineLayer}
                           </span>
                         </div>
-                        {reason && <p className="line-clamp-1 text-xs text-zinc-500">{reason}</p>}
+                        {reason && (
+                          <p className="line-clamp-1 text-xs text-[color:var(--text-dim)]">
+                            {reason}
+                          </p>
+                        )}
                       </div>
                     </button>
                   </li>
@@ -168,7 +175,7 @@ export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedPro
           )}
         </section>
 
-        <div className="border-t border-zinc-800 px-4 py-2 text-[11px] text-zinc-600">
+        <div className="border-t border-[color:var(--border)] px-4 py-2 text-[11px] text-[color:var(--text-dim)]">
           {rows.length > 0 ? `${rows.length} decisions in last 1h` : 'Waiting for activity'}
         </div>
       </section>

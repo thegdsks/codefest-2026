@@ -109,7 +109,7 @@ Hook scripts live in `scripts/hooks/`. Lefthook config is `lefthook.yml` at repo
 
 ## Product framing
 
-Signal Force is a real-time decision intelligence platform. One engine that turns customer signals into adaptive decisions across security, personalization, and engagement. Three apps share one engine: a customer surface (Bonvoy site in production, SPA simulator in the demo), the decision engine (Lambda + DDB + Bedrock), and an admin/ops console (the SPA's `/admin` route).
+Signal Force is a real-time decision intelligence platform. One engine that turns customer signals into adaptive decisions across security, personalization, and engagement. Three apps share one engine: a customer surface (Bonvoy site in production, SPA simulator in the demo), the decision engine (Lambda + DDB + LLM via LiteLLM proxy), and an admin/ops console (the SPA's `/admin` route).
 
 The central endpoint is `POST /decisions/evaluate`. It takes user + event + context and returns `{ risk, offers, nudge, action }` in one response. The customer surface calls it on key events (login, page view, transfer initiated). The admin console reads the audit trail.
 
@@ -120,7 +120,7 @@ See `docs/architecture.md` for the full design, including how the engine splits 
 - Backend: Node.js 18 Lambda, Serverless Framework, DynamoDB PAY_PER_REQUEST. Migration to Python is the next major rewrite.
 - Frontend: Vite, React 18, TypeScript, Tailwind 3, React Router 6.
 - Infra: AWS CDK v2 in TypeScript. Three stacks: `signal-force-dynamodb`, `signal-force-budgets`, `signal-force-runtime`.
-- Decision LLM: Amazon Bedrock, Claude Haiku 4.5 via the Converse API. Called only on the warm lane.
+- Decision LLM: Marriott-hosted LiteLLM proxy (OpenAI-compatible wire format), default model `us.anthropic.claude-haiku-4-5-20251001-v1:0` on Bedrock. The catalog of switchable models lives in `apps/backend/src/lib/aiModels.js` and is surfaced at `/admin/settings`. Called only on the warm lane. Direct Bedrock (Converse API) is the alternate production path; the CDK Bedrock IAM policy is kept for that future, unused on the demo path.
 - Auth: HTTP Basic Auth at client level, app user creds in login body. Single static MFA OTP for the demo.
 
 Do not introduce alternatives (no Vue, no raw CloudFormation YAML, no Pulumi, no Yarn, no Bun) without a written justification in the PR.

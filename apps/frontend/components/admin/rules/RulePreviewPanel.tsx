@@ -8,7 +8,7 @@ import type { EngagementRule } from '@/lib/rules-api';
 const RuleFlowPreview = dynamic(() => import('./RuleFlowPreview'), {
   ssr: false,
   loading: () => (
-    <div className="h-48 w-full rounded-lg border border-zinc-800 bg-zinc-950 animate-pulse" />
+    <div className="h-48 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--bg)] animate-pulse" />
   ),
 });
 
@@ -28,14 +28,16 @@ export default function RulePreviewPanel({ rule }: RulePreviewPanelProps) {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950/60 p-1 w-fit">
+      <div className="mb-4 flex items-center gap-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg)]/60 p-1 w-fit">
         {TABS.map(({ value, label }) => (
           <button
             key={value}
             type="button"
             onClick={() => setTab(value)}
             className={`rounded px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
-              tab === value ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-100'
+              tab === value
+                ? 'bg-zinc-100 text-zinc-900'
+                : 'text-[color:var(--text-muted)] hover:text-[color:var(--text)]'
             }`}
           >
             {label}
@@ -44,7 +46,7 @@ export default function RulePreviewPanel({ rule }: RulePreviewPanelProps) {
       </div>
 
       {tab === 'json' ? (
-        <pre className="overflow-auto rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-[11px] leading-relaxed text-zinc-300 max-h-[500px]">
+        <pre className="overflow-auto rounded-lg border border-[color:var(--border)] bg-[color:var(--bg)] p-4 text-[11px] leading-relaxed text-[color:var(--text-muted)] max-h-[500px]">
           {JSON.stringify(rule, null, 2)}
         </pre>
       ) : (

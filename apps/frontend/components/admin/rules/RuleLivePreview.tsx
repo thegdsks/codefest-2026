@@ -59,7 +59,10 @@ const SIGNAL_BADGE_CLASS: Record<string, string> = {
 };
 
 function signalBadgeClass(signal: string): string {
-  return SIGNAL_BADGE_CLASS[signal] ?? 'bg-zinc-700/40 text-zinc-300 border-zinc-700';
+  return (
+    SIGNAL_BADGE_CLASS[signal] ??
+    'bg-zinc-700/40 text-[color:var(--text-muted)] border-[color:var(--border-strong)]'
+  );
 }
 
 function toPlainEnglish(payload: CreateRulePayload): string {
@@ -158,9 +161,9 @@ export default function RuleLivePreview({ payload }: RuleLivePreviewProps) {
         Test this rule
       </button>
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+      <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950/60 p-0.5">
+          <div className="flex items-center gap-1 rounded-md border border-[color:var(--border)] bg-[color:var(--bg)]/60 p-0.5">
             <button
               type="button"
               onClick={() => setView('json')}
@@ -168,7 +171,7 @@ export default function RuleLivePreview({ payload }: RuleLivePreviewProps) {
               className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors ${
                 view === 'json'
                   ? 'bg-indigo-500/15 text-indigo-200'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  : 'text-[color:var(--text-muted)] hover:text-[color:var(--text)]'
               }`}
             >
               <Braces className="size-3" />
@@ -181,7 +184,7 @@ export default function RuleLivePreview({ payload }: RuleLivePreviewProps) {
               className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors ${
                 view === 'plain'
                   ? 'bg-indigo-500/15 text-indigo-200'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  : 'text-[color:var(--text-muted)] hover:text-[color:var(--text)]'
               }`}
             >
               <FileText className="size-3" />
@@ -191,7 +194,7 @@ export default function RuleLivePreview({ payload }: RuleLivePreviewProps) {
           <button
             type="button"
             onClick={handleCopy}
-            className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+            className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
           >
             {copied ? (
               <>
@@ -207,11 +210,11 @@ export default function RuleLivePreview({ payload }: RuleLivePreviewProps) {
           </button>
         </div>
         {view === 'json' ? (
-          <pre className="max-h-72 overflow-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-[11px] leading-relaxed text-zinc-300">
+          <pre className="max-h-72 overflow-auto rounded-lg border border-[color:var(--border)] bg-[color:var(--bg)] p-3 text-[11px] leading-relaxed text-[color:var(--text-muted)]">
             {json}
           </pre>
         ) : (
-          <p className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm leading-relaxed text-zinc-200">
+          <p className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg)] p-3 text-sm leading-relaxed text-[color:var(--text)]">
             {plain}
           </p>
         )}
@@ -230,7 +233,7 @@ interface MatchCardProps {
 function MatchCard({ state, hasConditions }: MatchCardProps) {
   if (!hasConditions) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 text-sm text-zinc-400">
+      <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-4 text-sm text-[color:var(--text-muted)]">
         Add conditions to see preview.
       </div>
     );
@@ -238,7 +241,7 @@ function MatchCard({ state, hasConditions }: MatchCardProps) {
 
   if (state.kind === 'loading' || state.kind === 'idle') {
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 text-sm text-zinc-400">
+      <div className="flex items-center gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-4 text-sm text-[color:var(--text-muted)]">
         <Loader2 className="size-4 animate-spin" />
         running...
       </div>
@@ -262,18 +265,18 @@ function MatchCard({ state, hasConditions }: MatchCardProps) {
   const topSignal = [...signalCounts.entries()].sort((a, b) => b[1] - a[1])[0];
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <div className="text-sm text-zinc-200">
+    <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-4">
+      <div className="text-sm text-[color:var(--text)]">
         Would have matched <span className="font-semibold text-indigo-300">{count}</span> engagement
         decisions in the last 24h.
       </div>
       {count > 0 && topSignal ? (
         <div className="mt-2">
-          <p className="text-[11px] text-zinc-500">
-            Most matches: <span className="text-zinc-300">{topSignal[0]}</span> ({topSignal[1]} /{' '}
-            {total} samples)
+          <p className="text-[11px] text-[color:var(--text-dim)]">
+            Most matches: <span className="text-[color:var(--text-muted)]">{topSignal[0]}</span> (
+            {topSignal[1]} / {total} samples)
           </p>
-          <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-zinc-800">
+          <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-[color:var(--bg-elevated)]">
             {[...signalCounts.entries()].map(([signal, n]) => (
               <div
                 key={signal}
@@ -287,8 +290,8 @@ function MatchCard({ state, hasConditions }: MatchCardProps) {
         </div>
       ) : null}
       {samples.length > 0 ? (
-        <details className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
-          <summary className="cursor-pointer text-xs font-medium text-zinc-300">
+        <details className="mt-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg)]/60 px-3 py-2">
+          <summary className="cursor-pointer text-xs font-medium text-[color:var(--text-muted)]">
             Sample matches ({samples.length})
           </summary>
           <ul className="mt-2 space-y-1.5">
@@ -332,19 +335,21 @@ function SampleRow({ sample }: SampleRowProps) {
   }
 
   return (
-    <li className="rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-[11px] text-zinc-400">
+    <li className="rounded border border-[color:var(--border)] bg-[color:var(--bg)] px-2 py-1.5 text-[11px] text-[color:var(--text-muted)]">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={handleCopyId}
           title="Copy decisionId"
-          className="truncate text-left font-mono text-zinc-300 hover:text-indigo-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+          className="truncate text-left font-mono text-[color:var(--text-muted)] hover:text-indigo-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
         >
           {copied ? 'Copied!' : sample.decisionId}
         </button>
-        <span className="shrink-0 text-zinc-500">{formatRelative(sample.timestamp)}</span>
+        <span className="shrink-0 text-[color:var(--text-dim)]">
+          {formatRelative(sample.timestamp)}
+        </span>
       </div>
-      <div className="mt-1 flex items-center gap-2 text-zinc-500">
+      <div className="mt-1 flex items-center gap-2 text-[color:var(--text-dim)]">
         <span
           className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${signalBadgeClass(sample.signal)}`}
         >

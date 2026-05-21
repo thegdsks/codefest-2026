@@ -125,8 +125,8 @@ function Badge({ count, tone }: { count: number; tone: 'default' | 'accent' }) {
   const label = count > 999 ? '999+' : String(count);
   const cls =
     tone === 'accent'
-      ? 'bg-indigo-500/15 text-indigo-300 ring-indigo-400/20'
-      : 'bg-white/[0.05] text-zinc-400 ring-white/[0.06]';
+      ? 'bg-[color:var(--accent)] text-[color:var(--accent-fg)] ring-transparent'
+      : 'bg-[color:var(--hover)] text-[color:var(--text-muted)] ring-[color:var(--border)]';
   return (
     <span
       aria-live="polite"
@@ -150,16 +150,27 @@ function NavLink({ item, isActive, badge }: NavLinkProps) {
     <Link
       href={item.href}
       title={item.label}
-      className={`relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium leading-none tracking-[-0.005em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 ${
+      aria-current={isActive ? 'page' : undefined}
+      className={`group relative flex h-8 items-center gap-2.5 overflow-hidden rounded-md px-2.5 text-[13px] font-medium leading-none tracking-[-0.005em] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/40 ${
         isActive
-          ? 'bg-white/[0.06] text-zinc-50'
-          : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100'
+          ? 'bg-[color:var(--bg-elevated)] text-[color:var(--text)] font-semibold'
+          : 'text-[color:var(--text-muted)] hover:bg-[color:var(--hover)] hover:text-[color:var(--text)]'
       }`}
     >
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-[color:var(--accent)] transition-all duration-200 ease-out ${
+          isActive ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-50'
+        }`}
+      />
       <I
         size={15}
         weight={isActive ? 'fill' : 'regular'}
-        className={`shrink-0 ${isActive ? 'text-zinc-50' : 'text-zinc-500'}`}
+        className={`shrink-0 transition-colors duration-200 ${
+          isActive
+            ? 'text-[color:var(--text)]'
+            : 'text-[color:var(--text-dim)] group-hover:text-[color:var(--text)]'
+        }`}
         aria-hidden="true"
       />
       <span className="flex-1 truncate">{item.label}</span>
@@ -187,7 +198,7 @@ export default function FloatingSidebar() {
       <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-5" aria-label="Admin navigation">
         {SECTIONS.map((section) => (
           <div key={section.label}>
-            <div className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 select-none">
+            <div className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-dim)] select-none">
               {section.label}
             </div>
             <div className="space-y-px">

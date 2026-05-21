@@ -61,7 +61,7 @@ export default function MobileDrawer({ open, onClose }: MobileDrawerProps) {
       ? 'text-emerald-400 fill-emerald-400'
       : health === 'down'
         ? 'text-rose-400 fill-rose-400'
-        : 'text-zinc-500 fill-zinc-500';
+        : 'text-[color:var(--text-dim)] fill-zinc-500';
 
   const dotLabel =
     health === 'ok' ? 'API healthy' : health === 'down' ? 'API down' : 'Checking API';
@@ -89,13 +89,13 @@ export default function MobileDrawer({ open, onClose }: MobileDrawerProps) {
         type="button"
         aria-label="Close navigation"
         onClick={onClose}
-        className="absolute inset-0 bg-zinc-950/70 backdrop-blur-sm cursor-default"
+        className="absolute inset-0 bg-[color:var(--bg)]/70 backdrop-blur-sm cursor-default"
       />
 
       {/* Slide-in panel */}
-      <div className="relative flex w-64 max-w-[80vw] flex-col border-r border-zinc-800 bg-zinc-950">
+      <div className="relative flex w-64 max-w-[80vw] flex-col border-r border-[color:var(--border)] bg-[color:var(--bg)]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-4">
+        <div className="flex items-center justify-between border-b border-[color:var(--border)] px-4 py-4">
           <div className="flex items-center gap-2">
             <span
               className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-xs font-bold text-white"
@@ -104,14 +104,16 @@ export default function MobileDrawer({ open, onClose }: MobileDrawerProps) {
               SF
             </span>
             <div className="leading-tight">
-              <div className="text-sm font-semibold text-zinc-100">Signal Force</div>
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Admin</div>
+              <div className="text-sm font-semibold text-[color:var(--text)]">Signal Force</div>
+              <div className="text-[10px] uppercase tracking-wider text-[color:var(--text-dim)]">
+                Admin
+              </div>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-zinc-400 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+            className="rounded-md p-1 text-[color:var(--text-muted)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
             aria-label="Close"
           >
             <X size={16} aria-hidden="true" />
@@ -129,8 +131,8 @@ export default function MobileDrawer({ open, onClose }: MobileDrawerProps) {
                 onClick={onClose}
                 className={`relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
                   isActive
-                    ? 'bg-zinc-800 text-zinc-100'
-                    : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100'
+                    ? 'bg-[color:var(--bg-elevated)] text-[color:var(--text)]'
+                    : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-surface)] hover:text-[color:var(--text)]'
                 }`}
                 aria-current={isActive ? 'page' : undefined}
               >
@@ -145,10 +147,10 @@ export default function MobileDrawer({ open, onClose }: MobileDrawerProps) {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-zinc-800 px-4 py-3">
+        <div className="border-t border-[color:var(--border)] px-4 py-3">
           <div className="flex items-center gap-2" title={dotLabel} aria-live="polite">
             <Circle size={8} strokeWidth={0} className={`shrink-0 ${dotClass}`} />
-            <span className="text-[11px] text-zinc-500 truncate">{host}</span>
+            <span className="text-[11px] text-[color:var(--text-dim)] truncate">{host}</span>
           </div>
         </div>
       </div>

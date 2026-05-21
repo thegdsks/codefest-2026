@@ -46,7 +46,7 @@ export default function ScoreDistributionChart({ window: windowKey = '24h', heig
     return (
       <div
         role="img"
-        className="w-full rounded bg-zinc-800 motion-safe:animate-pulse"
+        className="w-full rounded bg-[color:var(--bg-elevated)] motion-safe:animate-pulse"
         style={{ height }}
         aria-label="Loading score distribution chart"
       />
@@ -121,7 +121,7 @@ export default function ScoreDistributionChart({ window: windowKey = '24h', heig
           />
         </BarChart>
       </ResponsiveContainer>
-      <div className="mt-2 flex items-center gap-4 pl-4 text-xs text-zinc-500">
+      <div className="mt-2 flex items-center gap-4 pl-4 text-xs text-[color:var(--text-dim)]">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-zinc-500" />
           L1 only
@@ -130,7 +130,7 @@ export default function ScoreDistributionChart({ window: windowKey = '24h', heig
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-indigo-400" />
           L1 + L2
         </span>
-        <span className="flex items-center gap-1.5 ml-2 text-zinc-600">
+        <span className="flex items-center gap-1.5 ml-2 text-[color:var(--text-dim)]">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-zinc-700" />
           grey zone 40-70
         </span>

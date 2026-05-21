@@ -42,7 +42,7 @@ function ThemeSegment() {
 
   return (
     <div className="flex items-center justify-between px-2 py-1.5">
-      <span className="text-[12.5px] text-zinc-300">Theme</span>
+      <span className="text-[12.5px] text-[color:var(--text-muted)]">Theme</span>
       <div className="inline-flex items-center gap-0.5 rounded-md bg-white/[0.04] p-0.5 ring-1 ring-inset ring-white/[0.06]">
         {options.map((opt) => {
           const Icon = opt.icon;
@@ -57,8 +57,8 @@ function ThemeSegment() {
               title={opt.label}
               className={`inline-grid h-6 w-6 place-items-center rounded transition-colors ${
                 active
-                  ? 'bg-white/[0.08] text-zinc-100 shadow-[0_1px_2px_rgba(0,0,0,0.3)]'
-                  : 'text-zinc-500 hover:text-zinc-300'
+                  ? 'bg-white/[0.08] text-[color:var(--text)] shadow-[0_1px_2px_rgba(0,0,0,0.3)]'
+                  : 'text-[color:var(--text-dim)] hover:text-[color:var(--text-muted)]'
               }`}
             >
               <Icon size={12} weight={active ? 'fill' : 'regular'} aria-hidden="true" />
@@ -91,11 +91,15 @@ function Row({
     >
       <Icon
         size={13}
-        className={`shrink-0 ${danger ? 'text-rose-400' : 'text-zinc-500'}`}
+        className={`shrink-0 ${danger ? 'text-rose-400' : 'text-[color:var(--text-dim)]'}`}
         aria-hidden="true"
       />
-      <span className={`flex-1 ${danger ? 'text-rose-300' : 'text-zinc-200'}`}>{label}</span>
-      {shortcut && <span className="text-[10.5px] text-zinc-600 tabular-nums">{shortcut}</span>}
+      <span className={`flex-1 ${danger ? 'text-rose-300' : 'text-[color:var(--text)]'}`}>
+        {label}
+      </span>
+      {shortcut && (
+        <span className="text-[10.5px] text-[color:var(--text-dim)] tabular-nums">{shortcut}</span>
+      )}
     </button>
   );
 }
@@ -135,7 +139,7 @@ export default function UserMenu({ health, onOpenShortcuts }: UserMenuProps) {
         <span className="relative shrink-0">
           <span
             aria-hidden="true"
-            className="inline-grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-zinc-700 to-zinc-800 text-[11px] font-semibold text-zinc-100 ring-1 ring-white/[0.08]"
+            className="inline-grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-zinc-700 to-zinc-800 text-[11px] font-semibold text-[color:var(--text)] ring-1 ring-white/[0.08]"
           >
             A
           </span>
@@ -145,10 +149,14 @@ export default function UserMenu({ health, onOpenShortcuts }: UserMenuProps) {
           />
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-[13px] font-medium leading-none text-zinc-100">Admin</span>
-          <span className="truncate text-[11px] leading-none text-zinc-500">{host}</span>
+          <span className="truncate text-[13px] font-medium leading-none text-[color:var(--text)]">
+            Admin
+          </span>
+          <span className="truncate text-[11px] leading-none text-[color:var(--text-dim)]">
+            {host}
+          </span>
         </span>
-        <CaretUp size={12} className="shrink-0 text-zinc-500" aria-hidden="true" />
+        <CaretUp size={12} className="shrink-0 text-[color:var(--text-dim)]" aria-hidden="true" />
       </button>
 
       {open && (
@@ -160,13 +168,17 @@ export default function UserMenu({ health, onOpenShortcuts }: UserMenuProps) {
           <div className="flex items-center gap-2.5 border-b border-white/[0.06] px-3 py-2.5">
             <span
               aria-hidden="true"
-              className="inline-grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-zinc-700 to-zinc-800 text-[13px] font-semibold text-zinc-100 ring-1 ring-white/[0.08]"
+              className="inline-grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-zinc-700 to-zinc-800 text-[13px] font-semibold text-[color:var(--text)] ring-1 ring-white/[0.08]"
             >
               A
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-[13px] font-medium text-zinc-100">Admin</span>
-              <span className="truncate text-[11px] text-zinc-500">admin@signal-force.dev</span>
+              <span className="truncate text-[13px] font-medium text-[color:var(--text)]">
+                Admin
+              </span>
+              <span className="truncate text-[11px] text-[color:var(--text-dim)]">
+                admin@signal-force.dev
+              </span>
             </span>
           </div>
 
@@ -196,7 +208,7 @@ export default function UserMenu({ health, onOpenShortcuts }: UserMenuProps) {
             <Row icon={SignOut} label="Sign out" onClick={handleSignOut} danger />
           </div>
 
-          <div className="flex items-center justify-between border-t border-white/[0.06] px-3 py-2 text-[10.5px] text-zinc-500">
+          <div className="flex items-center justify-between border-t border-white/[0.06] px-3 py-2 text-[10.5px] text-[color:var(--text-dim)]">
             <span className="tabular-nums">v{APP_VERSION}</span>
             <span className="inline-flex items-center gap-1.5">
               <span className={`h-1.5 w-1.5 rounded-full ${healthDot}`} aria-hidden="true" />
