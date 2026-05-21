@@ -22,12 +22,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  const openPalette = () => setPaletteOpen(true);
+
   return (
     <>
       <div className="app-canvas fixed inset-0 z-30 flex text-[var(--text)] md:p-3">
-        <FloatingSidebar />
+        <FloatingSidebar onOpenCommandPalette={openPalette} onOpenShortcuts={openPalette} />
         <div className="flex min-w-0 flex-1 flex-col md:ml-3 md:rounded-xl md:border md:border-[var(--border)] md:bg-[var(--bg-surface)] md:shadow-[var(--shadow-float)] overflow-hidden">
-          <TopBarV2 onCmdK={() => setPaletteOpen(true)} onMenuOpen={() => setDrawerOpen(true)} />
+          <TopBarV2 onCmdK={openPalette} onMenuOpen={() => setDrawerOpen(true)} />
           <main className="flex-1 overflow-auto px-4 py-4 md:px-6 md:py-6 pb-20 md:pb-6">
             {children}
           </main>

@@ -181,7 +181,15 @@ function NavLink({ item, isActive, badge }: NavLinkProps) {
   );
 }
 
-export default function FloatingSidebar() {
+interface FloatingSidebarProps {
+  onOpenCommandPalette?: () => void;
+  onOpenShortcuts?: () => void;
+}
+
+export default function FloatingSidebar({
+  onOpenCommandPalette,
+  onOpenShortcuts,
+}: FloatingSidebarProps = {}) {
   const pathname = usePathname();
   const health = useHealthPoll();
   const badges = useBadgeCounts();
@@ -216,7 +224,11 @@ export default function FloatingSidebar() {
       </nav>
 
       <div className="px-2 pt-2 pb-2 border-t border-white/[0.04]">
-        <UserMenu health={health} />
+        <UserMenu
+          health={health}
+          onOpenCommandPalette={onOpenCommandPalette}
+          onOpenShortcuts={onOpenShortcuts}
+        />
       </div>
     </aside>
   );

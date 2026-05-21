@@ -1,194 +1,36 @@
 'use client';
 
 import {
-  ArrowsClockwise,
-  CaretRight,
-  ClockCountdown,
-  ShieldCheck,
-  Warning,
-} from '@phosphor-icons/react';
-import { useEffect, useMemo, useState } from 'react';
+  closestCorners,
+  DndContext,
+  type DragEndEvent,
+  type DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { ArrowsClockwise, ShieldCheck, Warning } from '@phosphor-icons/react';
+import { type MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
+import BulkActionBar from '@/components/admin/investigations/BulkActionBar';
+import Column from '@/components/admin/investigations/Column';
+import InvestigationsFilters from '@/components/admin/investigations/InvestigationsFilters';
+import {
+  type Case,
+  type CaseStatus,
+  deriveStatus,
+  type FilterState,
+  ME,
+  pickAssignee,
+  STATUS_ORDER,
+  scoreBand,
+  slaMinutes,
+} from '@/components/admin/investigations/types';
 import Skeleton from '@/components/admin/Skeleton';
 import { type DecisionRow, getDecisions } from '@/lib/admin-api';
 import type { ApiErrorDetail } from '@/lib/types';
-
-type CaseStatus = 'open' | 'reviewing' | 'action' | 'closed';
-
-interface Case extends DecisionRow {
-  status: CaseStatus;
-  assignee: string | null;
-  slaMinutes: number;
-}
-
-const STATUS_ORDER: CaseStatus[] = ['open', 'reviewing', 'action', 'closed'];
-
-const STATUS_META: Record<
-  CaseStatus,
-  { label: string; tone: string; dot: string; accent: string }
-> = {
-  open: {
-    label: 'Open',
-    tone: 'text-rose-300',
-    dot: 'bg-rose-400',
-    accent: 'border-rose-400/30',
-  },
-  reviewing: {
-    label: 'Reviewing',
-    tone: 'text-amber-300',
-    dot: 'bg-amber-400',
-    accent: 'border-amber-400/30',
-  },
-  action: {
-    label: 'Action needed',
-    tone: 'text-indigo-300',
-    dot: 'bg-indigo-400',
-    accent: 'border-indigo-400/30',
-  },
-  closed: {
-    label: 'Closed',
-    tone: 'text-emerald-300',
-    dot: 'bg-emerald-400',
-    accent: 'border-emerald-400/30',
-  },
-};
-
-function deriveStatus(row: DecisionRow): CaseStatus {
-  const a = (row.action || '').toUpperCase();
-  if (a === 'BLOCK' || a === 'HOLD') return 'open';
-  if (a === 'MFA') return 'reviewing';
-  if (a === 'REVIEW' || a === 'OFFER' || a === 'NUDGE') return 'action';
-  return 'closed';
-}
-
-const ASSIGNEES = ['Maya R.', 'Jordan K.', 'Sam P.', 'Alex T.', null, null];
-
-function pickAssignee(seed: string): string | null {
-  let hash = 0;
-  for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  return ASSIGNEES[hash % ASSIGNEES.length] ?? null;
-}
-
-function slaMinutes(ts: number): number {
-  const elapsed = Math.max(0, Math.floor((Date.now() - ts) / 60_000));
-  return Math.max(0, 60 - (elapsed % 60));
-}
-
-function relative(ts: number): string {
-  const diff = Date.now() - ts;
-  const m = Math.floor(diff / 60_000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
-
-function scoreColor(score: number): string {
-  if (score >= 80) return 'text-rose-300';
-  if (score >= 60) return 'text-amber-300';
-  if (score >= 40) return 'text-indigo-300';
-  return 'text-emerald-300';
-}
-
-function CaseCard({ c, onAdvance }: { c: Case; onAdvance: (id: string) => void }) {
-  return (
-    <div className="surface-popover group rounded-lg p-3 transition-colors hover:bg-white/[0.04]">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-medium text-[color:var(--text)] truncate">
-              {c.userId}
-            </span>
-            <span className="text-[10px] text-[color:var(--text-dim)] truncate">
-              {c.decisionType}
-            </span>
-          </div>
-          <div className="mt-0.5 truncate text-[11px] text-[color:var(--text-dim)]">
-            {c.reasonText ?? c.reason ?? c.reasonCode ?? 'No reason recorded'}
-          </div>
-        </div>
-        <span className={`shrink-0 text-[13px] font-semibold tabular-nums ${scoreColor(c.score)}`}>
-          {c.score}
-        </span>
-      </div>
-
-      <div className="mt-2.5 flex items-center justify-between gap-2 text-[10.5px]">
-        <span className="inline-flex items-center gap-1 text-[color:var(--text-dim)]">
-          <ClockCountdown size={11} aria-hidden="true" />
-          <span className="tabular-nums">{c.slaMinutes}m SLA</span>
-          <span className="text-zinc-700">·</span>
-          <span>{relative(c.timestamp)}</span>
-        </span>
-        {c.assignee && (
-          <span className="inline-flex items-center gap-1.5 text-[color:var(--text-muted)]">
-            <span
-              aria-hidden="true"
-              className="inline-grid h-4 w-4 place-items-center rounded-full bg-gradient-to-br from-zinc-600 to-zinc-700 text-[8px] font-semibold text-[color:var(--text)] ring-1 ring-white/10"
-            >
-              {c.assignee.slice(0, 1)}
-            </span>
-            <span className="truncate max-w-[80px]">{c.assignee}</span>
-          </span>
-        )}
-      </div>
-
-      {c.status !== 'closed' && (
-        <button
-          type="button"
-          onClick={() => onAdvance(c.decisionId)}
-          className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-md bg-white/[0.04] py-1 text-[10.5px] font-medium text-[color:var(--text-muted)] opacity-0 transition group-hover:opacity-100 hover:bg-white/[0.08] hover:text-[color:var(--text)]"
-        >
-          Advance <CaretRight size={10} aria-hidden="true" />
-        </button>
-      )}
-    </div>
-  );
-}
-
-function Column({
-  status,
-  cases,
-  onAdvance,
-}: {
-  status: CaseStatus;
-  cases: Case[];
-  onAdvance: (id: string) => void;
-}) {
-  const meta = STATUS_META[status];
-  return (
-    <section
-      aria-label={`${meta.label} cases`}
-      className={`flex h-full min-h-0 flex-col rounded-xl border border-white/[0.06] bg-white/[0.015] ${meta.accent}`}
-    >
-      <header className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.05]">
-        <div className="flex items-center gap-2">
-          <span
-            className={`inline-block h-1.5 w-1.5 rounded-full ${meta.dot}`}
-            aria-hidden="true"
-          />
-          <span className={`text-[12px] font-semibold uppercase tracking-wider ${meta.tone}`}>
-            {meta.label}
-          </span>
-        </div>
-        <span className="rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-[color:var(--text-muted)] ring-1 ring-inset ring-white/[0.06]">
-          {cases.length}
-        </span>
-      </header>
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-2 p-2.5">
-        {cases.length === 0 && (
-          <div className="grid h-32 place-items-center text-[11px] text-[color:var(--text-dim)]">
-            No cases
-          </div>
-        )}
-        {cases.map((c) => (
-          <CaseCard key={c.decisionId} c={c} onAdvance={onAdvance} />
-        ))}
-      </div>
-    </section>
-  );
-}
 
 function KpiPill({
   icon: Icon,
@@ -202,13 +44,13 @@ function KpiPill({
   tone: string;
 }) {
   return (
-    <div className="surface-popover flex items-center gap-2.5 rounded-lg px-3 py-2">
+    <div className="flex items-center gap-2.5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-3 py-2">
       <Icon size={16} className={tone} aria-hidden="true" />
       <div className="flex flex-col">
-        <span className="text-[18px] font-semibold tabular-nums text-[color:var(--text)] leading-none">
+        <span className="text-[18px] font-semibold leading-none tabular-nums text-[color:var(--text)]">
           {value}
         </span>
-        <span className="text-[10.5px] uppercase tracking-wider text-[color:var(--text-dim)] mt-1">
+        <span className="mt-1 text-[10.5px] uppercase tracking-wider text-[color:var(--text-dim)]">
           {label}
         </span>
       </div>
@@ -216,10 +58,22 @@ function KpiPill({
   );
 }
 
+function emptyFilters(): FilterState {
+  return {
+    decisionTypes: new Set<string>(),
+    scoreBands: new Set(),
+    assignees: new Set<string>(),
+    quick: null,
+  };
+}
+
 export default function InvestigationsPage() {
   const [cases, setCases] = useState<Case[] | null>(null);
   const [error, setError] = useState<ApiErrorDetail | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = useState<FilterState>(emptyFilters);
+  const lastSelectedRef = useRef<{ id: string; status: CaseStatus } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,7 +86,7 @@ export default function InvestigationsPage() {
         return;
       }
       if (res.data === null) return;
-      const items: Case[] = res.data.decisions.map((d) => ({
+      const items: Case[] = res.data.decisions.map((d: DecisionRow) => ({
         ...d,
         status: deriveStatus(d),
         assignee: pickAssignee(d.userId),
@@ -246,6 +100,43 @@ export default function InvestigationsPage() {
     };
   }, [refreshKey]);
 
+  const decisionTypes = useMemo(() => {
+    if (!cases) return [];
+    const s = new Set<string>();
+    for (const c of cases) s.add(c.decisionType);
+    return [...s].sort();
+  }, [cases]);
+
+  const assignees = useMemo(() => {
+    if (!cases) return [];
+    const s = new Set<string>();
+    for (const c of cases) if (c.assignee) s.add(c.assignee);
+    return [...s].sort();
+  }, [cases]);
+
+  const filtered = useMemo(() => {
+    if (!cases) return null;
+    return cases.filter((c) => {
+      if (filters.decisionTypes.size > 0 && !filters.decisionTypes.has(c.decisionType)) {
+        return false;
+      }
+      if (filters.scoreBands.size > 0 && !filters.scoreBands.has(scoreBand(c.score))) {
+        return false;
+      }
+      if (filters.assignees.size > 0) {
+        if (!c.assignee || !filters.assignees.has(c.assignee)) return false;
+      }
+      if (filters.quick === 'my-open') {
+        if (c.assignee !== ME || c.status !== 'open') return false;
+      } else if (filters.quick === 'stale') {
+        if (c.slaMinutes >= 10 || c.status === 'closed') return false;
+      } else if (filters.quick === 'block-only') {
+        if ((c.action || '').toUpperCase() !== 'BLOCK') return false;
+      }
+      return true;
+    });
+  }, [cases, filters]);
+
   const grouped = useMemo(() => {
     const buckets: Record<CaseStatus, Case[]> = {
       open: [],
@@ -253,9 +144,9 @@ export default function InvestigationsPage() {
       action: [],
       closed: [],
     };
-    if (cases) for (const c of cases) buckets[c.status].push(c);
+    if (filtered) for (const c of filtered) buckets[c.status].push(c);
     return buckets;
-  }, [cases]);
+  }, [filtered]);
 
   const onAdvance = (id: string) => {
     setCases((prev) => {
@@ -269,28 +160,153 @@ export default function InvestigationsPage() {
     });
   };
 
+  const onSelect = (id: string, e: ReactMouseEvent) => {
+    const target = cases?.find((c) => c.decisionId === id);
+    if (!target) return;
+    const status = target.status;
+
+    setSelected((prev) => {
+      const next = new Set(prev);
+
+      // Shift-click: range select within the same column
+      if (e.shiftKey && lastSelectedRef.current && lastSelectedRef.current.status === status) {
+        const list = (filtered ?? cases ?? []).filter((c) => c.status === status);
+        const a = list.findIndex((c) => c.decisionId === lastSelectedRef.current?.id);
+        const b = list.findIndex((c) => c.decisionId === id);
+        if (a >= 0 && b >= 0) {
+          const [lo, hi] = a < b ? [a, b] : [b, a];
+          for (let i = lo; i <= hi; i++) {
+            const item = list[i];
+            if (item) next.add(item.decisionId);
+          }
+          return next;
+        }
+      }
+
+      // Cmd/Ctrl-click: toggle this one
+      if (e.metaKey || e.ctrlKey) {
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        lastSelectedRef.current = { id, status };
+        return next;
+      }
+
+      // Plain click: toggle (single-card workflow)
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      lastSelectedRef.current = { id, status };
+      return next;
+    });
+  };
+
+  const onToggleType = (t: string) =>
+    setFilters((f) => {
+      const ds = new Set(f.decisionTypes);
+      if (ds.has(t)) ds.delete(t);
+      else ds.add(t);
+      return { ...f, decisionTypes: ds };
+    });
+  const onToggleScore = (b: FilterState['scoreBands'] extends Set<infer T> ? T : never) =>
+    setFilters((f) => {
+      const s = new Set(f.scoreBands);
+      if (s.has(b)) s.delete(b);
+      else s.add(b);
+      return { ...f, scoreBands: s };
+    });
+  const onToggleAssignee = (a: string) =>
+    setFilters((f) => {
+      const s = new Set(f.assignees);
+      if (s.has(a)) s.delete(a);
+      else s.add(a);
+      return { ...f, assignees: s };
+    });
+  const onSetQuick = (q: FilterState['quick']) => setFilters((f) => ({ ...f, quick: q }));
+  const onClearFilters = () => setFilters(emptyFilters());
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  function moveCases(ids: string[], to: CaseStatus) {
+    setCases((prev) => {
+      if (!prev) return prev;
+      return prev.map((c) => (ids.includes(c.decisionId) ? { ...c, status: to } : c));
+    });
+  }
+
+  const onDragStart = (e: DragStartEvent) => {
+    // If user drags a non-selected card, treat that single card as the operation target.
+    const id = String(e.active.id);
+    if (!selected.has(id)) {
+      setSelected(new Set([id]));
+    }
+  };
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over) return;
+    const overData = over.data.current as { type?: string; status?: CaseStatus } | undefined;
+    const activeData = active.data.current as { status?: CaseStatus } | undefined;
+
+    let target: CaseStatus | null = null;
+    if (overData?.type === 'column' && overData.status) {
+      target = overData.status;
+    } else if (overData?.type === 'case') {
+      target = (overData as { status?: CaseStatus }).status ?? null;
+    }
+    if (!target) return;
+    if (target === activeData?.status) return;
+
+    const ids = selected.size > 0 ? [...selected] : [String(active.id)];
+    moveCases(ids, target);
+    console.log('[investigations] drag move', { ids, to: target });
+    setSelected(new Set());
+  };
+
   if (error) return <AuthGate error={error} onRetry={() => setRefreshKey((k) => k + 1)} />;
 
   const totalOpen = grouped.open.length + grouped.reviewing.length + grouped.action.length;
-  const highRisk = (cases ?? []).filter((c) => c.score >= 70 && c.status !== 'closed').length;
-  const slaBreach = (cases ?? []).filter((c) => c.slaMinutes <= 15 && c.status !== 'closed').length;
+  const highRisk = (filtered ?? []).filter((c) => c.score >= 70 && c.status !== 'closed').length;
+  const slaBreach = (filtered ?? []).filter(
+    (c) => c.slaMinutes <= 15 && c.status !== 'closed'
+  ).length;
+
+  const ids = [...selected];
+  const onAssignToMe = () => {
+    setCases((prev) =>
+      prev ? prev.map((c) => (selected.has(c.decisionId) ? { ...c, assignee: ME } : c)) : prev
+    );
+    console.log('[investigations] bulk assign to me', { ids });
+    setSelected(new Set());
+  };
+  const onMarkReviewing = () => {
+    moveCases(ids, 'reviewing');
+    console.log('[investigations] bulk mark reviewing', { ids });
+    setSelected(new Set());
+  };
+  const onMarkClosed = () => {
+    moveCases(ids, 'closed');
+    console.log('[investigations] bulk mark closed', { ids });
+    setSelected(new Set());
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-zinc-50">
+          <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-[color:var(--text)]">
             Investigations
           </h1>
           <p className="mt-1 text-[12.5px] text-[color:var(--text-dim)]">
-            Active fraud cases derived from the last 24h of decisions. Hover a card to advance
-            status.
+            Active fraud cases from the last 24h. Drag cards between columns, or select multiple
+            with shift / cmd-click for bulk actions.
           </p>
         </div>
         <button
           type="button"
           onClick={() => setRefreshKey((k) => k + 1)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.04] px-2.5 py-1.5 text-[12px] text-[color:var(--text-muted)] ring-1 ring-inset ring-white/[0.06] hover:bg-white/[0.06] hover:text-[color:var(--text)]"
+          className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-2.5 py-1.5 text-[12px] text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/70"
         >
           <ArrowsClockwise size={12} aria-hidden="true" />
           Refresh
@@ -306,7 +322,7 @@ export default function InvestigationsPage() {
         />
         <KpiPill
           icon={Warning}
-          label="High risk (≥70)"
+          label="High risk (>=70)"
           value={String(highRisk)}
           tone="text-rose-300"
         />
@@ -318,22 +334,62 @@ export default function InvestigationsPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {cases === null
-          ? STATUS_ORDER.map((s) => (
-              <div key={s} className="rounded-xl border border-white/[0.06] bg-white/[0.015] p-3">
-                <Skeleton className="h-4 w-24 mb-3" />
-                <div className="space-y-2">
-                  <Skeleton className="h-20 w-full" />
-                  <Skeleton className="h-20 w-full" />
-                  <Skeleton className="h-20 w-full" />
-                </div>
+      <InvestigationsFilters
+        decisionTypes={decisionTypes}
+        assignees={assignees}
+        filters={filters}
+        onToggleType={onToggleType}
+        onToggleScore={onToggleScore}
+        onToggleAssignee={onToggleAssignee}
+        onSetQuick={onSetQuick}
+        onClearAll={onClearFilters}
+      />
+
+      {cases === null ? (
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {STATUS_ORDER.map((s) => (
+            <div
+              key={s}
+              className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-3"
+            >
+              <Skeleton className="mb-3 h-4 w-24" />
+              <div className="space-y-2">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
               </div>
-            ))
-          : STATUS_ORDER.map((s) => (
-              <Column key={s} status={s} cases={grouped[s]} onAdvance={onAdvance} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+        >
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {STATUS_ORDER.map((s) => (
+              <Column
+                key={s}
+                status={s}
+                cases={grouped[s]}
+                selected={selected}
+                onSelect={onSelect}
+                onAdvance={onAdvance}
+              />
             ))}
-      </div>
+          </div>
+        </DndContext>
+      )}
+
+      <BulkActionBar
+        count={selected.size}
+        onAssignToMe={onAssignToMe}
+        onMarkReviewing={onMarkReviewing}
+        onMarkClosed={onMarkClosed}
+        onClear={() => setSelected(new Set())}
+      />
     </div>
   );
 }
