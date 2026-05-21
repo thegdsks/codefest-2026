@@ -626,6 +626,124 @@ describe('POST /auth/login', () => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /auth/login forceMfa demo flag
+// ---------------------------------------------------------------------------
+
+describe('POST /auth/login forceMfa', () => {
+  const origDemoMode = process.env.DEMO_MODE;
+
+  function loginDdb(profileItem, stateItem = null) {
+    return makeDdb({
+      QueryCommand: () => ({ Items: profileItem ? [profileItem] : [] }),
+      GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserState') return { Item: stateItem };
+        return { Item: undefined };
+      },
+      PutCommand: () => ({}),
+      UpdateCommand: () => ({}),
+    });
+  }
+
+  const profile = {
+    userId: 'U001',
+    username: 'alice',
+    passwordHash: 'pass123',
+    tier: 'gold',
+  };
+
+  it('DEMO_MODE=0 + forceMfa=true runs the normal flow (no forced MFA)', async () => {
+    process.env.DEMO_MODE = '0';
+    const state = {
+      lastLoginLocation: 'New York',
+      lastLoginTime: Math.floor(Date.now() / 1000) - 60,
+    };
+    handler._setDdb(loginDdb(profile, state));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/login',
+      body: JSON.stringify({
+        username: 'alice',
+        password: 'pass123',
+        location: 'New York',
+        deviceId: 'dev-1',
+        forceMfa: true,
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    // Normal low-risk flow returns SUCCESS, not MFA_REQUIRED.
+    assert.equal(body.data.status, 'SUCCESS');
+    assert.ok(body.data.token, 'token must be present when DEMO_MODE is off');
+
+    if (origDemoMode !== undefined) process.env.DEMO_MODE = origDemoMode;
+    else delete process.env.DEMO_MODE;
+  });
+
+  it('DEMO_MODE=1 + forceMfa=true returns MFA_REQUIRED with mfaPath DEMO_FORCED', async () => {
+    process.env.DEMO_MODE = '1';
+    const state = {
+      lastLoginLocation: 'New York',
+      lastLoginTime: Math.floor(Date.now() / 1000) - 60,
+    };
+    handler._setDdb(loginDdb(profile, state));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/login',
+      body: JSON.stringify({
+        username: 'alice',
+        password: 'pass123',
+        location: 'New York',
+        deviceId: 'dev-1',
+        forceMfa: true,
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.status, 'MFA_REQUIRED');
+    assert.equal(body.data.mfaPath, 'DEMO_FORCED');
+    assert.ok(body.data.sessionId, 'sessionId must be present on demo MFA challenge');
+    assert.equal(body.data.token, undefined, 'token must not be present on MFA challenge');
+
+    if (origDemoMode !== undefined) process.env.DEMO_MODE = origDemoMode;
+    else delete process.env.DEMO_MODE;
+  });
+
+  it('DEMO_MODE=1 + forceMfa=false runs the normal flow', async () => {
+    process.env.DEMO_MODE = '1';
+    const state = {
+      lastLoginLocation: 'New York',
+      lastLoginTime: Math.floor(Date.now() / 1000) - 60,
+    };
+    handler._setDdb(loginDdb(profile, state));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/login',
+      body: JSON.stringify({
+        username: 'alice',
+        password: 'pass123',
+        location: 'New York',
+        deviceId: 'dev-1',
+        forceMfa: false,
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    // Low-risk same-location login returns SUCCESS even when DEMO_MODE is on.
+    assert.equal(body.data.status, 'SUCCESS');
+    assert.ok(body.data.token, 'token must be present on a normal success');
+
+    if (origDemoMode !== undefined) process.env.DEMO_MODE = origDemoMode;
+    else delete process.env.DEMO_MODE;
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Happy-path: POST /auth/mfa/verify
 // ---------------------------------------------------------------------------
 

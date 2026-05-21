@@ -4,6 +4,7 @@ import { X } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { type AuditTrailStep, type DecisionRow, getDecision } from '@/lib/admin-api';
+import { DECISION_TYPE_LABEL } from './LiveActivityFeed';
 import Skeleton from './Skeleton';
 
 interface DecisionDrawerProps {
@@ -15,7 +16,7 @@ function DecisionSummary({ decision }: { decision: DecisionRow }) {
   const rows: [string, string][] = [
     ['Decision ID', decision.decisionId],
     ['User ID', decision.userId],
-    ['Type', decision.decisionType],
+    ['Type', DECISION_TYPE_LABEL[decision.decisionType] ?? decision.decisionType],
     ['Action', decision.action],
     ['Score', String(Math.round(decision.score))],
     ['Risk level', decision.riskLevel ?? '-'],

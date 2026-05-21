@@ -13,6 +13,7 @@ import ActionPill from '@/components/admin/ActionPill';
 import AuthGate from '@/components/admin/AuthGate';
 import EngineBadge from '@/components/admin/EngineBadge';
 import FilterChips, { type FeedFilter } from '@/components/admin/FilterChips';
+import { DECISION_TYPE_LABEL } from '@/components/admin/LiveActivityFeed';
 import Skeleton from '@/components/admin/Skeleton';
 import {
   type DecisionRow,
@@ -41,16 +42,16 @@ const WINDOWS: Window[] = ['1h', '24h', '7d'];
 
 const TYPE_OPTIONS: Array<{ value: '' | DecisionType; label: string }> = [
   { value: '', label: 'All types' },
-  { value: 'FRAUD_LOGIN', label: 'FRAUD_LOGIN' },
-  { value: 'FRAUD_TRANSFER', label: 'FRAUD_TRANSFER' },
-  { value: 'ENGAGEMENT_OFFER', label: 'ENGAGEMENT_OFFER' },
-  { value: 'NUDGE', label: 'NUDGE' },
-  { value: 'PROFILE_COMPLETENESS', label: 'PROFILE_COMPLETENESS' },
-  { value: 'MFA_VERIFY', label: 'MFA_VERIFY' },
-  { value: 'DECISION_RELEASE', label: 'DECISION_RELEASE' },
-  { value: 'LOGIN', label: 'LOGIN' },
-  { value: 'TRANSFER', label: 'TRANSFER' },
-  { value: 'OFFER', label: 'OFFER' },
+  { value: 'FRAUD_LOGIN', label: DECISION_TYPE_LABEL.FRAUD_LOGIN },
+  { value: 'FRAUD_TRANSFER', label: DECISION_TYPE_LABEL.FRAUD_TRANSFER },
+  { value: 'ENGAGEMENT_OFFER', label: DECISION_TYPE_LABEL.ENGAGEMENT_OFFER },
+  { value: 'NUDGE', label: DECISION_TYPE_LABEL.NUDGE },
+  { value: 'PROFILE_COMPLETENESS', label: DECISION_TYPE_LABEL.PROFILE_COMPLETENESS },
+  { value: 'MFA_VERIFY', label: DECISION_TYPE_LABEL.MFA_VERIFY },
+  { value: 'DECISION_RELEASE', label: DECISION_TYPE_LABEL.DECISION_RELEASE },
+  { value: 'LOGIN', label: DECISION_TYPE_LABEL.LOGIN },
+  { value: 'TRANSFER', label: DECISION_TYPE_LABEL.TRANSFER },
+  { value: 'OFFER', label: DECISION_TYPE_LABEL.OFFER },
 ];
 
 const POLL_MS = 5_000;
@@ -306,7 +307,7 @@ export default function DecisionsListPage() {
                       {row.userId}
                     </div>
                     <div className="col-span-2 truncate text-xs text-[color:var(--text-muted)]">
-                      {row.decisionType}
+                      {DECISION_TYPE_LABEL[row.decisionType] ?? row.decisionType}
                     </div>
                     <div className="col-span-1">
                       <ActionPill action={row.action} />
