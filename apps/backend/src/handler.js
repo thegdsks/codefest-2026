@@ -6,7 +6,7 @@ const {
   UpdateCommand,
   QueryCommand,
 } = require('@aws-sdk/lib-dynamodb');
-const { randomUUID } = require('node:crypto');
+const { randomBytes, randomUUID } = require('node:crypto');
 
 const { scoreLogin } = require('./rules/login');
 const { scoreTransfer } = require('./rules/transfer');
@@ -31,6 +31,7 @@ const CFG = {
   clientId: process.env.CLIENT_ID || 'demoClient',
   clientSecret: process.env.CLIENT_SECRET || 'demoSecret',
   mfaOtp: process.env.MFA_OTP || '123456',
+  sessionTtlSec: Number(process.env.SESSION_TTL_SEC || 1800),
 
   tUserProfile: process.env.TABLE_USER_PROFILE || 'UserProfile',
   tUserSession: process.env.TABLE_USER_SESSION || 'UserSession',
@@ -223,6 +224,44 @@ async function putSession(item) {
 async function getSession(sessionId) {
   const r = await ddb.send(new GetCommand({ TableName: CFG.tUserSession, Key: { sessionId } }));
   return r.Item || null;
+}
+
+/**
+ * Generate an opaque bearer token (32 random bytes, base64url-encoded) and
+ * persist a UserSession "access" row keyed by the token itself. The token
+ * IS the row's sessionId, which gives O(1) lookup during bearer validation
+ * without needing a token-index GSI.
+ *
+ * Access rows carry recordType=ACCESS to keep them distinct from the
+ * existing MFA-challenge rows written during /auth/login.
+ */
+async function issueAccessToken({
+  userId,
+  mfaVerified,
+  correlationId,
+  location,
+  ipAddress,
+  deviceId,
+}) {
+  const token = randomBytes(32).toString('base64url');
+  const now = nowSec();
+  const expiresAt = now + CFG.sessionTtlSec;
+  const item = {
+    sessionId: token,
+    recordType: 'ACCESS',
+    userId,
+    token,
+    issuedAt: now,
+    expiresAt,
+    lastActivityAt: now,
+    mfaVerified: !!mfaVerified,
+    location: location || '',
+    ipAddress: ipAddress || '',
+    deviceId: deviceId || '',
+    correlationId: correlationId || '',
+  };
+  await putSession(item);
+  return { token, issuedAt: now, expiresAt };
 }
 
 async function putActivity(item) {
@@ -537,7 +576,25 @@ async function login(event, correlationId) {
     )
   );
   await upsertLoginState(userId, now, location, true);
-  return json(200, correlationId, { data: { status: 'SUCCESS', userId, sessionId } });
+
+  // Auth fully complete (no MFA required). Issue a bearer access token.
+  const access = await issueAccessToken({
+    userId,
+    mfaVerified: false,
+    correlationId,
+    location,
+    ipAddress: ip,
+    deviceId,
+  });
+  return json(200, correlationId, {
+    data: {
+      status: 'SUCCESS',
+      userId,
+      sessionId,
+      token: access.token,
+      expiresAt: access.expiresAt,
+    },
+  });
 }
 
 async function mfaVerify(event, correlationId) {
@@ -579,7 +636,26 @@ async function mfaVerify(event, correlationId) {
       correlationId
     )
   );
-  return json(200, correlationId, { data: { status: 'SUCCESS', message: 'MFA verified' } });
+
+  // MFA gate passed. Issue a bearer access token. The location / device
+  // fields come from the prior login-challenge row so the access row
+  // carries the same demo context.
+  const access = await issueAccessToken({
+    userId,
+    mfaVerified: true,
+    correlationId,
+    location: session.location || '',
+    ipAddress: session.ipAddress || '',
+    deviceId: session.deviceId || '',
+  });
+  return json(200, correlationId, {
+    data: {
+      status: 'SUCCESS',
+      message: 'MFA verified',
+      token: access.token,
+      expiresAt: access.expiresAt,
+    },
+  });
 }
 
 async function transfer(event, correlationId) {
