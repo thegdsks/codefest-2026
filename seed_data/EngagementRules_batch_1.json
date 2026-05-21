@@ -118,6 +118,47 @@
           "updatedAt": { "N": "1779200000" }
         }
       }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "ruleId": { "S": "DEMO_HIGH_VALUE_UNSEEN_DEVICE" },
+          "version": { "S": "latest" },
+          "status": { "S": "ACTIVE" },
+          "name": { "S": "High-value transfer from unseen device" },
+          "definition": {
+            "M": {
+              "conditions": {
+                "M": {
+                  "all": {
+                    "L": [
+                      { "M": { "fact": { "S": "amount" }, "operator": { "S": "greaterThanInclusive" }, "value": { "N": "5000" } } },
+                      { "M": { "fact": { "S": "deviceFingerprintSeenDays" }, "operator": { "S": "greaterThan" }, "value": { "N": "30" } } }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "M": {
+                  "type": { "S": "DEMO_HIGH_VALUE_UNSEEN_DEVICE" },
+                  "params": {
+                    "M": {
+                      "action": { "S": "MFA" },
+                      "surface": { "S": "mfa_challenge" },
+                      "score": { "N": "65" },
+                      "rationale": { "S": "Transfer amount exceeds the user's typical pattern from a device this account has not used in the last 30 days. Require MFA to confirm intent." },
+                      "isDemoStory": { "BOOL": true },
+                      "createdBy": { "S": "demo-seed" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "createdAt": { "N": "1748390400" },
+          "updatedAt": { "N": "1748390400" }
+        }
+      }
     }
   ]
 }

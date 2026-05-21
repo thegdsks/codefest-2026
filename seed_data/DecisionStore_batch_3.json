@@ -1,0 +1,100 @@
+{
+  "DecisionStore": [
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": {
+            "S": "DEC#DEMO"
+          },
+          "userId": {
+            "S": "USER#001"
+          },
+          "decisionType": {
+            "S": "FRAUD_TRANSFER"
+          },
+          "score": {
+            "N": "65"
+          },
+          "riskLevel": {
+            "S": "MEDIUM"
+          },
+          "modelVersion": {
+            "S": "v1"
+          },
+          "action": {
+            "S": "MFA"
+          },
+          "reason": {
+            "S": "DEMO_HIGH_VALUE_UNSEEN_DEVICE"
+          },
+          "explanation": {
+            "S": "Transfer of 7500 points exceeds the user's 90th-percentile transfer amount (600) and originates from a device fingerprint not seen on this account in the last 30 days."
+          },
+          "channel": {
+            "S": "EARN_REDEEM"
+          },
+          "correlationId": {
+            "S": "CORR#DEMO"
+          },
+          "isFinalDecision": {
+            "BOOL": true
+          },
+          "timestamp": {
+            "N": "1748390400"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "DEMO_HIGH_VALUE_UNSEEN_DEVICE"
+          },
+          "ruleName": {
+            "S": "High-value transfer from unseen device"
+          },
+          "latencyMs": {
+            "N": "312"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "amount"
+                  },
+                  "operator": {
+                    "S": "greaterThanInclusive"
+                  },
+                  "value": {
+                    "S": "5000"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "deviceFingerprintSeenDays"
+                  },
+                  "operator": {
+                    "S": "greaterThan"
+                  },
+                  "value": {
+                    "S": "30"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Transfer amount of 7500 points is 12x above the user's 90th-percentile baseline of 600. The originating device fingerprint has not been seen on this account in over 30 days. Both conditions match the high-value unseen-device rule. MFA challenge required to confirm intent before the transfer proceeds."
+          }
+        }
+      }
+    }
+  ]
+}
