@@ -348,6 +348,11 @@ export default function NewRulePage() {
             >
               <Icon className="size-3.5" />
               {label}
+              {value === 'ai' && (
+                <span className="inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-[color:var(--info-bg)] text-[color:var(--info-fg)] border border-[color:var(--info-border)]">
+                  BETA
+                </span>
+              )}
             </button>
           );
         })}
