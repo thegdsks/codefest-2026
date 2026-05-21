@@ -41,6 +41,73 @@
           },
           "timestamp": {
             "N": "1779008178"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "impossible-travel"
+          },
+          "ruleName": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "latencyMs": {
+            "N": "448"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "geoDistanceKm"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "850"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "deviceFingerprintSeenDays"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "30"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "ipAsnChangeCount30d"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "5"
+                  },
+                  "satisfied": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Geo distance and unseen device both fired, but transit time is within a plausible flight window. LLM downgrades to allow; recommend passive monitoring for 24 h."
           }
         }
       }
@@ -86,6 +153,57 @@
           },
           "timestamp": {
             "N": "1779008058"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "high-value-loyalty-offer"
+          },
+          "ruleName": {
+            "S": "HIGH_VALUE_LOYALTY_OFFER"
+          },
+          "latencyMs": {
+            "N": "317"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "bookingVelocity30d"
+                  },
+                  "operator": {
+                    "S": "gte"
+                  },
+                  "value": {
+                    "S": "4"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "lifetimeTierPoints"
+                  },
+                  "operator": {
+                    "S": "gte"
+                  },
+                  "value": {
+                    "S": "75000"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Member has booked 4 times in 30 days and holds Platinum status. A double-points weekend offer has a high probability of conversion based on prior booking patterns."
           }
         }
       }
@@ -131,6 +249,73 @@
           },
           "timestamp": {
             "N": "1779007938"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "impossible-travel"
+          },
+          "ruleName": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "latencyMs": {
+            "N": "471"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "geoDistanceKm"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "3200"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "deviceFingerprintSeenDays"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "30"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "transitTimeHours"
+                  },
+                  "operator": {
+                    "S": "lt"
+                  },
+                  "value": {
+                    "S": "6"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Login origin is over 3200 km from the last verified location with no plausible transit window. Device is unseen in 30 days. Block and require identity verification."
           }
         }
       }
@@ -176,6 +361,73 @@
           },
           "timestamp": {
             "N": "1779007818"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "impossible-travel"
+          },
+          "ruleName": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "latencyMs": {
+            "N": "436"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "geoDistanceKm"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "2700"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "ipAsnChangeCount30d"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "8"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "hourOfDay"
+                  },
+                  "operator": {
+                    "S": "outside"
+                  },
+                  "value": {
+                    "S": "6-22"
+                  },
+                  "satisfied": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Both impossible travel and high ASN churn are active, indicating credential stuffing or account takeover. Blocking is appropriate; notify account holder via registered email."
           }
         }
       }
@@ -221,6 +473,73 @@
           },
           "timestamp": {
             "N": "1779007698"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "reward-fraud-burst"
+          },
+          "ruleName": {
+            "S": "REWARD_FRAUD_BURST"
+          },
+          "latencyMs": {
+            "N": "378"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "redemptionCount24h"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "5"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "pointsBalanceDeltaPct"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "40"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "knownDevice"
+                  },
+                  "operator": {
+                    "S": "equals"
+                  },
+                  "value": {
+                    "S": "true"
+                  },
+                  "satisfied": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Six redemptions in 24 h represent a 7x burst above the user baseline. Points balance dropped 43% in the same window. Recommend a friction nudge and secondary review."
           }
         }
       }
