@@ -116,9 +116,9 @@ export default function AdminDashboardPage() {
                 key={w}
                 type="button"
                 onClick={() => setActiveWindow(w)}
-                className={`rounded px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
+                className={`rounded px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg)] ${
                   activeWindow === w
-                    ? 'bg-zinc-100 text-zinc-900'
+                    ? 'bg-[color:var(--accent)] text-[color:var(--accent-fg)]'
                     : 'text-[color:var(--text-muted)] hover:text-[color:var(--text)]'
                 }`}
               >

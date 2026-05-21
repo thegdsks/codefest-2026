@@ -61,7 +61,7 @@ const SIGNAL_BADGE_CLASS: Record<string, string> = {
 function signalBadgeClass(signal: string): string {
   return (
     SIGNAL_BADGE_CLASS[signal] ??
-    'bg-zinc-700/40 text-[color:var(--text-muted)] border-[color:var(--border-strong)]'
+    'bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)] border-[color:var(--border-strong)]'
   );
 }
 
