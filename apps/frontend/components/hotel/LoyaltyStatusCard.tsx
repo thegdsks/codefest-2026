@@ -195,7 +195,7 @@ export default function LoyaltyStatusCard({ compact = false }: Props) {
               strokeDashoffset={strokeDashoffset}
             />
           </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center rotate-90">
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="font-mono text-2xl font-bold text-black leading-none">
               {displayPoints.toLocaleString()}
             </span>
