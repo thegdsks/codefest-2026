@@ -4,7 +4,7 @@ Two ways teammates trigger a production deploy without touching the Vercel dashb
 
 ## Path 1: Merge to main (default, automatic)
 
-Open a PR, get review, squash-merge into `main`. The `.github/workflows/deploy-vercel.yml` workflow fires the deploy hook automatically.
+Open a PR, get review, squash-merge into `main`. Vercel's native GitHub integration auto-deploys. No action needed.
 
 This is what most pushes should use.
 

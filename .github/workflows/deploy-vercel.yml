@@ -1,11 +1,9 @@
 name: Deploy Vercel
 
 on:
-  # Auto-fire whenever main moves forward.
-  push:
-    branches: [main]
-  # Manual button in GitHub UI: Actions tab > "Deploy Vercel" > Run workflow.
-  # Anyone with write access to the repo can use this.
+  # Manual button in GitHub UI only. Auto-deploy on main push is handled by
+  # Vercel's native GitHub integration, so this workflow is the manual
+  # redeploy / "kick the build" lever. Anyone with write access can use it.
   workflow_dispatch:
     inputs:
       reason:
