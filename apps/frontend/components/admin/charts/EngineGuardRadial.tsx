@@ -17,6 +17,7 @@ function colorFromPct(pct: number): string {
 }
 
 function formatUsd(n: number): string {
+  if (n > 0 && n < 0.01) return `$${n.toFixed(4)}`;
   return `$${n.toFixed(2)}`;
 }
 
