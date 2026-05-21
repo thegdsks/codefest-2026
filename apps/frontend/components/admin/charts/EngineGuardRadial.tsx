@@ -46,7 +46,7 @@ export default function EngineGuardRadial({ window: windowKey, height = 240 }: P
     return (
       <div
         role="img"
-        className="w-full rounded-full bg-zinc-800 motion-safe:animate-pulse mx-auto"
+        className="w-full rounded-full bg-[color:var(--bg-elevated)] motion-safe:animate-pulse mx-auto"
         style={{ width: height, height }}
         aria-label="Loading engine guard radial chart"
       />
@@ -60,12 +60,14 @@ export default function EngineGuardRadial({ window: windowKey, height = 240 }: P
     return (
       <div
         role="img"
-        className="flex flex-col items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 text-center"
+        className="flex flex-col items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-5 text-center"
         style={{ height }}
         aria-label="Engine guard cost data unavailable"
       >
-        <p className="text-sm font-semibold text-zinc-300">Guard data unavailable</p>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="text-sm font-semibold text-[color:var(--text-muted)]">
+          Guard data unavailable
+        </p>
+        <p className="mt-1 text-xs text-[color:var(--text-dim)]">
           cost_window_used / cost_window_cap not in API response.
         </p>
       </div>

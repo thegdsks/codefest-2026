@@ -221,6 +221,33 @@ export function getMetrics(window: Window = '24h'): Promise<ApiResult<MetricsRes
   return adminFetch<MetricsResponse>(`/admin/metrics?window=${window}`);
 }
 
+export type ModelTier = 'budget' | 'standard' | 'premium';
+
+export interface AiModel {
+  id: string;
+  displayName: string;
+  family: 'anthropic' | 'google' | 'amazon' | 'meta' | 'cohere';
+  tier: ModelTier;
+  inputUsdPerM: number | null;
+  outputUsdPerM: number | null;
+  notes: string;
+  recommended: boolean;
+  classifyCostUsd: number | null;
+  active: boolean;
+}
+
+export interface AiConfigResponse {
+  proxyConfigured: boolean;
+  activeModelId: string;
+  activeModelKnown: boolean;
+  defaultModelId: string;
+  models: AiModel[];
+}
+
+export function getAiConfig(): Promise<ApiResult<AiConfigResponse>> {
+  return adminFetch<AiConfigResponse>('/admin/ai-config');
+}
+
 export function getDecisions(q: DecisionsQuery): Promise<ApiResult<DecisionsListResponse>> {
   return adminFetch<DecisionsListResponse>(`/admin/decisions${decisionsQueryString(q)}`);
 }

@@ -119,54 +119,58 @@ export default function TopBarV2({ onCmdK, onMenuOpen }: TopBarV2Props) {
   }, [onCmdK]);
 
   return (
-    <header className="flex items-center gap-4 border-b border-zinc-800 bg-zinc-950 px-4 py-3">
+    <header className="flex h-12 items-center gap-3 border-b border-white/[0.06] bg-transparent px-4">
       {/* Hamburger: visible only under md */}
       <button
         type="button"
         onClick={onMenuOpen}
-        className="md:hidden shrink-0 flex items-center justify-center rounded-md p-1 text-zinc-400 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+        className="md:hidden shrink-0 flex items-center justify-center rounded-md p-1 text-[color:var(--text-muted)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
         aria-label="Open navigation"
       >
         <List size={18} aria-hidden="true" />
       </button>
 
       {/* Left: page title (desktop) */}
-      <div className="text-sm font-medium text-zinc-300 shrink-0 min-w-[80px] hidden md:block">
-        {title}
+      <div className="hidden md:flex items-center gap-2 shrink-0 min-w-[80px]">
+        <span className="text-[13px] font-medium text-[color:var(--text)] tracking-[-0.005em]">
+          {title}
+        </span>
       </div>
 
-      {/* Center: Cmd+K trigger — hidden on small screens */}
+      {/* Center: Cmd+K trigger */}
       <button
         type="button"
         onClick={handleClick}
-        className="md:flex hidden flex-1 max-w-md w-full min-w-0 items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+        className="hidden md:flex flex-1 max-w-md w-full min-w-0 items-center gap-2 h-8 rounded-md bg-white/[0.04] ring-1 ring-inset ring-white/[0.06] px-3 text-sm text-[color:var(--text-dim)] hover:bg-white/[0.06] hover:ring-white/[0.1] hover:text-[color:var(--text-muted)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
         aria-label="Open command palette"
       >
         <MagnifyingGlass size={13} aria-hidden="true" />
-        <span className="flex-1 text-left text-xs truncate">Search or run a command...</span>
-        <span className="hidden md:inline-flex items-center gap-0.5 rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[10px] font-medium text-zinc-500">
+        <span className="flex-1 text-left text-[12px] truncate">Search or run a command</span>
+        <span className="inline-flex items-center gap-0.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--text-muted)] ring-1 ring-inset ring-white/[0.08]">
           <Command size={9} aria-hidden="true" />K
         </span>
       </button>
 
-      {/* Mobile page title (visible under md) */}
-      <div className="md:hidden flex-1 min-w-0 text-sm font-medium text-zinc-300 truncate">
+      {/* Mobile page title */}
+      <div className="md:hidden flex-1 min-w-0 text-[13px] font-medium text-[color:var(--text)] truncate">
         {title}
       </div>
 
-      {/* Right: dec/s meter — sparkline hidden under sm */}
+      {/* Right: dec/s meter */}
       <div
         role="status"
-        className="flex items-center gap-3 shrink-0 text-xs text-zinc-400"
+        className="flex items-center gap-2.5 shrink-0"
         aria-label="Decisions per second"
       >
-        <span className="hidden sm:inline-block w-16">
+        <span className="hidden sm:inline-block w-12">
           <MiniSparkline values={sparkline} />
         </span>
-        <span className="tabular-nums whitespace-nowrap text-zinc-300 font-medium">
+        <span className="tabular-nums whitespace-nowrap text-[13px] font-semibold text-[color:var(--text)]">
           {rate.toFixed(2)}
         </span>
-        <span className="text-zinc-600 hidden sm:inline whitespace-nowrap">dec/s</span>
+        <span className="text-[color:var(--text-dim)] hidden sm:inline whitespace-nowrap text-[11px] uppercase tracking-wider">
+          dec/s
+        </span>
       </div>
     </header>
   );

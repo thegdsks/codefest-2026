@@ -27,7 +27,7 @@ export default function MobileNavBar({ onMoreOpen }: MobileNavBarProps) {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-stretch border-t border-zinc-800 bg-zinc-950"
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-stretch border-t border-[color:var(--border)] bg-[color:var(--bg)]"
       aria-label="Mobile navigation"
     >
       {PRIMARY_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -37,7 +37,9 @@ export default function MobileNavBar({ onMoreOpen }: MobileNavBarProps) {
             key={href}
             href={href}
             className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400/70 ${
-              isActive ? 'text-indigo-300' : 'text-zinc-500 hover:text-zinc-300'
+              isActive
+                ? 'text-indigo-300'
+                : 'text-[color:var(--text-dim)] hover:text-[color:var(--text-muted)]'
             }`}
             aria-current={isActive ? 'page' : undefined}
           >
@@ -50,7 +52,7 @@ export default function MobileNavBar({ onMoreOpen }: MobileNavBarProps) {
       <button
         type="button"
         onClick={onMoreOpen}
-        className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400/70"
+        className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-[color:var(--text-dim)] hover:text-[color:var(--text-muted)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400/70"
         aria-label="More navigation options"
       >
         <List size={20} aria-hidden="true" />

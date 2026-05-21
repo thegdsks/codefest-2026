@@ -28,7 +28,8 @@ const { createOpenAICompatible } = require('@ai-sdk/openai-compatible');
 const { generateObject, generateText } = require('ai');
 const { z } = require('zod');
 
-const DEFAULT_MODEL = 'claude-haiku-4-5';
+const { DEFAULT_MODEL_ID } = require('./aiModels');
+const DEFAULT_MODEL = DEFAULT_MODEL_ID;
 const TIMEOUT_MS = 3000;
 
 // ---------------------------------------------------------------------------

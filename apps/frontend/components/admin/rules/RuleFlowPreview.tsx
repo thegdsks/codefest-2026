@@ -26,10 +26,12 @@ interface LabelNodeData extends Record<string, unknown> {
 function LabelNode({ data }: NodeProps) {
   const { label, sublabel } = data as LabelNodeData;
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-center shadow-md min-w-[140px]">
+    <div className="rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-4 py-3 text-center shadow-md min-w-[140px]">
       <Handle type="target" position={Position.Left} className="opacity-0" />
-      <div className="text-xs font-medium text-zinc-200">{label}</div>
-      {sublabel ? <div className="mt-0.5 text-[10px] text-zinc-500">{sublabel}</div> : null}
+      <div className="text-xs font-medium text-[color:var(--text)]">{label}</div>
+      {sublabel ? (
+        <div className="mt-0.5 text-[10px] text-[color:var(--text-dim)]">{sublabel}</div>
+      ) : null}
       <Handle type="source" position={Position.Right} className="opacity-0" />
     </div>
   );
@@ -90,7 +92,7 @@ export default function RuleFlowPreview({ rule }: RuleFlowPreviewProps) {
   ];
 
   return (
-    <div className="h-48 w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+    <div className="h-48 w-full overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--bg)]">
       <ReactFlow
         nodes={nodes}
         edges={edges}

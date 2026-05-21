@@ -234,34 +234,34 @@ export default function CommandPalette({
         type="button"
         aria-label="Close command palette"
         onClick={close}
-        className="absolute inset-0 cursor-default bg-zinc-950/70 backdrop-blur-sm"
+        className="absolute inset-0 cursor-default bg-[color:var(--bg)]/70 backdrop-blur-sm"
       />
-      <div className="relative w-full max-w-xl overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-950 shadow-2xl shadow-indigo-500/10 ring-1 ring-white/5">
+      <div className="relative w-full max-w-xl overflow-hidden rounded-xl border border-[color:var(--border)]/80 bg-[color:var(--bg)] shadow-2xl shadow-indigo-500/10 ring-1 ring-white/5">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-indigo-500/30" />
-        <div className="flex items-center gap-2 border-b border-zinc-800/80 px-3 py-2.5">
-          <MagnifyingGlass size={16} className="text-zinc-500" aria-hidden="true" />
+        <div className="flex items-center gap-2 border-b border-[color:var(--border)]/80 px-3 py-2.5">
+          <MagnifyingGlass size={16} className="text-[color:var(--text-dim)]" aria-hidden="true" />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Jump to a page, filter, or action"
             aria-label="Search commands"
-            className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-[color:var(--text)] placeholder:text-[color:var(--text-dim)] focus:outline-none"
           />
-          <kbd className="hidden rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 sm:inline-flex">
+          <kbd className="hidden rounded border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--text-dim)] sm:inline-flex">
             ESC
           </kbd>
         </div>
 
         <div ref={listRef} className="max-h-80 overflow-y-auto p-2">
           {grouped.length === 0 ? (
-            <div className="px-3 py-8 text-center text-sm text-zinc-500">
+            <div className="px-3 py-8 text-center text-sm text-[color:var(--text-dim)]">
               No matches for &quot;{query}&quot;
             </div>
           ) : (
             grouped.map((block) => (
               <div key={block.group} className="mb-2 last:mb-0">
-                <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-dim)]">
                   {block.group}
                 </div>
                 <div role="listbox">
@@ -282,15 +282,15 @@ export default function CommandPalette({
                           }}
                           className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${
                             isActive
-                              ? 'bg-indigo-500/10 text-zinc-100 ring-1 ring-inset ring-indigo-400/30'
-                              : 'text-zinc-300 hover:bg-zinc-900'
+                              ? 'bg-indigo-500/10 text-[color:var(--text)] ring-1 ring-inset ring-indigo-400/30'
+                              : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-surface)]'
                           }`}
                         >
                           <span
                             className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
                               isActive
                                 ? 'bg-indigo-500/20 text-indigo-200'
-                                : 'bg-zinc-900 text-zinc-400'
+                                : 'bg-[color:var(--bg-surface)] text-[color:var(--text-muted)]'
                             }`}
                           >
                             <Icon size={14} />
@@ -298,15 +298,17 @@ export default function CommandPalette({
                           <span className="flex min-w-0 flex-1 flex-col">
                             <span className="truncate">{item.label}</span>
                             {item.hint ? (
-                              <span className="truncate text-xs text-zinc-500">{item.hint}</span>
+                              <span className="truncate text-xs text-[color:var(--text-dim)]">
+                                {item.hint}
+                              </span>
                             ) : null}
                           </span>
                           {item.shortcut ? (
-                            <span className="hidden items-center gap-1 text-[10px] text-zinc-500 sm:inline-flex">
+                            <span className="hidden items-center gap-1 text-[10px] text-[color:var(--text-dim)] sm:inline-flex">
                               {item.shortcut.split(' ').map((key) => (
                                 <kbd
                                   key={key}
-                                  className="rounded border border-zinc-800 bg-zinc-900 px-1 py-0.5 font-medium"
+                                  className="rounded border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-1 py-0.5 font-medium"
                                 >
                                   {key}
                                 </kbd>
@@ -326,19 +328,19 @@ export default function CommandPalette({
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-zinc-800/80 bg-zinc-950/80 px-3 py-2 text-[10px] text-zinc-500">
+        <div className="flex items-center justify-between border-t border-[color:var(--border)]/80 bg-[color:var(--bg)]/80 px-3 py-2 text-[10px] text-[color:var(--text-dim)]">
           <span className="inline-flex items-center gap-1">
-            <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 py-0.5 font-medium">
+            <kbd className="rounded border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-1 py-0.5 font-medium">
               <KeyReturn size={9} />
             </kbd>
             to run
           </span>
           <span className="inline-flex items-center gap-2">
             <span>
-              <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 py-0.5 font-medium">
+              <kbd className="rounded border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-1 py-0.5 font-medium">
                 up
               </kbd>{' '}
-              <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 py-0.5 font-medium">
+              <kbd className="rounded border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-1 py-0.5 font-medium">
                 down
               </kbd>{' '}
               to navigate

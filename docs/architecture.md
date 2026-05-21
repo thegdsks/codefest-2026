@@ -8,7 +8,7 @@ A real-time decision intelligence platform. One engine that turns customer signa
 - **Tiered storage**: browser, edge KV, Lambda memory, Redis, DAX, DynamoDB, S3. Reads collapse at the cheapest tier they can.
 - **Three apps share one engine**: customer surface, decision engine, studio (admin + insights + AI rule proposer).
 - **The studio loop closes the system**: AI runs nightly on the audit trail, suggests new rules, admin approves, rules go live, AI cost drops as rule coverage grows.
-- **Hackathon stack** (now): three CDK stacks, single Lambda, DynamoDB, Bedrock Haiku 4.5, CloudWatch dashboard. Deployed and working.
+- **Hackathon stack** (now): three CDK stacks, single Lambda, DynamoDB, Claude Haiku 4.5 via the Marriott LiteLLM proxy (OpenAI-compatible, backed by Bedrock), CloudWatch dashboard. Deployed and working.
 
 ## Vision
 
@@ -400,7 +400,7 @@ What changes:
 | Service | Cost over the event |
 |---|---|
 | Lambda, API Gateway, DynamoDB (free tier) | $0.00 |
-| Bedrock Claude Haiku 4.5 (~500 calls) | ~$0.80 |
+| Claude Haiku 4.5 via LiteLLM proxy (~500 calls) | ~$0.80 |
 | SNS, CloudWatch, S3 (free tier) | $0.00 |
 | AWS Budgets | ~$0.10 |
 | **Total** | **~$1.00** |
@@ -502,7 +502,7 @@ Three CDK stacks. All on `main`.
 |---|---|---|
 | `signal-force-dynamodb` | built | UserProfile, UserSession, UserActivity (TTL), DecisionStore, UserState. **Promotion** and **Rule** tables added in next runtime-stack PR. |
 | `signal-force-budgets` | built | 3 monthly budgets (25 / 100 / 200 USD) with SNS email alerts |
-| `signal-force-runtime` | built | Lambda + HTTP API + IAM + Bedrock perms + fraud-alert SNS topic + CloudWatch dashboard |
+| `signal-force-runtime` | built | Lambda + HTTP API + IAM + Bedrock IAM (for prod-path Bedrock direct, unused on demo LiteLLM path) + fraud-alert SNS topic + CloudWatch dashboard |
 
 ## Service selection (demo stack)
 
@@ -520,11 +520,13 @@ HTTP API, not REST. Cheaper, faster, sufficient.
 
 Seven tables (existing five plus Promotion and Rule). PAY_PER_REQUEST. RemovalPolicy.DESTROY for the demo. Production flips to RETAIN and adds DAX.
 
-### LLM: Bedrock Claude Haiku 4.5 via Converse API
+### LLM: Marriott LiteLLM proxy (Claude Haiku 4.5 on Bedrock, OpenAI-compatible)
 
-- Model ID: `us.anthropic.claude-haiku-4-5-20251001-v1:0` (US cross-region inference profile).
+- Demo path: `LITELLM_BASE_URL`, `LITELLM_API_KEY`, `LITELLM_MODEL` on the Lambda. The proxy speaks OpenAI wire format and routes to Bedrock, so the Lambda does not need direct Bedrock model access.
+- Default model id: `us.anthropic.claude-haiku-4-5-20251001-v1:0` (US cross-region inference profile).
+- Switchable catalog: see `apps/backend/src/lib/aiModels.js`, surfaced in the admin UI at `/admin/settings`. Budget tier (Gemini 2.5 Flash Lite, Nova Micro / Lite, Llama 3.x) for high-volume scoring under the demo cap. Standard tier (Haiku, Sonnet) for quality. Premium (Opus) reserved for last-resort accuracy.
 - Called only when rules abstain or on the nightly studio batch.
-- Production adds Provisioned Throughput at scale.
+- Production alternate: direct Bedrock Converse API with Provisioned Throughput. The CDK Bedrock IAM policy is retained for that path. Unused on the LiteLLM path.
 
 ### Frontend hosting
 
@@ -537,7 +539,7 @@ Each decision is closed. Reopening requires written rationale in a PR descriptio
 1. **CDK TypeScript over CloudFormation YAML.** Type safety, L2 constructs, cdk diff workflow.
 2. **HTTP API over REST API.** Cheaper, faster, sufficient.
 3. **Single Lambda for the demo, tiered compute at scale.** Hot lane to Fargate, warm to Lambda, cold to Glue.
-4. **Bedrock Claude Haiku via Converse API.** Cheap at hackathon scale, optimizable with Provisioned Throughput at production scale.
+4. **Claude Haiku 4.5 via the Marriott LiteLLM proxy.** OpenAI-compatible wire format, Bedrock-backed, no direct Bedrock activation needed on the Lambda for the demo. Production alternate: direct Bedrock Converse with Provisioned Throughput.
 5. **Static MFA OTP over Cognito for the demo.** Half day saved. Cognito JWT (no MFA) is the next upgrade.
 6. **Rules-first engine. AI when rules abstain.** 90% of decisions resolve via deterministic rules. LLM share drops over time as the studio loop adds rules.
 7. **Three apps, one repo, one backend, two frontends (or two routes).** Customer + studio share the SPA in the demo. Production splits.
@@ -554,13 +556,14 @@ In scope for the demo:
 - Unified `/decisions/evaluate` endpoint with rules-first evaluation
 - `Rule` and `Promotion` DDB tables, in-memory rule cache in the Lambda
 - Studio SPA route with audit log, rule editor, promotion editor
-- AI insights panel in the studio (one Bedrock call generates a written insight on the current audit data)
+- AI insights panel in the studio (one LiteLLM call generates a written insight on the current audit data)
 - Three demo scenarios (clean user, suspicious transfer, admin rule change taking effect live)
 
 ## Operational notes
 
 - Region: us-east-1.
-- Bedrock model access must be enabled in the Bedrock console for Anthropic Claude Haiku 4.5 in us-east-1 before the Lambda can call it.
+- Demo path uses the Marriott LiteLLM proxy, so no Bedrock model activation is required on the demo AWS account. Set `LITELLM_BASE_URL`, `LITELLM_API_KEY`, and `LITELLM_MODEL` on the Lambda (`./scripts/enable-litellm.sh` does this in one step).
+- The production-path Bedrock IAM policy is retained in `infra/cdk/lib/runtime-stack.ts`. If the Lambda is ever switched to call Bedrock directly, Bedrock model access for Claude Haiku 4.5 in us-east-1 must be enabled in the AWS console first.
 - Set `BUDGET_ALERT_EMAIL` and `FRAUD_ALERT_EMAIL` before `cdk deploy`.
 - Confirm both SNS subscription emails after the first deploy.
 - CloudWatch log groups have 1-day retention by default.

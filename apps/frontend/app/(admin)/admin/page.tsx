@@ -21,7 +21,7 @@ import {
   windowToMs,
 } from '@/components/admin/charts';
 import LiveActivityFeed from '@/components/admin/LiveActivityFeed';
-import ProgressBar from '@/components/admin/ProgressBar';
+import StatBreakdown from '@/components/admin/StatBreakdown';
 import Tile from '@/components/admin/Tile';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { getDecisions, getMetrics, type Window } from '@/lib/admin-api';
@@ -38,8 +38,6 @@ function formatUsd(n: number): string {
   if (n < 0.01) return `$${n.toFixed(4)}`;
   return `$${n.toFixed(2)}`;
 }
-
-const SKELETON_BARS = ['a', 'b', 'c'];
 
 export default function AdminDashboardPage() {
   const [activeWindow, setActiveWindow] = useState<Window>('24h');
@@ -106,13 +104,13 @@ export default function AdminDashboardPage() {
     <div className="mx-auto max-w-[1400px]">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-100">Overview</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h1 className="text-2xl font-semibold text-[color:var(--text)]">Overview</h1>
+          <p className="mt-1 text-sm text-[color:var(--text-dim)]">
             Live decision metrics from the engine. Polls every 5 seconds.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-md border border-zinc-800 bg-zinc-900 p-0.5">
+          <div className="inline-flex rounded-md border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-0.5">
             {WINDOWS.map((w) => (
               <button
                 key={w}
@@ -121,7 +119,7 @@ export default function AdminDashboardPage() {
                 className={`rounded px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
                   activeWindow === w
                     ? 'bg-zinc-100 text-zinc-900'
-                    : 'text-zinc-400 hover:text-zinc-100'
+                    : 'text-[color:var(--text-muted)] hover:text-[color:var(--text)]'
                 }`}
               >
                 {w}
@@ -134,7 +132,7 @@ export default function AdminDashboardPage() {
               metricsQuery.refetch();
               decisionsQuery.refetch();
             }}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-3 py-1 text-xs text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           >
             <ArrowClockwise size={12} />
             Reload
@@ -190,14 +188,14 @@ export default function AdminDashboardPage() {
 
           {/* Chart row: decisions over time (2/3) + donut (1/3) */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <section className="lg:col-span-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+            <section className="lg:col-span-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 p-5">
+              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
                 Decisions over time
                 <Tooltip content="Stacked area chart bucketed by action. Each color is one action (ALLOW, BLOCK, MFA, REVIEW, OFFER, NUDGE). Taller band means more decisions of that action in the bucket.">
                   <button
                     type="button"
                     aria-label="What is this chart?"
-                    className="text-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
+                    className="text-[color:var(--text-dim)] hover:text-[color:var(--text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
                   >
                     <Info size={12} weight="bold" />
                   </button>
@@ -205,14 +203,14 @@ export default function AdminDashboardPage() {
               </h2>
               <DecisionsOverTimeChart window={activeWindow} height={260} />
             </section>
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+            <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 p-5">
+              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
                 By type
                 <Tooltip content="Donut breakdown by decision type (FRAUD_LOGIN, FRAUD_TRANSFER, ENGAGEMENT, MFA_VERIFY, etc). Center number is the total across all types in this window.">
                   <button
                     type="button"
                     aria-label="What is this chart?"
-                    className="text-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
+                    className="text-[color:var(--text-dim)] hover:text-[color:var(--text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
                   >
                     <Info size={12} weight="bold" />
                   </button>
@@ -222,98 +220,48 @@ export default function AdminDashboardPage() {
             </section>
           </div>
 
-          {/* Flat action and type breakdown bars */}
+          {/* Action and type breakdown with stacked summary and semantic colors */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-                Actions
-              </h2>
-              {loading ? (
-                <div className="space-y-2">
-                  {SKELETON_BARS.map((k) => (
-                    <div
-                      key={k}
-                      className="h-6 w-full motion-safe:animate-pulse rounded bg-zinc-800"
-                    />
-                  ))}
-                </div>
-              ) : actionRows.length === 0 ? (
-                <p className="text-sm text-zinc-500">No decisions in this window.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {actionRows.map(([action, count]) => {
-                    const pct = total === 0 ? 0 : (count / total) * 100;
-                    return (
-                      <li key={action}>
-                        <div className="flex items-center justify-between text-xs text-zinc-400">
-                          <span className="font-medium text-zinc-200">{action}</span>
-                          <span className="tabular-nums">
-                            {count} ({pct.toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="mt-1">
-                          <ProgressBar value={pct} tone="indigo" />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+            <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 p-5">
+              <div className="mb-4 flex items-baseline justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
+                  Actions
+                </h2>
+                <span className="text-xs tabular-nums text-[color:var(--text-dim)]">
+                  {total.toLocaleString()} total
+                </span>
+              </div>
+              <StatBreakdown rows={actionRows} total={total} variant="action" loading={loading} />
             </section>
 
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-                Decision types
-              </h2>
-              {loading ? (
-                <div className="space-y-2">
-                  {SKELETON_BARS.map((k) => (
-                    <div
-                      key={k}
-                      className="h-6 w-full motion-safe:animate-pulse rounded bg-zinc-800"
-                    />
-                  ))}
-                </div>
-              ) : typeRows.length === 0 ? (
-                <p className="text-sm text-zinc-500">No decisions in this window.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {typeRows.map(([type, count]) => {
-                    const pct = total === 0 ? 0 : (count / total) * 100;
-                    return (
-                      <li key={type}>
-                        <div className="flex items-center justify-between text-xs text-zinc-400">
-                          <span className="font-medium text-zinc-200">{type}</span>
-                          <span className="tabular-nums">
-                            {count} ({pct.toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="mt-1">
-                          <ProgressBar value={pct} tone="emerald" />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+            <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 p-5">
+              <div className="mb-4 flex items-baseline justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
+                  Decision types
+                </h2>
+                <span className="text-xs tabular-nums text-[color:var(--text-dim)]">
+                  {typeRows.length} types
+                </span>
+              </div>
+              <StatBreakdown rows={typeRows} total={total} variant="type" loading={loading} />
             </section>
           </div>
 
           {/* Live activity + engine guard side by side (no right rail) */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <section className="lg:col-span-2 rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-hidden">
+            <section className="lg:col-span-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 overflow-hidden">
               <div className="h-96">
                 <LiveActivityFeed />
               </div>
             </section>
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+            <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 p-5">
+              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
                 Engine guard
                 <Tooltip content="Live state of the LLM cost guardrail. Radial fill shows how much of the spend cap has been consumed in the rolling window. The breaker trips and stops L2 calls when it hits 100 percent.">
                   <button
                     type="button"
                     aria-label="What is the engine guard?"
-                    className="text-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
+                    className="text-[color:var(--text-dim)] hover:text-[color:var(--text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
                   >
                     <Info size={12} weight="bold" />
                   </button>
@@ -324,7 +272,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {data?.asOf ? (
-            <div aria-live="polite" className="text-xs text-zinc-600">
+            <div aria-live="polite" className="text-xs text-[color:var(--text-dim)]">
               Snapshot taken {new Date(data.asOf * 1000).toLocaleString()}
             </div>
           ) : null}

@@ -91,7 +91,7 @@ function SaveBar({
       : `${warningCount} issue${warningCount > 1 ? 's' : ''}. See banners below for details.`;
 
   return (
-    <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur">
+    <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-[color:var(--border)] bg-[color:var(--bg)]/95 px-4 py-3 backdrop-blur">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <input
@@ -100,12 +100,12 @@ function SaveBar({
             onChange={(e) => onNameChange(e.target.value)}
             placeholder="Rule name"
             aria-label="Rule name"
-            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-lg font-semibold text-zinc-100 placeholder:font-normal placeholder:text-zinc-500 hover:border-zinc-800 focus-visible:border-zinc-700 focus-visible:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-lg font-semibold text-[color:var(--text)] placeholder:font-normal placeholder:text-[color:var(--text-dim)] hover:border-[color:var(--border)] focus-visible:border-[color:var(--border-strong)] focus-visible:bg-[color:var(--bg-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
           />
           <select
             value={status}
             onChange={(e) => onStatusChange(e.target.value as 'DRAFT' | 'ACTIVE')}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+            className="rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-2 py-1.5 text-xs text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
             aria-label="Rule status"
           >
             {STATUS_OPTIONS.map((o) => (
@@ -141,7 +141,7 @@ function SaveBar({
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center rounded-md px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+            className="inline-flex items-center rounded-md px-3 py-1.5 text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--bg-surface)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
           >
             Cancel
           </button>
@@ -184,18 +184,22 @@ function ConditionsPanel({
 }: ConditionsPanelProps) {
   const whoCount = countRules(whoConditions);
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+    <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-5">
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Conditions</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
+          Conditions
+        </h3>
         <Tooltip
           content="Define which engagement events trigger this rule, and optionally narrow by user attributes."
           side="left"
         >
-          <span className="cursor-help text-[11px] text-zinc-500">What is this?</span>
+          <span className="cursor-help text-[11px] text-[color:var(--text-dim)]">
+            What is this?
+          </span>
         </Tooltip>
       </div>
 
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--text-dim)]">
         When (signals)
       </div>
       <RuleConditionsEditor
@@ -208,17 +212,17 @@ function ConditionsPanel({
         type="button"
         onClick={onToggleWho}
         aria-expanded={showWho}
-        className="mt-5 flex w-full items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300 hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+        className="mt-5 flex w-full items-center justify-between rounded-md border border-[color:var(--border)] bg-[color:var(--bg)]/60 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)] hover:bg-[color:var(--bg-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
       >
         <span className="flex items-center gap-2">
           {showWho ? (
-            <ChevronDown className="size-3.5 text-zinc-500" />
+            <ChevronDown className="size-3.5 text-[color:var(--text-dim)]" />
           ) : (
-            <ChevronRight className="size-3.5 text-zinc-500" />
+            <ChevronRight className="size-3.5 text-[color:var(--text-dim)]" />
           )}
           Who (user attributes)
         </span>
-        <span className="text-[10px] font-normal text-zinc-500">
+        <span className="text-[10px] font-normal text-[color:var(--text-dim)]">
           {whoCount > 0 ? `${whoCount} active` : 'optional'}
         </span>
       </button>
@@ -327,7 +331,7 @@ export default function NewRulePage() {
         action={form.action}
       />
 
-      <div className="mb-4 flex w-fit items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950/60 p-1">
+      <div className="mb-4 flex w-fit items-center gap-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg)]/60 p-1">
         {TABS.map(({ value, label, icon: Icon }) => {
           const active = tab === value;
           return (
@@ -338,7 +342,7 @@ export default function NewRulePage() {
               className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 ${
                 active
                   ? 'bg-indigo-500/10 text-indigo-200 ring-1 ring-indigo-400/40'
-                  : 'text-zinc-400 hover:text-zinc-100'
+                  : 'text-[color:var(--text-muted)] hover:text-[color:var(--text)]'
               }`}
               aria-pressed={active}
             >
@@ -361,17 +365,17 @@ export default function NewRulePage() {
               onToggleWho={() => setShowWho((v) => !v)}
             />
           ) : (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+            <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-5">
               <RuleAiAssistTab onApply={form.applyAiSuggestion} />
             </div>
           )}
 
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-5">
             <RuleActionTemplates action={form.action} onApply={form.updateAction} />
           </div>
 
-          <details className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 [&[open]>summary]:mb-4">
-            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          <details className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-5 [&[open]>summary]:mb-4">
+            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
               Action details
             </summary>
             <RuleActionPanel action={form.action} onChange={form.updateAction} />

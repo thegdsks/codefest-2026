@@ -63,13 +63,15 @@ export default function AuthGate({ error, onRetry }: AuthGateProps) {
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-6">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950">
-          <Icon size={22} className="text-zinc-300" />
+      <div className="w-full max-w-md rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 p-8 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border-strong)] bg-[color:var(--bg)]">
+          <Icon size={22} className="text-[color:var(--text-muted)]" />
         </div>
-        <h2 className="text-lg font-semibold text-zinc-100">{def.title}</h2>
-        <p className="mt-2 text-sm text-zinc-400">{def.body}</p>
-        <div className="mt-2 font-mono text-xs text-zinc-600">code: {error.code}</div>
+        <h2 className="text-lg font-semibold text-[color:var(--text)]">{def.title}</h2>
+        <p className="mt-2 text-sm text-[color:var(--text-muted)]">{def.body}</p>
+        <div className="mt-2 font-mono text-xs text-[color:var(--text-dim)]">
+          code: {error.code}
+        </div>
         {def.cta ? (
           <div className="mt-6">
             {isLoginCta ? (
