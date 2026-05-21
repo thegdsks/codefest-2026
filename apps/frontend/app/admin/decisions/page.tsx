@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import ActionPill from '@/components/admin/ActionPill';
 import AuthGate from '@/components/admin/AuthGate';
 import EngineBadge from '@/components/admin/EngineBadge';
+import FilterChips, { type FeedFilter } from '@/components/admin/FilterChips';
 import Skeleton from '@/components/admin/Skeleton';
 import {
   type DecisionRow,
@@ -16,6 +17,19 @@ import {
   type Window,
 } from '@/lib/admin-api';
 import type { ApiResult } from '@/lib/types';
+
+const FILTER_FRAUD_TYPES: DecisionType[] = ['FRAUD_LOGIN', 'FRAUD_TRANSFER'];
+const FILTER_ENGAGEMENT_TYPES: DecisionType[] = ['ENGAGEMENT_OFFER', 'NUDGE'];
+
+const FRAUD_TYPES_SET = new Set<string>(FILTER_FRAUD_TYPES);
+const ENGAGEMENT_TYPES_SET = new Set<string>(FILTER_ENGAGEMENT_TYPES);
+
+function matchesFeedFilter(row: DecisionRow, f: FeedFilter): boolean {
+  if (f === 'all') return true;
+  if (f === 'fraud') return FRAUD_TYPES_SET.has(row.decisionType);
+  if (f === 'engagement') return ENGAGEMENT_TYPES_SET.has(row.decisionType);
+  return !FRAUD_TYPES_SET.has(row.decisionType) && !ENGAGEMENT_TYPES_SET.has(row.decisionType);
+}
 
 const WINDOWS: Window[] = ['1h', '24h', '7d'];
 
@@ -56,6 +70,7 @@ function reasonOf(row: DecisionRow): string {
 export default function DecisionsListPage() {
   const [window, setWindow] = useState<Window>('24h');
   const [typeFilter, setTypeFilter] = useState<'' | DecisionType>('');
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
   const [userIdInput, setUserIdInput] = useState('');
   const [userIdApplied, setUserIdApplied] = useState('');
   const [result, setResult] = useState<ApiResult<DecisionsListResponse> | null>(null);
@@ -114,7 +129,7 @@ export default function DecisionsListPage() {
     return <AuthGate error={err} onRetry={load} />;
   }
 
-  const rows = data?.decisions ?? [];
+  const rows = (data?.decisions ?? []).filter((r) => matchesFeedFilter(r, feedFilter));
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -146,6 +161,10 @@ export default function DecisionsListPage() {
           </div>
           {exportError ? <p className="text-xs text-rose-400">{exportError}</p> : null}
         </div>
+      </div>
+
+      <div className="mb-3">
+        <FilterChips active={feedFilter} onChange={setFeedFilter} />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
