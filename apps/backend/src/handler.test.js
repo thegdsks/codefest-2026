@@ -944,3 +944,141 @@ describe('GET /admin/decisions/export', () => {
     assert.match(res.headers['Content-Type'], /text\/csv/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// validateBearer (token validation middleware)
+// ---------------------------------------------------------------------------
+
+describe('validateBearer', () => {
+  /**
+   * Make an event with the given Authorization header. validateBearer only
+   * looks at headers; method/path are irrelevant for these unit tests.
+   */
+  function evt(authHeader) {
+    return { headers: authHeader ? { authorization: authHeader } : {} };
+  }
+
+  it('throws 401 UNAUTHORIZED when Authorization header is missing', async () => {
+    handler._setDdb(makeDdb());
+    await assert.rejects(
+      () => handler._validateBearer(evt(null)),
+      (e) => {
+        assert.equal(e.status, 401);
+        assert.equal(e.code, 'UNAUTHORIZED');
+        return true;
+      }
+    );
+  });
+
+  it('throws 401 UNAUTHORIZED when scheme is not Bearer', async () => {
+    handler._setDdb(makeDdb());
+    await assert.rejects(
+      () => handler._validateBearer(evt('Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0')),
+      (e) => {
+        assert.equal(e.status, 401);
+        assert.equal(e.code, 'UNAUTHORIZED');
+        return true;
+      }
+    );
+  });
+
+  it('throws 401 UNAUTHORIZED when Bearer value is empty', async () => {
+    handler._setDdb(makeDdb());
+    await assert.rejects(
+      () => handler._validateBearer(evt('Bearer   ')),
+      (e) => {
+        assert.equal(e.code, 'UNAUTHORIZED');
+        return true;
+      }
+    );
+  });
+
+  it('throws 401 INVALID_TOKEN when DDB has no row for the token', async () => {
+    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: undefined }) }));
+    await assert.rejects(
+      () => handler._validateBearer(evt('Bearer nope-not-a-token')),
+      (e) => {
+        assert.equal(e.status, 401);
+        assert.equal(e.code, 'INVALID_TOKEN');
+        return true;
+      }
+    );
+  });
+
+  it('throws 401 INVALID_TOKEN when the row is a non-ACCESS record (MFA challenge)', async () => {
+    const challenge = {
+      sessionId: 'SESSION#abcd',
+      userId: 'U001',
+      // No recordType: a legacy MFA-challenge row.
+    };
+    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: challenge }) }));
+    await assert.rejects(
+      () => handler._validateBearer(evt('Bearer SESSION#abcd')),
+      (e) => {
+        assert.equal(e.code, 'INVALID_TOKEN');
+        return true;
+      }
+    );
+  });
+
+  it('throws 401 TOKEN_EXPIRED when expiresAt is in the past', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const row = {
+      sessionId: 'tok-abc',
+      recordType: 'ACCESS',
+      userId: 'U001',
+      token: 'tok-abc',
+      issuedAt: now - 7200,
+      expiresAt: now - 60,
+      lastActivityAt: now - 60,
+      mfaVerified: false,
+    };
+    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: row }) }));
+    await assert.rejects(
+      () => handler._validateBearer(evt('Bearer tok-abc')),
+      (e) => {
+        assert.equal(e.code, 'TOKEN_EXPIRED');
+        return true;
+      }
+    );
+  });
+
+  it('returns the principal and slides expiresAt on a valid token', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const row = {
+      sessionId: 'tok-xyz',
+      recordType: 'ACCESS',
+      userId: 'U001',
+      token: 'tok-xyz',
+      issuedAt: now - 60,
+      expiresAt: now + 60, // about to expire
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
+    const updates = [];
+    handler._setDdb(
+      makeDdb({
+        GetCommand: () => ({ Item: row }),
+        UpdateCommand: (cmd) => {
+          updates.push(cmd.input);
+          return {};
+        },
+      })
+    );
+
+    const out = await handler._validateBearer(evt('Bearer tok-xyz'));
+    assert.equal(out.userId, 'U001');
+    assert.equal(out.sessionId, 'tok-xyz');
+    assert.equal(out.token, 'tok-xyz');
+    assert.equal(out.mfaVerified, true);
+    assert.ok(out.expiresAt > now + 60, 'expiresAt should slide past the old value');
+
+    // The sliding-window UpdateCommand was issued against UserSession.
+    assert.equal(updates.length, 1, 'expected exactly one UpdateCommand');
+    const up = updates[0];
+    assert.equal(up.TableName, 'UserSession');
+    assert.equal(up.Key.sessionId, 'tok-xyz');
+    assert.match(up.UpdateExpression, /lastActivityAt/);
+    assert.match(up.UpdateExpression, /expiresAt/);
+  });
+});

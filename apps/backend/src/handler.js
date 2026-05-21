@@ -264,6 +264,60 @@ async function issueAccessToken({
   return { token, issuedAt: now, expiresAt };
 }
 
+/**
+ * Validate an `Authorization: Bearer <token>` header against UserSession.
+ *
+ * On success, slides the row's expiresAt forward by SESSION_TTL_SEC from
+ * now and bumps lastActivityAt. Returns the resolved principal so callers
+ * can compare the request's userId against the token's userId.
+ *
+ * Throws a status-bearing error object that exports.main translates to a
+ * JSON error response. Codes:
+ *   UNAUTHORIZED    - missing / non-Bearer Authorization header
+ *   INVALID_TOKEN   - token not present in UserSession (or wrong row type)
+ *   TOKEN_EXPIRED   - row found but expiresAt <= now
+ */
+async function validateBearer(event) {
+  const auth = getHeader(event.headers, 'authorization');
+  if (!auth || !auth.startsWith('Bearer ')) {
+    throw { status: 401, code: 'UNAUTHORIZED', message: 'Missing bearer token' };
+  }
+  const token = auth.substring('Bearer '.length).trim();
+  if (!token) {
+    throw { status: 401, code: 'UNAUTHORIZED', message: 'Empty bearer token' };
+  }
+
+  const row = await getSession(token);
+  if (!row || row.recordType !== 'ACCESS' || row.token !== token) {
+    throw { status: 401, code: 'INVALID_TOKEN', message: 'Token not recognized' };
+  }
+
+  const now = nowSec();
+  if (typeof row.expiresAt !== 'number' || row.expiresAt <= now) {
+    throw { status: 401, code: 'TOKEN_EXPIRED', message: 'Token expired' };
+  }
+
+  const newExpiresAt = now + CFG.sessionTtlSec;
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserSession,
+      Key: { sessionId: token },
+      UpdateExpression: 'SET lastActivityAt = :now, expiresAt = :exp',
+      ExpressionAttributeValues: { ':now': now, ':exp': newExpiresAt },
+    })
+  );
+
+  return {
+    userId: row.userId,
+    sessionId: token,
+    token,
+    mfaVerified: !!row.mfaVerified,
+    issuedAt: row.issuedAt,
+    expiresAt: newExpiresAt,
+    lastActivityAt: now,
+  };
+}
+
 async function putActivity(item) {
   await ddb.send(new PutCommand({ TableName: CFG.tUserActivity, Item: item }));
 }
@@ -1027,6 +1081,8 @@ async function profileCompletenessEndpoint(event, correlationId) {
 }
 
 exports._setDdb = _setDdb;
+// Exported for unit tests; not part of the HTTP-facing public API.
+exports._validateBearer = validateBearer;
 
 exports.main = async (event) => {
   const correlationId = getHeader(event.headers, 'x-correlation-id') || '';
