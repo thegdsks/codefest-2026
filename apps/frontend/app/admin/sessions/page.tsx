@@ -16,6 +16,17 @@ const POLL_MS = 5_000;
 
 const SKELETON_ROWS = ['s0', 's1', 's2', 's3'];
 
+function isMissingEndpoint(code: string): boolean {
+  return (
+    code === '404' ||
+    code === 'NOT_FOUND' ||
+    code === '405' ||
+    code === 'METHOD_NOT_ALLOWED' ||
+    code === '501' ||
+    code === 'NOT_IMPLEMENTED'
+  );
+}
+
 function formatEpochSec(s?: number): string {
   if (!s) return '-';
   return new Date(s * 1000).toLocaleString();
@@ -46,14 +57,11 @@ export default function SessionsPage() {
     const res: ApiResult<SessionsListResponse> = await getSessions();
     if (res.error) {
       const code = (res.error.code || '').toUpperCase();
-      const missing =
-        code === '404' || code === 'NOT_FOUND' || code === '501' || code === 'NOT_IMPLEMENTED';
-      const fatalCodes = new Set(['401', 'UNAUTHORIZED', '403', 'FORBIDDEN', 'NETWORK_ERROR']);
-      if (!missing && fatalCodes.has(code)) {
-        setState({ rows: [], endpointMissing: false, fatal: res.error });
+      if (isMissingEndpoint(code)) {
+        setState({ rows: [], endpointMissing: true, fatal: null });
         return;
       }
-      setState({ rows: [], endpointMissing: missing, fatal: null });
+      setState({ rows: [], endpointMissing: false, fatal: res.error });
       return;
     }
     setState({ rows: res.data?.sessions ?? [], endpointMissing: false, fatal: null });
@@ -66,14 +74,11 @@ export default function SessionsPage() {
       if (cancelled) return;
       if (res.error) {
         const code = (res.error.code || '').toUpperCase();
-        const missing =
-          code === '404' || code === 'NOT_FOUND' || code === '501' || code === 'NOT_IMPLEMENTED';
-        const fatalCodes = new Set(['401', 'UNAUTHORIZED', '403', 'FORBIDDEN', 'NETWORK_ERROR']);
-        if (!missing && fatalCodes.has(code)) {
-          setState({ rows: [], endpointMissing: false, fatal: res.error });
+        if (isMissingEndpoint(code)) {
+          setState({ rows: [], endpointMissing: true, fatal: null });
           return;
         }
-        setState({ rows: [], endpointMissing: missing, fatal: null });
+        setState({ rows: [], endpointMissing: false, fatal: res.error });
         return;
       }
       setState({ rows: res.data?.sessions ?? [], endpointMissing: false, fatal: null });
@@ -186,7 +191,7 @@ export default function SessionsPage() {
                     type="button"
                     onClick={() => onRevoke(row.sessionId)}
                     disabled={revokingId === row.sessionId}
-                    className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-xs text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
+                    className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-xs text-rose-200 hover:bg-rose-500/20 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
                   >
                     <ShieldX size={11} />
                     {revokingId === row.sessionId ? 'Revoking' : 'Force logout'}

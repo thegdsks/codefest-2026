@@ -33,7 +33,7 @@ export default function Tile({
       </div>
       <div className={`mt-2 text-3xl font-semibold tabular-nums ${accentMap[accent]}`}>
         {loading ? (
-          <span className="inline-block h-7 w-24 rounded bg-zinc-800 animate-pulse" />
+          <span className="inline-block h-7 w-24 rounded bg-zinc-800 motion-safe:animate-pulse" />
         ) : (
           value
         )}

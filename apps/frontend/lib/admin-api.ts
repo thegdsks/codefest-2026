@@ -4,6 +4,9 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const CLIENT_ID = process.env.NEXT_PUBLIC_CLIENT_ID;
 const CLIENT_SECRET = process.env.NEXT_PUBLIC_CLIENT_SECRET;
 
+const AUTH_MODE = (process.env.NEXT_PUBLIC_AUTH_MODE || 'basic').toLowerCase();
+const BEARER_TOKEN_KEY = 'sf.adminBearerToken';
+
 export type Window = '1h' | '24h' | '7d';
 
 export type EngineLayer = 'L1' | 'L1+L2';
@@ -129,6 +132,10 @@ export interface SessionsListResponse {
 }
 
 function authHeader(): string {
+  if (AUTH_MODE === 'bearer') {
+    const token = typeof window !== 'undefined' ? localStorage.getItem(BEARER_TOKEN_KEY) : null;
+    return `Bearer ${token ?? ''}`;
+  }
   const credentials = `${CLIENT_ID ?? ''}:${CLIENT_SECRET ?? ''}`;
   return `Basic ${btoa(credentials)}`;
 }
@@ -228,6 +235,43 @@ export function exportDecisionsUrl(q: DecisionsQuery, format: 'csv' | 'json' = '
   return `${BASE_URL}/admin/decisions/export?${params.toString()}`;
 }
 
+export async function exportDecisionsCsv(q: DecisionsQuery): Promise<ApiResult<Blob>> {
+  const reqId = correlationId();
+  const url = exportDecisionsUrl(q, 'csv');
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: authHeader(),
+        'X-Correlation-Id': reqId,
+      },
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      let errorDetail: { code: string; message: string } = {
+        code: String(response.status),
+        message: response.statusText || 'Export failed',
+      };
+      try {
+        const json = JSON.parse(text) as { error?: { code: string; message: string } };
+        if (json.error) errorDetail = json.error;
+      } catch {
+        // non-JSON error body, keep the default
+      }
+      return { data: null, error: errorDetail, correlationId: reqId };
+    }
+    return { data: await response.blob(), error: null, correlationId: reqId };
+  } catch (err) {
+    return {
+      data: null,
+      error: {
+        code: 'NETWORK_ERROR',
+        message: err instanceof Error ? err.message : 'Network request failed',
+      },
+      correlationId: reqId,
+    };
+  }
+}
+
 export function releaseDecision(decisionId: string): Promise<ApiResult<ReleaseResponse>> {
   return adminFetch<ReleaseResponse>(`/admin/decisions/${encodeURIComponent(decisionId)}/release`, {
     method: 'POST',
@@ -260,4 +304,14 @@ export function revokeSession(sessionId: string): Promise<ApiResult<{ revoked: t
 export const adminApiConfig = {
   baseUrl: BASE_URL ?? '',
   clientId: CLIENT_ID ?? '',
+  authMode: AUTH_MODE,
 } as const;
+
+export function setAdminBearerToken(token: string | null): void {
+  if (typeof window === 'undefined') return;
+  if (token === null) {
+    localStorage.removeItem(BEARER_TOKEN_KEY);
+  } else {
+    localStorage.setItem(BEARER_TOKEN_KEY, token);
+  }
+}

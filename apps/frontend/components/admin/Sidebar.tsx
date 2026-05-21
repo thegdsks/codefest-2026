@@ -46,7 +46,7 @@ export default function Sidebar() {
             <Link
               key={href}
               href={href}
-              className={`mb-1 flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+              className={`mb-1 flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
                 isActive
                   ? 'bg-zinc-800 text-zinc-100'
                   : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100'

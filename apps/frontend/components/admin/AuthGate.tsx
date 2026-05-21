@@ -75,7 +75,7 @@ export default function AuthGate({ error, onRetry }: AuthGateProps) {
             {isLoginCta ? (
               <a
                 href="/login"
-                className="inline-flex items-center rounded-md bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-white"
+                className="inline-flex items-center rounded-md bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
               >
                 {def.cta}
               </a>
@@ -83,7 +83,7 @@ export default function AuthGate({ error, onRetry }: AuthGateProps) {
               <button
                 type="button"
                 onClick={onRetry}
-                className="inline-flex items-center rounded-md bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-white"
+                className="inline-flex items-center rounded-md bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
               >
                 {def.cta}
               </button>

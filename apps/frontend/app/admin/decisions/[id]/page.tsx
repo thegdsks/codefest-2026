@@ -3,7 +3,7 @@
 import { ArrowLeft, CheckCircle2, ShieldOff } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ActionPill from '@/components/admin/ActionPill';
 import AuthGate from '@/components/admin/AuthGate';
 import EngineBadge from '@/components/admin/EngineBadge';
@@ -43,6 +43,7 @@ export default function DecisionDetailPage() {
   const [releasing, setReleasing] = useState(false);
   const [releaseError, setReleaseError] = useState<ApiErrorDetail | null>(null);
   const [releaseOk, setReleaseOk] = useState(false);
+  const releaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     if (!decisionId) return;
@@ -55,6 +56,13 @@ export default function DecisionDetailPage() {
     load();
   }, [load]);
 
+  useEffect(
+    () => () => {
+      if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
+    },
+    []
+  );
+
   const onRelease = async () => {
     setReleasing(true);
     setReleaseError(null);
@@ -65,7 +73,8 @@ export default function DecisionDetailPage() {
       setReleaseError(res.error);
     } else {
       setReleaseOk(true);
-      setTimeout(load, 500);
+      if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = setTimeout(load, 500);
     }
   };
 
@@ -86,7 +95,7 @@ export default function DecisionDetailPage() {
       <div className="mb-4">
         <Link
           href="/admin/decisions"
-          className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-200"
+          className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
         >
           <ArrowLeft size={14} />
           Back to decisions
@@ -106,7 +115,7 @@ export default function DecisionDetailPage() {
               type="button"
               onClick={onRelease}
               disabled={releasing}
-              className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             >
               <ShieldOff size={12} />
               {releasing ? 'Releasing' : 'Release this block'}

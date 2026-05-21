@@ -11,7 +11,7 @@ import {
   type DecisionRow,
   type DecisionsListResponse,
   type DecisionType,
-  exportDecisionsUrl,
+  exportDecisionsCsv,
   getDecisions,
   type Window,
 } from '@/lib/admin-api';
@@ -59,6 +59,7 @@ export default function DecisionsListPage() {
   const [userIdInput, setUserIdInput] = useState('');
   const [userIdApplied, setUserIdApplied] = useState('');
   const [result, setResult] = useState<ApiResult<DecisionsListResponse> | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const query = useMemo(
     () => ({
@@ -73,6 +74,21 @@ export default function DecisionsListPage() {
   const load = useCallback(async () => {
     const res = await getDecisions(query);
     setResult(res);
+  }, [query]);
+
+  const handleExport = useCallback(async () => {
+    setExportError(null);
+    const res = await exportDecisionsCsv(query);
+    if (res.error || !res.data) {
+      setExportError(res.error?.message ?? 'Export failed');
+      return;
+    }
+    const objectUrl = URL.createObjectURL(res.data);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = 'decisions.csv';
+    anchor.click();
+    URL.revokeObjectURL(objectUrl);
   }, [query]);
 
   useEffect(() => {
@@ -109,22 +125,26 @@ export default function DecisionsListPage() {
             Newest first. Filter, click a row for the audit trail.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <a
-            href={exportDecisionsUrl(query, 'csv')}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
-          >
-            <Download size={12} />
-            Export CSV
-          </a>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
-          >
-            <RefreshCcw size={12} />
-            Refresh
-          </button>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            >
+              <Download size={12} />
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={load}
+              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            >
+              <RefreshCcw size={12} />
+              Refresh
+            </button>
+          </div>
+          {exportError ? <p className="text-xs text-rose-400">{exportError}</p> : null}
         </div>
       </div>
 
@@ -135,7 +155,7 @@ export default function DecisionsListPage() {
               key={w}
               type="button"
               onClick={() => setWindow(w)}
-              className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+              className={`rounded px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
                 window === w ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-100'
               }`}
             >
@@ -151,7 +171,7 @@ export default function DecisionsListPage() {
           id="type-filter"
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value as '' | DecisionType)}
-          className="rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200"
+          className="rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
         >
           {TYPE_OPTIONS.map((opt) => (
             <option key={opt.value || 'ALL'} value={opt.value}>
@@ -178,7 +198,7 @@ export default function DecisionsListPage() {
               value={userIdInput}
               onChange={(e) => setUserIdInput(e.target.value)}
               placeholder="userId e.g. USER#001"
-              className="bg-transparent px-2 py-1.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-600"
+              className="bg-transparent px-2 py-1.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             />
             {userIdApplied ? (
               <button
@@ -188,7 +208,7 @@ export default function DecisionsListPage() {
                   setUserIdInput('');
                   setUserIdApplied('');
                 }}
-                className="text-zinc-500 hover:text-zinc-200"
+                className="text-zinc-500 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
               >
                 <X size={12} />
               </button>
@@ -196,13 +216,13 @@ export default function DecisionsListPage() {
           </div>
           <button
             type="submit"
-            className="rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+            className="rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           >
             Apply
           </button>
         </form>
 
-        <div className="ml-auto text-xs text-zinc-500">
+        <div aria-live="polite" aria-atomic="true" className="ml-auto text-xs text-zinc-500">
           {loading ? 'Loading' : `${rows.length} rows`}
         </div>
       </div>
@@ -243,7 +263,7 @@ export default function DecisionsListPage() {
                 <li key={row.decisionId}>
                   <Link
                     href={href}
-                    className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-zinc-900"
+                    className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
                   >
                     <div className="col-span-3">
                       <div className="text-zinc-200">{formatTimeAgo(row.timestamp)}</div>

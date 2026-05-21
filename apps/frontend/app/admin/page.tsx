@@ -84,7 +84,7 @@ export default function AdminDashboardPage() {
                 key={w}
                 type="button"
                 onClick={() => setWindow(w)}
-                className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                className={`rounded px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
                   window === w ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-100'
                 }`}
               >
@@ -95,7 +95,7 @@ export default function AdminDashboardPage() {
           <button
             type="button"
             onClick={load}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           >
             <RefreshCcw size={12} />
             Refresh
@@ -145,7 +145,7 @@ export default function AdminDashboardPage() {
           {loading ? (
             <div className="space-y-2">
               {SKELETON_BARS.map((k) => (
-                <div key={k} className="h-6 w-full animate-pulse rounded bg-zinc-800" />
+                <div key={k} className="h-6 w-full motion-safe:animate-pulse rounded bg-zinc-800" />
               ))}
             </div>
           ) : actionRows.length === 0 ? (
@@ -179,7 +179,7 @@ export default function AdminDashboardPage() {
           {loading ? (
             <div className="space-y-2">
               {SKELETON_BARS.map((k) => (
-                <div key={k} className="h-6 w-full animate-pulse rounded bg-zinc-800" />
+                <div key={k} className="h-6 w-full motion-safe:animate-pulse rounded bg-zinc-800" />
               ))}
             </div>
           ) : typeRows.length === 0 ? (
@@ -208,7 +208,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {data?.asOf ? (
-        <div className="mt-6 text-xs text-zinc-600">
+        <div aria-live="polite" className="mt-6 text-xs text-zinc-600">
           Snapshot taken {new Date(data.asOf * 1000).toLocaleString()}
         </div>
       ) : null}
