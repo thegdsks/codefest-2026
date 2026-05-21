@@ -109,6 +109,9 @@ export class RuntimeStack extends cdk.Stack {
         FRAUD_ALERT_TOPIC_ARN: fraudAlertTopic.topicArn,
         // Threshold is a string because Lambda env vars are always strings
         FRAUD_SCORE_THRESHOLD,
+        // Demo env: static OTP accepted, forceMfa shortcut enabled
+        MFA_MODE: 'static',
+        DEMO_MODE: '1',
       },
     });
 
