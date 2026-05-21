@@ -5,7 +5,8 @@
   "workspaces": [
     "apps/backend",
     "apps/frontend",
-    "infra/cdk"
+    "infra/cdk",
+    "packages/*"
   ],
   "scripts": {
     "prepare": "lefthook install",

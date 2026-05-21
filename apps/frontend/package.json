@@ -9,12 +9,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@signal-force/engagement-sdk": "*",
     "@tanstack/react-query": "^5",
     "@tanstack/react-virtual": "^3",
+    "@xyflow/react": "^12.10.2",
     "lucide-react": "^0.441.0",
     "next": "^15.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-querybuilder": "^8.16.1",
     "recharts": "latest"
   },
   "devDependencies": {

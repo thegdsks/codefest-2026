@@ -30,9 +30,17 @@ export default function DashboardPage() {
         )}
 
         {!loading && result !== null && result.error === null && (
-          <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-words">
-            {JSON.stringify(result.data, null, 2)}
-          </pre>
+          <>
+            <div className="mb-4 text-sm text-gray-700">
+              Points balance:{' '}
+              <span data-signal="points_balance" className="font-semibold text-blue-700">
+                {result.data.user.pointsBalance.toLocaleString()} pts
+              </span>
+            </div>
+            <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-words">
+              {JSON.stringify(result.data, null, 2)}
+            </pre>
+          </>
         )}
       </div>
     </div>
