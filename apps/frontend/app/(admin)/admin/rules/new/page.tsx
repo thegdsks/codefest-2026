@@ -1,8 +1,10 @@
 'use client';
 
+import { Eye } from '@phosphor-icons/react';
 import { ChevronDown, ChevronRight, Sparkles, TriangleAlert, Wrench } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import RuleExperienceViewer from '@/components/admin/RuleExperienceViewer';
 import { SIGNAL_FIELDS, USER_FIELDS } from '@/components/admin/rules/QueryBuilderConfig';
 import RuleActionPanel from '@/components/admin/rules/RuleActionPanel';
 import RuleActionTemplates from '@/components/admin/rules/RuleActionTemplates';
@@ -15,7 +17,7 @@ import { useRuleForm } from '@/components/admin/rules/useRuleForm';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { createRule, type RuleConditionGroup } from '@/lib/rules-api';
+import { createRule, type EngagementRule, type RuleConditionGroup } from '@/lib/rules-api';
 
 const STATUS_OPTIONS = [
   { value: 'DRAFT' as const, label: 'Draft' },
@@ -69,6 +71,7 @@ interface SaveBarProps {
   onStatusChange: (status: 'DRAFT' | 'ACTIVE') => void;
   onCancel: () => void;
   onSave: () => void;
+  onPreviewExperience: () => void;
 }
 
 function SaveBar({
@@ -82,6 +85,7 @@ function SaveBar({
   onStatusChange,
   onCancel,
   onSave,
+  onPreviewExperience,
 }: SaveBarProps) {
   const issueText =
     warningCount === 0 ? 'Name required' : `${warningCount} issue${warningCount > 1 ? 's' : ''}`;
@@ -138,6 +142,14 @@ function SaveBar({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onPreviewExperience}
+            className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--bg-surface)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+          >
+            <Eye className="size-3.5" />
+            Preview experience
+          </button>
           <button
             type="button"
             onClick={onCancel}
@@ -245,6 +257,7 @@ export default function NewRulePage() {
   const [tab, setTab] = useState<EditorTab>('visual');
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [experienceOpen, setExperienceOpen] = useState(false);
 
   const whoHasConditions = countRules(form.whoConditions) > 0;
   const [showWho, setShowWho] = useState<boolean>(whoHasConditions);
@@ -316,6 +329,7 @@ export default function NewRulePage() {
         onStatusChange={form.setStatus}
         onCancel={() => router.back()}
         onSave={handleSave}
+        onPreviewExperience={() => setExperienceOpen(true)}
       />
 
       {form.saveError ? (
@@ -401,6 +415,24 @@ export default function NewRulePage() {
           void performSave();
         }}
         confirmLoading={form.saving}
+      />
+
+      <RuleExperienceViewer
+        rule={
+          {
+            ruleId: 'DRAFT',
+            name: form.name || 'Untitled draft',
+            status: form.status,
+            whenConditions: form.whenConditions,
+            whoConditions: form.whoConditions,
+            action: form.action,
+            firesLast24h: 0,
+            updatedAt: Math.floor(Date.now() / 1000),
+            createdAt: Math.floor(Date.now() / 1000),
+          } satisfies EngagementRule
+        }
+        open={experienceOpen}
+        onClose={() => setExperienceOpen(false)}
       />
     </div>
   );
