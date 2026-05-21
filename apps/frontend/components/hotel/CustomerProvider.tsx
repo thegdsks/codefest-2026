@@ -56,6 +56,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
 
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('sf.session', JSON.stringify({ token, userId }));
+      document.cookie = `sf.token=${encodeURIComponent(token)}; path=/; SameSite=Lax`;
     }
 
     const dash = await fetchDashboard(token, userId);
@@ -80,6 +81,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     }
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('sf.session');
+      document.cookie = 'sf.token=; path=/; max-age=0; SameSite=Lax';
     }
     setIsLoggedIn(false);
     setSession(null);
@@ -105,9 +107,9 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleExpired = () => {
-      // TODO: consider routing to /login after state is cleared
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('sf.session');
+        document.cookie = 'sf.token=; path=/; max-age=0; SameSite=Lax';
       }
       setIsLoggedIn(false);
       setSession(null);
