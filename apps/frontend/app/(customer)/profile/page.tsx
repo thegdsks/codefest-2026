@@ -1,24 +1,17 @@
 'use client';
 
 import { attachPointsBalanceStareDetector } from '@signal-force/engagement-sdk';
-import {
-  ArrowRight,
-  Download,
-  Mail,
-  RefreshCw,
-  Sliders,
-  Sparkles,
-  UserCheck,
-  Utensils,
-} from 'lucide-react';
+import { ArrowRight, Download, Mail, RefreshCw, Sliders, UserCheck, Utensils } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import DynamicOfferCard from '@/components/hotel/DynamicOfferCard';
 import LoyaltyStatusCard from '@/components/hotel/LoyaltyStatusCard';
+import SurfaceBubble from '@/components/hotel/SurfaceBubble';
+import { mutateDemoUser } from '@/lib/hotel/customer-api';
 import { PARTNERS } from '@/lib/hotel/data';
-import type { CatalystElevateContext } from '@/lib/hotel/surface-types';
+import { dismiss, isDismissed } from '@/lib/hotel/surface-dismissal';
 import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
@@ -36,10 +29,11 @@ const COMM_CHANNELS = ['Email', 'SMS/Text Message', 'Postal Mail'];
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, pastStays, isLoggedIn } = useCustomer();
+  const { user, pastStays, isLoggedIn, session } = useCustomer();
   const { trackEvent } = useTrackedEngagement();
-  const { surfaces } = useSurfaceEligibility();
+  const { surfaces, refetch } = useSurfaceEligibility();
   const catalystSurface = surfaces['PROFILE_CATALYST_ELEVATE'];
+  const [inlineDismissed, setInlineDismissed] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace('/login');
@@ -101,12 +95,23 @@ export default function ProfileScreen() {
   }).length;
   const completenessPercentage = Math.round((filledCount / allCompletenessFields.length) * 100);
 
-  const catalystCtx = catalystSurface?.context as CatalystElevateContext | undefined;
-  const nextTierName = catalystCtx?.nextTier ?? (user.status === 'Gold' ? 'Platinum' : 'Diamond');
-  const pointsAway = user.nextTierPoints ?? 8000;
-  const isMobileMissing = !user.mobilePhone || user.mobilePhone.trim() === '';
-  const isBusinessPhoneMissing = !user.businessPhone || user.businessPhone.trim() === '';
-  const catalystHeadline = catalystSurface?.copy?.headline ?? 'Catalyst Elevate Benefit';
+  const showInlineBubble =
+    catalystSurface?.state === 'SHOWN' &&
+    !inlineDismissed &&
+    !isDismissed(catalystSurface.surfaceId);
+
+  const handleInlineDismiss = useCallback(() => {
+    if (catalystSurface) {
+      dismiss(catalystSurface.surfaceId);
+    }
+    setInlineDismissed(true);
+  }, [catalystSurface]);
+
+  const handleInlineAction = useCallback(async () => {
+    if (!session || !catalystSurface?.nextAction?.delta) return;
+    await mutateDemoUser(session.userId, catalystSurface.nextAction.delta);
+    refetch();
+  }, [session, catalystSurface, refetch]);
 
   return (
     <div className="bg-[#fbf9f8] min-h-screen pb-24 font-sans text-black">
@@ -122,6 +127,15 @@ export default function ProfileScreen() {
             Signal Force {user.status} Status Member since 2018
           </p>
         </header>
+
+        {showInlineBubble && catalystSurface && (
+          <SurfaceBubble
+            surface={catalystSurface}
+            placement="inline"
+            onDismiss={handleInlineDismiss}
+            onAction={handleInlineAction}
+          />
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column */}
@@ -159,60 +173,6 @@ export default function ProfileScreen() {
                   </p>
                 )}
               </div>
-
-              {catalystSurface?.state === 'SHOWN' && (
-                <div className="mb-6 p-4 bg-[#775a19]/5 border-l-4 border-[#775a19] text-left relative overflow-hidden animate-fade-in shadow-sm">
-                  <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-[#775a19]/10 rounded-full blur-xl pointer-events-none" />
-
-                  <div className="flex items-center gap-1.5 text-[#775a19] mb-2">
-                    <Sparkles size={13} className="shrink-0 animate-pulse" />
-                    <span className="text-[9px] font-bold tracking-widest uppercase font-sans">
-                      {catalystHeadline}
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-gray-900 font-sans leading-relaxed">
-                    As a valued{' '}
-                    <span className="font-bold text-[#775a19]">{user.status} Status</span> member,
-                    you are only{' '}
-                    <span className="font-bold text-[#775a19]">
-                      {pointsAway.toLocaleString()} SFC
-                    </span>{' '}
-                    points away from{' '}
-                    <span className="font-bold text-[#775a19]">{nextTierName}</span>. To help
-                    fast-track progress, update your details to increase your{' '}
-                    <span className="font-bold text-black">{completenessPercentage}%</span> Registry
-                    Completeness.
-                    {isMobileMissing || isBusinessPhoneMissing ? (
-                      <>
-                        {' '}
-                        Suggest adding your{' '}
-                        <span className="font-bold text-[#775a19] underline underline-offset-2">
-                          {isMobileMissing ? 'Mobile Phone' : 'Business Phone'} Number
-                        </span>{' '}
-                        to unlock exclusive priority access rewards and secure communication
-                        channels.
-                      </>
-                    ) : (
-                      <>
-                        {' '}
-                        Populate your remaining preferences to claim your profile completion bonus.
-                      </>
-                    )}
-                  </p>
-
-                  <div className="mt-2.5 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => router.push('/profile/edit')}
-                      className="text-[9px] text-[#775a19] font-bold uppercase tracking-wider hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 focus:outline-none"
-                    >
-                      <span>Update Registry Now</span>
-                      <ArrowRight size={10} />
-                    </button>
-                  </div>
-                </div>
-              )}
 
               <div className="space-y-4 text-left font-sans text-xs">
                 <div className="flex flex-col">
