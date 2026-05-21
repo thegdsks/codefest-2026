@@ -1,10 +1,15 @@
 'use client';
 
-import { Bug, LogOut, MapPin, RefreshCw, Smartphone, User, X } from 'lucide-react';
+import { Bug, LogOut, MapPin, Radio, RefreshCw, Smartphone, User, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
-import { login as loginRequest, verifyMfa } from '@/lib/hotel/customer-api';
+import {
+  type EngagementEventResponse,
+  fireEngagementSignal,
+  login as loginRequest,
+  verifyMfa,
+} from '@/lib/hotel/customer-api';
 import {
   getDemoLoginContext,
   setDemoLoginContext,
@@ -27,6 +32,12 @@ async function resolveTokenAfterMfa(
   return ok ? null : 'Session could not be established after MFA.';
 }
 
+interface SignalStatus {
+  loading: boolean;
+  result: EngagementEventResponse | null;
+  error: string | null;
+}
+
 export default function DemoPanel() {
   const router = useRouter();
   const { isLoggedIn, user, session, logout, completeLogin, setPendingSessionId } = useCustomer();
@@ -35,6 +46,37 @@ export default function DemoPanel() {
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);
   const [forcedHighRisk, setForcedHighRisk] = useState(false);
+  const [signalStatus, setSignalStatus] = useState<SignalStatus>({
+    loading: false,
+    result: null,
+    error: null,
+  });
+
+  async function handleFireSignal(signal: string, params: Record<string, number>) {
+    if (!session?.token || !session?.userId) {
+      setSignalStatus({ loading: false, result: null, error: 'Not logged in.' });
+      return;
+    }
+    setSignalStatus({ loading: true, result: null, error: null });
+    try {
+      const res = await fireEngagementSignal(session.token, signal, session.userId, params);
+      if (res.error || !res.data) {
+        setSignalStatus({
+          loading: false,
+          result: null,
+          error: res.error?.message ?? 'Signal failed.',
+        });
+        return;
+      }
+      setSignalStatus({ loading: false, result: res.data, error: null });
+    } catch (e) {
+      setSignalStatus({
+        loading: false,
+        result: null,
+        error: e instanceof Error ? e.message : 'Unexpected error.',
+      });
+    }
+  }
 
   const initial = getDemoLoginContext();
   const [location, setLocation] = useState(initial.location ?? 'New York');
@@ -280,6 +322,75 @@ export default function DemoPanel() {
                   <p className="mt-1.5 text-[9px] text-gray-500 font-sans text-center">
                     Go to Transfer page and submit any transfer to trigger review.
                   </p>
+                )}
+              </section>
+            )}
+
+            {isLoggedIn && (
+              <section className="border-t border-gray-100 pt-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#775a19] mb-2 font-sans flex items-center gap-1.5">
+                  <Radio size={11} />
+                  Trigger Engagement Signal
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    disabled={signalStatus.loading}
+                    onClick={() => handleFireSignal('rage_click', { count: 8 })}
+                    className="w-full text-[10px] font-bold uppercase tracking-widest border border-fuchsia-400 text-fuchsia-700 py-2 hover:bg-fuchsia-50 transition-colors font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Fire rage_click (count=8)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={signalStatus.loading}
+                    onClick={() => handleFireSignal('dwell_no_action', { dwellMs: 45000 })}
+                    className="w-full text-[10px] font-bold uppercase tracking-widest border border-fuchsia-400 text-fuchsia-700 py-2 hover:bg-fuchsia-50 transition-colors font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Fire dwell_no_action (45s)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={signalStatus.loading}
+                    onClick={() => handleFireSignal('points_balance_stare', { stareMs: 60000 })}
+                    className="w-full text-[10px] font-bold uppercase tracking-widest border border-fuchsia-400 text-fuchsia-700 py-2 hover:bg-fuchsia-50 transition-colors font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Fire points_balance_stare (60s)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={signalStatus.loading}
+                    onClick={() => handleFireSignal('abandoned_flow_step', {})}
+                    className="w-full text-[10px] font-bold uppercase tracking-widest border border-fuchsia-400 text-fuchsia-700 py-2 hover:bg-fuchsia-50 transition-colors font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Fire abandoned_flow_step
+                  </button>
+                </div>
+                {signalStatus.loading && (
+                  <p className="mt-2 text-[10px] text-gray-400 font-sans text-center">
+                    Sending signal...
+                  </p>
+                )}
+                {signalStatus.error && (
+                  <p className="mt-2 text-[10px] text-red-600 font-sans">{signalStatus.error}</p>
+                )}
+                {signalStatus.result && (
+                  <div className="mt-2 p-2 bg-fuchsia-50 border border-fuchsia-100 text-[10px] font-mono space-y-0.5">
+                    <p className="font-bold text-fuchsia-700 font-sans">
+                      Signal fired - check admin to see the decision
+                    </p>
+                    <p>action: {signalStatus.result.action}</p>
+                    <p>surface: {signalStatus.result.surface ?? 'none'}</p>
+                    <p>score: {signalStatus.result.score}</p>
+                    <p>engine: {signalStatus.result.engineLayer}</p>
+                    <p>reason: {signalStatus.result.reasonCode}</p>
+                    {signalStatus.result.decisionId && <p>id: {signalStatus.result.decisionId}</p>}
+                    {signalStatus.result.copy && (
+                      <p className="italic text-gray-600 break-words">
+                        copy: {signalStatus.result.copy}
+                      </p>
+                    )}
+                  </div>
                 )}
               </section>
             )}
