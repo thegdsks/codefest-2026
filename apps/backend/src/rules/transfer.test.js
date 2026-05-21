@@ -187,3 +187,41 @@ test('scoreTransfer forceHighRisk=true with high tc1h still returns MFA (not BLO
   });
   assert.equal(result.action, 'MFA');
 });
+
+// --- forceBlock override ---
+
+test('scoreTransfer returns score 90 + action BLOCK when forceBlock=true', () => {
+  const result = scoreTransfer({ tc1h: 0, amount: 100, forceBlock: true });
+  assert.equal(result.action, 'BLOCK');
+  assert.equal(result.score, 90);
+  assert.equal(result.reasonCode, 'DEMO_FORCE_BLOCK');
+  assert.equal(result.ruleId, 'DEMO_FORCE_BLOCK');
+});
+
+test('scoreTransfer forceBlock overrides forceHighRisk (BLOCK wins)', () => {
+  const result = scoreTransfer({
+    tc1h: 0,
+    amount: 50,
+    deviceFingerprintSeenDays: 7,
+    forceHighRisk: true,
+    forceBlock: true,
+  });
+  assert.equal(result.action, 'BLOCK');
+  assert.equal(result.reasonCode, 'DEMO_FORCE_BLOCK');
+});
+
+test('scoreTransfer forceBlock overrides high velocity (forceBlock wins)', () => {
+  const result = scoreTransfer({
+    tc1h: 5,
+    amount: 100,
+    forceBlock: true,
+  });
+  assert.equal(result.action, 'BLOCK');
+  assert.equal(result.reasonCode, 'DEMO_FORCE_BLOCK');
+});
+
+test('scoreTransfer forceBlock=false is a no-op (normal path applies)', () => {
+  const result = scoreTransfer({ tc1h: 0, amount: 100, forceBlock: false });
+  assert.equal(result.action, 'ALLOW');
+  assert.equal(result.score, 10);
+});

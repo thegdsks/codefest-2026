@@ -5,12 +5,17 @@ import { Award, Calculator, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import BlockBanner from '@/components/hotel/BlockBanner';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { animateCounter } from '@/lib/hotel/animate-counter';
 import { DEMO_RECIPIENT_ID, saveTransferDraft, transferPoints } from '@/lib/hotel/customer-api';
 import { PARTNERS } from '@/lib/hotel/data';
 import { useLoyaltySummary } from '@/lib/hotel/use-loyalty-summary';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
+
+interface BlockData {
+  decisionId: string;
+}
 
 function newClientRef() {
   return `LH-${Math.floor(100000 + Math.random() * 900000)}-X`;
@@ -52,6 +57,7 @@ export default function TransferScreen() {
   const [triggerSecurityDemo, setTriggerSecurityDemo] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [blockData, setBlockData] = useState<BlockData | null>(null);
 
   // Debounced draft persistence so TRANSFER_ABANDON_OFFER surface fires when
   // the user fills the form and leaves without submitting.
@@ -124,11 +130,15 @@ export default function TransferScreen() {
     const res = await transferPoints(session.token, session.userId, cost);
 
     if (res.error) {
-      setError(
-        res.error.code === 'TRANSFER_BLOCKED'
-          ? 'This transfer was blocked by a high fraud-risk decision.'
-          : res.error.message || 'The transfer could not be processed. Please try again.'
-      );
+      if (res.error.code === 'TRANSFER_BLOCKED') {
+        const decisionId =
+          (res.error as { code: string; message: string; details?: { decisionId?: string } })
+            .details?.decisionId ?? '';
+        setBlockData({ decisionId });
+        setProcessing(false);
+        return;
+      }
+      setError(res.error.message || 'The transfer could not be processed. Please try again.');
       setProcessing(false);
       return;
     }
@@ -220,6 +230,42 @@ export default function TransferScreen() {
               </span>
             )}
           </div>
+        </section>
+      )}
+
+      {blockData && (
+        <section className="px-8 max-w-[1000px] mx-auto mb-6">
+          <BlockBanner
+            title="Transfer blocked by fraud protection"
+            description="Our security system flagged this transfer as high risk. No points were moved. If you believe this is an error, contact our support team with the reference ID below."
+            referenceId={blockData.decisionId || undefined}
+            actions={[
+              {
+                label: 'Contact support',
+                variant: 'primary',
+                onClick: () => {
+                  const subject = encodeURIComponent('Transfer blocked - reference inquiry');
+                  const body = encodeURIComponent(
+                    `Reference: ${blockData.decisionId || 'unknown'}`
+                  );
+                  window.location.href = `mailto:support@signal-force.demo?subject=${subject}&body=${body}`;
+                },
+              },
+              {
+                label: 'View activity history',
+                variant: 'secondary',
+                onClick: () => router.push('/profile?tab=activity'),
+              },
+              {
+                label: 'Try a smaller amount',
+                variant: 'secondary',
+                onClick: () => {
+                  setBlockData(null);
+                  setPointsInput('1000');
+                },
+              },
+            ]}
+          />
         </section>
       )}
 

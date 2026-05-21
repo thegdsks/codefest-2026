@@ -142,7 +142,14 @@ export default function DecisionsListPage() {
     return <AuthGate error={err} onRetry={load} />;
   }
 
-  const rows = (data?.decisions ?? []).filter((r) => matchesFeedFilter(r, feedFilter));
+  const allDecisions = data?.decisions ?? [];
+  const releasedIds = new Set(
+    allDecisions
+      .filter((d) => d.action === 'RELEASE' && d.originalDecisionId)
+      .map((d) => d.originalDecisionId as string)
+  );
+
+  const rows = allDecisions.filter((r) => matchesFeedFilter(r, feedFilter));
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -301,8 +308,13 @@ export default function DecisionsListPage() {
           <ul className="divide-y divide-[color:var(--border)]">
             {rows.map((row) => {
               const href = `/admin/decisions/${encodeURIComponent(row.decisionId)}`;
+              const isBlock = row.action === 'BLOCK';
+              const isReleased = isBlock && releasedIds.has(row.decisionId);
               return (
-                <li key={row.decisionId}>
+                <li
+                  key={row.decisionId}
+                  className={isBlock ? 'border-l-4 border-l-rose-500' : undefined}
+                >
                   <Link
                     href={href}
                     className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[color:var(--bg-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
@@ -319,8 +331,13 @@ export default function DecisionsListPage() {
                     <div className="col-span-2 truncate text-xs text-[color:var(--text-muted)]">
                       {DECISION_TYPE_LABEL[row.decisionType] ?? row.decisionType}
                     </div>
-                    <div className="col-span-1">
+                    <div className="col-span-1 flex items-center gap-1.5 flex-wrap">
                       <ActionPill action={row.action} />
+                      {isReleased && (
+                        <span className="rounded-sm bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 whitespace-nowrap">
+                          Released
+                        </span>
+                      )}
                     </div>
                     <div className="col-span-1 text-right tabular-nums text-[color:var(--text)]">
                       {Math.round(row.score)}

@@ -4,6 +4,7 @@ import { CustomerProvider } from '@/components/hotel/CustomerProvider';
 import DemoPanel from '@/components/hotel/DemoPanel';
 import Footer from '@/components/hotel/Footer';
 import Header from '@/components/hotel/Header';
+import SurfaceBubbleHost from '@/components/hotel/SurfaceBubbleHost';
 import { QueryProvider } from '@/lib/query-client';
 
 const montserrat = Montserrat({
@@ -50,6 +51,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </div>
           </EngagementWrapper>
           <DemoPanel />
+          <SurfaceBubbleHost />
         </CustomerProvider>
       </QueryProvider>
     </div>

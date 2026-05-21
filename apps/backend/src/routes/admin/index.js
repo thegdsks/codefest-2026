@@ -9,7 +9,7 @@
  */
 
 const { listDecisions, getDecision, releaseDecision, exportDecisions } = require('./decisions');
-const { listUsers, getUserRisk } = require('./users');
+const { listUsers, getUserRisk, clearUserBlock } = require('./users');
 const { listSessions, revokeSession } = require('./sessions');
 const { getMetrics } = require('./metrics');
 const { getMfaStatus } = require('./mfa');
@@ -39,6 +39,7 @@ module.exports = {
   // users
   getUsers: listUsers,
   getUserRisk,
+  clearUserBlock,
   // sessions
   getSessions: listSessions,
   revokeSession,

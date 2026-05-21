@@ -573,3 +573,17 @@ export function writeDemoEvent(
     body: JSON.stringify(req),
   });
 }
+
+export interface ClearBlockResponse {
+  cleared: boolean;
+  userId: string;
+  originalDecisionId?: string;
+  releasedAt?: number;
+  message?: string;
+}
+
+export function clearUserBlock(userId: string): Promise<ApiResult<ClearBlockResponse>> {
+  return adminFetch<ClearBlockResponse>(`/admin/users/${encodeURIComponent(userId)}/clear-block`, {
+    method: 'POST',
+  });
+}

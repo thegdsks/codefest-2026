@@ -3,10 +3,17 @@
 /**
  * Admin user endpoints.
  *
- * Exports: listUsers, getUserRisk
+ * Exports: listUsers, getUserRisk, clearUserBlock
  */
 
-const { ScanCommand, GetCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const {
+  ScanCommand,
+  GetCommand,
+  QueryCommand,
+  PutCommand,
+  UpdateCommand,
+} = require('@aws-sdk/lib-dynamodb');
+const { randomUUID } = require('node:crypto');
 const {
   getDdb,
   nowSec,
@@ -174,4 +181,88 @@ async function getUserRisk(event, correlationId) {
   });
 }
 
-module.exports = { listUsers, getUserRisk };
+/**
+ * POST /admin/users/{userId}/clear-block
+ *
+ * Find the most recent BLOCK decision for the user in the last 7 days.
+ * If found, write a RELEASE row to DecisionStore and clear isBlocked on UserState.
+ *
+ * @param {object} event
+ * @param {string} correlationId
+ * @returns {Promise<object>}
+ */
+async function clearUserBlock(event, correlationId) {
+  const authCheck = requireAdmin(event, correlationId);
+  if (!authCheck.ok) return authCheck.response;
+
+  const rawPath = event.requestContext?.http?.path || event.path || '';
+  const rawId = extractIdFromPath(rawPath, '/admin/users', '/clear-block');
+  if (!rawId) {
+    return err(400, correlationId, 'VALIDATION_ERROR', 'userId missing from path');
+  }
+  const userId = decodeURIComponent(rawId);
+
+  const now = nowSec();
+  const sevenDaysAgo = now - 7 * 86400;
+
+  const decRes = await getDdb().send(
+    new QueryCommand({
+      TableName: CFG.tDecision,
+      IndexName: 'userId-timestamp-index',
+      KeyConditionExpression: '#u = :u AND #ts >= :cutoff',
+      FilterExpression: '#action = :block',
+      ExpressionAttributeNames: { '#u': 'userId', '#ts': 'timestamp', '#action': 'action' },
+      ExpressionAttributeValues: { ':u': userId, ':cutoff': sevenDaysAgo, ':block': 'BLOCK' },
+      ScanIndexForward: false,
+      Limit: 1,
+    })
+  );
+
+  const original = decRes.Items?.[0];
+  if (!original) {
+    return json(200, correlationId, {
+      data: { cleared: false, userId, message: 'No recent BLOCK decision found' },
+    });
+  }
+
+  const releasedAt = now;
+  const releaseRow = {
+    decisionId: `DEC#REL#${randomUUID().slice(0, 8)}`,
+    userId,
+    decisionType: 'DECISION_RELEASE',
+    score: 0,
+    riskLevel: 'LOW',
+    action: 'RELEASE',
+    reasonCode: 'ADMIN_CLEAR_BLOCK',
+    reasonText: 'Block cleared by admin via clear-block endpoint',
+    channel: 'ADMIN',
+    correlationId: correlationId || '',
+    isFinalDecision: true,
+    engineLayer: 'L1',
+    originalDecisionId: original.decisionId,
+    timestamp: releasedAt,
+    modelVersion: 'v1',
+  };
+
+  await getDdb().send(new PutCommand({ TableName: CFG.tDecision, Item: releaseRow }));
+
+  await getDdb().send(
+    new UpdateCommand({
+      TableName: CFG.tUserState,
+      Key: { userId },
+      UpdateExpression: 'REMOVE isBlocked SET updatedAt = :now',
+      ExpressionAttributeValues: { ':now': releasedAt },
+    })
+  );
+
+  return json(200, correlationId, {
+    data: {
+      cleared: true,
+      userId,
+      originalDecisionId: original.decisionId,
+      releasedAt,
+    },
+  });
+}
+
+module.exports = { listUsers, getUserRisk, clearUserBlock };

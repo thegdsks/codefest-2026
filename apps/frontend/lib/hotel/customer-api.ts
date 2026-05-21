@@ -2,7 +2,9 @@ import { apiFetch } from '@/lib/api';
 import type { LoginContext } from '@/lib/hotel/demo-context';
 import {
   getDemoLoginContext,
+  getForceBlockTransfer,
   getForceHighRiskTransfer,
+  setForceBlockTransfer,
   setForceHighRiskTransfer,
 } from '@/lib/hotel/demo-context';
 import type { SurfaceEligibilityResponse } from '@/lib/hotel/surface-types';
@@ -184,6 +186,9 @@ export function transferPoints(
   // Clear the flag immediately so it only affects this single transfer.
   setForceHighRiskTransfer(false);
 
+  const forceBlock = getForceBlockTransfer();
+  setForceBlockTransfer(false);
+
   const body: Record<string, unknown> = {
     userId,
     recipientId: DEMO_RECIPIENT_ID,
@@ -193,6 +198,9 @@ export function transferPoints(
   };
   if (forceHighRisk) {
     body.forceHighRisk = true;
+  }
+  if (forceBlock) {
+    body.forceBlock = true;
   }
 
   return apiFetch<TransferData>('/transactions/transfer', {

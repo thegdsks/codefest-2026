@@ -3,8 +3,9 @@
 import { Clock, Eye, EyeOff, Lock, Mail, Shield, ShieldCheck, Star, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
+import BlockBanner from '@/components/hotel/BlockBanner';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
-import { getDevConfig } from '@/lib/admin-api';
+import { clearUserBlock, getDevConfig } from '@/lib/admin-api';
 import { login as loginRequest } from '@/lib/hotel/customer-api';
 import { getDemoLoginContext } from '@/lib/hotel/demo-context';
 import { getRecentUsers, type RecentUser } from '@/lib/hotel/recent-users';
@@ -158,6 +159,11 @@ function PersonasBar({ onSelect }: PersonasBarProps) {
 // ---------------------------------------------------------------------------
 // Main login screen
 // ---------------------------------------------------------------------------
+
+interface LoginBlockData {
+  userId: string;
+}
+
 export default function LoginScreen() {
   const router = useRouter();
   const { completeLogin, setPendingSessionId } = useCustomer();
@@ -169,6 +175,8 @@ export default function LoginScreen() {
   const [forceMfa, setForceMfa] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const [blockData, setBlockData] = useState<LoginBlockData | null>(null);
+  const [clearingBlock, setClearingBlock] = useState(false);
 
   useEffect(() => {
     getDevConfig()
@@ -194,12 +202,15 @@ export default function LoginScreen() {
     });
 
     if (res.error) {
+      if (res.error.code === 'ACCOUNT_BLOCKED') {
+        setBlockData({ userId: username });
+        setSubmitting(false);
+        return;
+      }
       setError(
-        res.error.code === 'ACCOUNT_BLOCKED'
-          ? 'This account is temporarily blocked by a prior security decision.'
-          : res.error.code === 'INVALID_CREDENTIALS'
-            ? 'Invalid account ID or password.'
-            : res.error.message || 'Unable to sign in. Please try again.'
+        res.error.code === 'INVALID_CREDENTIALS'
+          ? 'Invalid account ID or password.'
+          : res.error.message || 'Unable to sign in. Please try again.'
       );
       setSubmitting(false);
       return;
@@ -239,6 +250,51 @@ export default function LoginScreen() {
       formRef.current?.requestSubmit();
     }, 0);
   };
+
+  const demoMode_ = demoMode;
+
+  if (blockData) {
+    const demoClearActions = demoMode_
+      ? [
+          {
+            label: 'Demo: clear my block',
+            variant: 'secondary' as const,
+            onClick: async () => {
+              setClearingBlock(true);
+              const res = await clearUserBlock(blockData.userId);
+              setClearingBlock(false);
+              if (!res.error) {
+                setBlockData(null);
+              }
+            },
+          },
+        ]
+      : [];
+
+    return (
+      <div className="relative min-h-[85vh] bg-[#fbf9f8] flex items-center justify-center p-8 font-sans text-black">
+        <div className="w-full max-w-[600px]">
+          <BlockBanner
+            title="Your account is temporarily blocked."
+            description="A prior security decision has suspended access to this account. Please contact support for assistance. If you are performing a demo, use the button below to clear the block and retry."
+            referenceId={blockData.userId}
+            actions={[
+              {
+                label: clearingBlock ? 'Clearing...' : 'Contact support',
+                variant: 'primary',
+                onClick: () => {
+                  const subject = encodeURIComponent('Account blocked - access request');
+                  const body = encodeURIComponent(`Account: ${blockData.userId}`);
+                  window.location.href = `mailto:support@signal-force.demo?subject=${subject}&body=${body}`;
+                },
+              },
+              ...demoClearActions,
+            ]}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-[85vh] bg-[#fbf9f8] flex flex-col items-center justify-center p-8 overflow-hidden font-sans text-black">
