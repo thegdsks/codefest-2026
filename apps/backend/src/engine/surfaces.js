@@ -1,11 +1,14 @@
 'use strict';
 
-const { pointsToNextTier: ptsToNext } = require('../lib/tiers');
+const { getCurrentTier, getNextTier, pointsToNextTier: ptsToNext } = require('../lib/tiers');
 
 const PLAT_TIER = 'platinum';
+const DIAMOND_TIER = 'diamond';
 const GOLD_TIER = 'gold';
 const RECENT_WINDOW_SEC = 60;
-const BOOKING_WINDOW_SEC = 300;
+// Extended to 24h so any persona with a recent booking in their seed state
+// shows the confirmation surface on first load without requiring a live reseed.
+const BOOKING_WINDOW_SEC = Number(process.env.BOOKING_WINDOW_SEC || 86400);
 // Personas seeded with loyaltyScore >= 1000 store realistic point totals;
 // smaller values are legacy 0-1000 ratings that need scaling to render as
 // believable balances (matches the heuristic in routes/loyalty.js).
@@ -50,12 +53,15 @@ function normalizeCompletion(raw) {
  */
 function evaluateSurfaces({ profile, state, nowSec }) {
   const st = state || {};
-  const tier = String(profile.tier || '').toLowerCase();
-  const isPlat = tier === PLAT_TIER;
   const points = derivePoints(profile);
+  // Derive tier from loyaltyScore (single source of truth) and fall back to
+  // profile.tier only when loyaltyScore is absent or zero.
+  const displayTier = points > 0 ? getCurrentTier(points) : profile.tier || getCurrentTier(0);
+  const tierLower = displayTier.toLowerCase();
+  const isPlat = tierLower === PLAT_TIER || tierLower === DIAMOND_TIER;
   const pointsToNextTier = isPlat ? 0 : ptsToNext(points);
-  const displayTier = profile.tier || '';
-  const nextTier = 'Platinum';
+  const computedNextTier = getNextTier(displayTier) || 'Platinum';
+  const nextTier = computedNextTier;
 
   return [
     prestigeAdvance('PROPERTY_PRESTIGE_ADVANCE', {
@@ -75,7 +81,7 @@ function evaluateSurfaces({ profile, state, nowSec }) {
       nowSec,
     }),
     profileCatalyst({ profile, isPlat, st, pointsToNextTier, displayTier, nextTier }),
-    mfaEnrollmentNudge({ profile, tier, isPlat, st, nowSec }),
+    mfaEnrollmentNudge({ profile, tier: tierLower, isPlat, st, nowSec }),
     transferAbandonOffer({ st, nowSec }),
     bookingConfirmationOffer({ st, nowSec }),
   ];
@@ -319,7 +325,14 @@ function transferAbandonOffer({ st, nowSec }) {
 }
 
 function bookingConfirmationOffer({ st, nowSec }) {
-  const recentBookingAt = st.recentBookingAt ? Number(st.recentBookingAt) : null;
+  // Accept two shapes from seed/runtime:
+  //   flat:   state.recentBookingAt (epoch seconds, preferred)
+  //   nested: state.recentBooking.bookedAt (epoch seconds, legacy seed shape)
+  const recentBookingAt = st.recentBookingAt
+    ? Number(st.recentBookingAt)
+    : st.recentBooking && st.recentBooking.bookedAt
+      ? Number(st.recentBooking.bookedAt)
+      : null;
   const bookingOfferDismissedAt = st.bookingOfferDismissedAt
     ? Number(st.bookingOfferDismissedAt)
     : null;
