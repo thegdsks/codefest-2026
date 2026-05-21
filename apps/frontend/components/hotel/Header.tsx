@@ -127,6 +127,7 @@ export default function Header() {
                 }`}
               >
                 <User size={15} className="text-[#775a19]" />
+                <span className="hidden lg:inline text-[10px]">{user.name?.split(' ')[0]}</span>
               </button>
 
               <button

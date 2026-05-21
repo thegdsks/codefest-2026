@@ -1,0 +1,99 @@
+{
+  "UserActivity": [
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#036" },
+          "activityTime": { "N": "1779400542" },
+          "activityType": { "S": "rage_click" },
+          "channel": { "S": "WEB" },
+          "source": { "S": "SDK" },
+          "amount": { "N": "0" },
+          "currency": { "S": "" },
+          "recipientId": { "S": "" },
+          "searchQuery": { "S": "results.search" },
+          "metadata": { "S": "{\"target\":\"results.search\",\"clickCount\":5,\"intervalMs\":380}" },
+          "correlationId": { "S": "CORR#036A" },
+          "ttl": { "N": "1780005342" },
+          "createdAt": { "N": "1779400542" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#036" },
+          "activityTime": { "N": "1779400642" },
+          "activityType": { "S": "dwell_no_action" },
+          "channel": { "S": "WEB" },
+          "source": { "S": "SDK" },
+          "amount": { "N": "0" },
+          "currency": { "S": "" },
+          "recipientId": { "S": "" },
+          "searchQuery": { "S": "results.search" },
+          "metadata": { "S": "{\"target\":\"results.search\",\"dwellMs\":47000}" },
+          "correlationId": { "S": "CORR#036B" },
+          "ttl": { "N": "1780005442" },
+          "createdAt": { "N": "1779400642" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#036" },
+          "activityTime": { "N": "1779400742" },
+          "activityType": { "S": "rage_click" },
+          "channel": { "S": "WEB" },
+          "source": { "S": "SDK" },
+          "amount": { "N": "0" },
+          "currency": { "S": "" },
+          "recipientId": { "S": "" },
+          "searchQuery": { "S": "results.search" },
+          "metadata": { "S": "{\"target\":\"results.search\",\"clickCount\":7,\"intervalMs\":290}" },
+          "correlationId": { "S": "CORR#036C" },
+          "ttl": { "N": "1780005542" },
+          "createdAt": { "N": "1779400742" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#036" },
+          "activityTime": { "N": "1779400842" },
+          "activityType": { "S": "dwell_no_action" },
+          "channel": { "S": "WEB" },
+          "source": { "S": "SDK" },
+          "amount": { "N": "0" },
+          "currency": { "S": "" },
+          "recipientId": { "S": "" },
+          "searchQuery": { "S": "results.search" },
+          "metadata": { "S": "{\"target\":\"results.search\",\"dwellMs\":63000}" },
+          "correlationId": { "S": "CORR#036D" },
+          "ttl": { "N": "1780005642" },
+          "createdAt": { "N": "1779400842" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#036" },
+          "activityTime": { "N": "1779400942" },
+          "activityType": { "S": "rage_click" },
+          "channel": { "S": "WEB" },
+          "source": { "S": "SDK" },
+          "amount": { "N": "0" },
+          "currency": { "S": "" },
+          "recipientId": { "S": "" },
+          "searchQuery": { "S": "results.search" },
+          "metadata": { "S": "{\"target\":\"results.search\",\"clickCount\":4,\"intervalMs\":420}" },
+          "correlationId": { "S": "CORR#036E" },
+          "ttl": { "N": "1780005742" },
+          "createdAt": { "N": "1779400942" }
+        }
+      }
+    }
+  ]
+}

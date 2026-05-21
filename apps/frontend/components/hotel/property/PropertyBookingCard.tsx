@@ -1,8 +1,10 @@
 'use client';
 
 import { Award, Check, ChevronDown, Clock, Sparkles, Star } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
+import { createBooking } from '@/lib/hotel/customer-api';
 import type { PropertyConfig } from '@/lib/hotel/property-data';
 import type { PrestigeAdvanceContext } from '@/lib/hotel/surface-types';
 import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
@@ -22,7 +24,8 @@ function formatTime(seconds: number) {
 }
 
 export default function PropertyBookingCard({ propertyId, config }: PropertyBookingCardProps) {
-  const { user } = useCustomer();
+  const { user, session } = useCustomer();
+  const router = useRouter();
   const { surfaces } = useSurfaceEligibility();
   const [checkIn, setCheckIn] = useState('2026-10-14');
   const [checkOut, setCheckOut] = useState('2026-10-21');
@@ -54,9 +57,28 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
     [config]
   );
 
-  const handleBook = (e: FormEvent) => {
+  const handleBook = async (e: FormEvent) => {
     e.preventDefault();
     setBookingStatus('checking');
+
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    const nights = Math.max(
+      1,
+      Math.round((checkOutDate.getTime() - checkInDate.getTime()) / 86_400_000)
+    );
+    const nightlyRate = suiteRates[suiteType] || config.price;
+    const costSfc = nights * nightlyRate;
+
+    if (session) {
+      const res = await createBooking(session.token, session.userId, propertyId, nights, costSfc);
+      if (res.data?.bookingId) {
+        router.push(`/booking/confirmation/${res.data.bookingId}`);
+        return;
+      }
+    }
+
+    // Fallback if not logged in or backend unavailable: show inline confirmation.
     setTimeout(() => {
       setBookingStatus('confirmed');
     }, 1800);

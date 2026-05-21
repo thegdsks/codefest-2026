@@ -4,10 +4,10 @@ import { attachAbandonedFlowStepDetector } from '@signal-force/engagement-sdk';
 import { Award, Calculator, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { animateCounter } from '@/lib/hotel/animate-counter';
-import { transferPoints } from '@/lib/hotel/customer-api';
+import { DEMO_RECIPIENT_ID, saveTransferDraft, transferPoints } from '@/lib/hotel/customer-api';
 import { PARTNERS } from '@/lib/hotel/data';
 import { useLoyaltySummary } from '@/lib/hotel/use-loyalty-summary';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
@@ -52,6 +52,34 @@ export default function TransferScreen() {
   const [triggerSecurityDemo, setTriggerSecurityDemo] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Debounced draft persistence so TRANSFER_ABANDON_OFFER surface fires when
+  // the user fills the form and leaves without submitting.
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const persistDraft = useCallback(
+    (amount: string, recipientId: string) => {
+      if (!session) return;
+      const parsed = Number(amount);
+      if (!Number.isFinite(parsed) || parsed <= 0) return;
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = setTimeout(() => {
+        saveTransferDraft(
+          session.token,
+          session.userId,
+          parsed,
+          recipientId || DEMO_RECIPIENT_ID
+        ).catch(() => {});
+      }, 800);
+    },
+    [session]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace('/login');
@@ -130,6 +158,9 @@ export default function TransferScreen() {
       amount: cost,
       date,
     });
+
+    // Clear the draft so TRANSFER_ABANDON_OFFER flips to COMPLETED.
+    if (session) saveTransferDraft(session.token, session.userId, 0, '').catch(() => {});
 
     if ('status' in data && data.status === 'SUCCESS') {
       deductPoints(cost);
@@ -246,7 +277,10 @@ export default function TransferScreen() {
                   type="text"
                   required
                   value={accountNumber}
-                  onChange={(e) => setAccountNumber(e.target.value)}
+                  onChange={(e) => {
+                    setAccountNumber(e.target.value);
+                    persistDraft(pointsInput, e.target.value);
+                  }}
                   className="w-full bg-transparent border-b-2 border-gray-200 focus:border-[#775a19] transition-colors py-3 px-0 font-sans text-sm focus:ring-0 outline-none text-gray-800 font-bold"
                   placeholder="e.g. 1042841920"
                 />
@@ -271,7 +305,10 @@ export default function TransferScreen() {
                     min="1000"
                     step="500"
                     value={pointsInput}
-                    onChange={(e) => setPointsInput(e.target.value)}
+                    onChange={(e) => {
+                      setPointsInput(e.target.value);
+                      persistDraft(e.target.value, accountNumber);
+                    }}
                     className="w-full bg-transparent border-b-2 border-gray-200 focus:border-[#775a19] transition-colors py-3 px-0 font-sans text-sm text-black focus:ring-0 outline-none font-bold"
                     placeholder="Min. 1,000"
                   />

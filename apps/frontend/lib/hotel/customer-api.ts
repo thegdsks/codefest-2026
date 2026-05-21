@@ -264,6 +264,104 @@ export function fetchSurfaceEligibility(
 }
 
 // ----------------------------------------------------------------------------
+// Transfer draft
+// ----------------------------------------------------------------------------
+
+export interface TransferDraftResult {
+  status: 'SAVED' | 'CLEARED';
+  lastUpdatedAt?: number;
+}
+
+/**
+ * saveTransferDraft
+ *
+ * Persists the in-progress transfer amount to UserState so the
+ * TRANSFER_ABANDON_OFFER surface can detect form abandonment.
+ * Pass amount=0 to clear the draft after a successful submit.
+ */
+export function saveTransferDraft(
+  token: string,
+  userId: string,
+  amount: number,
+  recipientId: string
+): Promise<ApiResult<TransferDraftResult>> {
+  return apiFetch<TransferDraftResult>('/customer/transfers/draft', {
+    method: 'POST',
+    headers: bearer(token),
+    body: JSON.stringify({ userId, amount, recipientId }),
+  });
+}
+
+// ----------------------------------------------------------------------------
+// Profile update
+// ----------------------------------------------------------------------------
+
+export interface CustomerProfileUpdateFields {
+  mobilePhone?: string;
+  email?: string;
+  marketingOptIn?: boolean;
+  dob?: string;
+  language?: string;
+}
+
+export interface CustomerProfileUpdateResult {
+  status: 'UPDATED';
+  profileCompletion: number;
+  crossed90: boolean;
+}
+
+/**
+ * updateCustomerProfile
+ *
+ * Sends editable profile fields to PUT /customer/profile. The backend
+ * recomputes profileCompletion and sets profileCompletionReachedAt in
+ * UserState when the score first crosses 90.
+ */
+export function updateCustomerProfile(
+  token: string,
+  userId: string,
+  fields: CustomerProfileUpdateFields
+): Promise<ApiResult<CustomerProfileUpdateResult>> {
+  return apiFetch<CustomerProfileUpdateResult>('/customer/profile', {
+    method: 'PUT',
+    headers: bearer(token),
+    body: JSON.stringify({ userId, ...fields }),
+  });
+}
+
+// ----------------------------------------------------------------------------
+// Bookings
+// ----------------------------------------------------------------------------
+
+export interface BookingResult {
+  status: 'CONFIRMED';
+  bookingId: string;
+  propertyId: string;
+  nights: number;
+  bookedAt: number;
+}
+
+/**
+ * createBooking
+ *
+ * Posts a booking confirmation to the backend. The backend writes
+ * recentBookingAt to UserState so BOOKING_CONFIRMATION_OFFER fires.
+ */
+export function createBooking(
+  token: string,
+  userId: string,
+  propertyId: string,
+  nights: number,
+  costSfc: number
+): Promise<ApiResult<BookingResult>> {
+  return apiFetch<BookingResult>('/customer/bookings', {
+    method: 'POST',
+    headers: bearer(token),
+    body: JSON.stringify({ userId, propertyId, nights, costSfc }),
+  });
+}
+
+// ----------------------------------------------------------------------------
 // Demo mutation
 // ----------------------------------------------------------------------------
 
