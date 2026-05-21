@@ -159,6 +159,84 @@
           "updatedAt": { "N": "1748390400" }
         }
       }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "ruleId": { "S": "RULE#TIER_GAP_NUDGE" },
+          "version": { "S": "latest" },
+          "status": { "S": "ACTIVE" },
+          "name": { "S": "Tier gap nudge surfaces prestige advance benefit card" },
+          "definition": {
+            "M": {
+              "conditions": {
+                "M": {
+                  "all": {
+                    "L": [
+                      { "M": { "fact": { "S": "signal" }, "operator": { "S": "equal" }, "value": { "S": "tier_gap" } } },
+                      { "M": { "fact": { "S": "pointsToNextTier" }, "operator": { "S": "lessThanInclusive" }, "value": { "N": "10000" } } }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "M": {
+                  "type": { "S": "TIER_GAP_NUDGE" },
+                  "params": {
+                    "M": {
+                      "action": { "S": "NUDGE" },
+                      "surface": { "S": "inline_card" },
+                      "score": { "N": "72" },
+                      "copy": { "S": "You are close to your next tier. Book now to accelerate with double points." }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "createdAt": { "N": "1748400000" },
+          "updatedAt": { "N": "1748400000" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "ruleId": { "S": "RULE#PROFILE_INCOMPLETE_TIER_GAP" },
+          "version": { "S": "latest" },
+          "status": { "S": "ACTIVE" },
+          "name": { "S": "Incomplete profile with tier gap surfaces catalyst elevate benefit card" },
+          "definition": {
+            "M": {
+              "conditions": {
+                "M": {
+                  "all": {
+                    "L": [
+                      { "M": { "fact": { "S": "signal" }, "operator": { "S": "equal" }, "value": { "S": "profile_incomplete_tier_gap" } } },
+                      { "M": { "fact": { "S": "profileCompletion" }, "operator": { "S": "lessThan" }, "value": { "N": "90" } } }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "M": {
+                  "type": { "S": "PROFILE_INCOMPLETE_TIER_GAP" },
+                  "params": {
+                    "M": {
+                      "action": { "S": "NUDGE" },
+                      "surface": { "S": "inline_card" },
+                      "score": { "N": "68" },
+                      "copy": { "S": "Complete your registry details to fast-track your progress toward the next tier." }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "createdAt": { "N": "1748400001" },
+          "updatedAt": { "N": "1748400001" }
+        }
+      }
     }
   ]
 }

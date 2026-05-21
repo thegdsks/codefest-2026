@@ -4,6 +4,8 @@ import { Award, Check, ChevronDown, Clock, Sparkles, Star } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import type { PropertyConfig } from '@/lib/hotel/property-data';
+import type { PrestigeAdvanceContext } from '@/lib/hotel/surface-types';
+import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
 
 interface PropertyBookingCardProps {
   propertyId: string;
@@ -21,6 +23,7 @@ function formatTime(seconds: number) {
 
 export default function PropertyBookingCard({ propertyId, config }: PropertyBookingCardProps) {
   const { user } = useCustomer();
+  const { surfaces } = useSurfaceEligibility();
   const [checkIn, setCheckIn] = useState('2026-10-14');
   const [checkOut, setCheckOut] = useState('2026-10-21');
   const [adults, setAdults] = useState(2);
@@ -28,6 +31,8 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
   const [bookingStatus, setBookingStatus] = useState<'idle' | 'checking' | 'confirmed'>('idle');
   const [timeLeft, setTimeLeft] = useState(3 * 3600);
   const [suiteType, setSuiteType] = useState(config.suites[0].name);
+
+  const prestigeSurface = surfaces['PROPERTY_PRESTIGE_ADVANCE'];
 
   useEffect(() => {
     setSuiteType(config.suites[0].name);
@@ -57,13 +62,14 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
     }, 1800);
   };
 
-  const nextTierName =
-    user.status === 'Gold' ? 'Platinum' : user.status === 'Platinum' ? 'Diamond' : 'Prestige Elite';
-  const pointsAway = user.nextTierPoints || 8000;
+  const prestigeCtx = prestigeSurface?.context as PrestigeAdvanceContext | undefined;
+  const pointsAway = prestigeCtx?.pointsToNextTier ?? user.nextTierPoints ?? 8000;
+  const nextTierName = prestigeCtx?.nextTier ?? (user.status === 'Gold' ? 'Platinum' : 'Diamond');
+  const prestigeHeadline = prestigeSurface?.copy?.headline ?? 'Prestige Advance Benefit';
 
   return (
     <aside className="lg:col-span-4 sticky top-28">
-      {propertyId === 'bastide-gordes' && (
+      {propertyId === 'bastide-gordes' && prestigeSurface?.eligible && (
         <div className="mb-6 p-5 bg-[#775a19]/5 border border-[#775a19]/30 rounded-none relative overflow-hidden text-left animate-fade-in shadow-sm">
           <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-[#775a19]/10 rounded-full blur-xl pointer-events-none" />
 
@@ -71,7 +77,7 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
             <div className="flex items-center gap-1.5 text-[#775a19]">
               <Award size={15} className="animate-bounce shrink-0" />
               <span className="text-[10px] font-bold tracking-widest uppercase font-sans">
-                Prestige Advance Benefit
+                {prestigeHeadline}
               </span>
             </div>
             <div className="flex items-center gap-1 bg-[#775a19] text-white px-2 py-0.5 rounded-[3px] text-[10px] font-bold font-mono">

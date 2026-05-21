@@ -15,6 +15,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { type MouseEvent, Suspense, useEffect, useMemo, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { DESTINATIONS } from '@/lib/hotel/data';
+import type { PrestigeAdvanceContext } from '@/lib/hotel/surface-types';
+import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 const NEIGHBORHOODS = [
@@ -36,6 +38,8 @@ function ResultsInner() {
   const searchParams = useSearchParams();
   const { user } = useCustomer();
   const { trackEvent } = useTrackedEngagement();
+  const { surfaces } = useSurfaceEligibility();
+  const resultsPrestigeSurface = surfaces['RESULTS_PRESTIGE_ADVANCE'];
   const searchQuery = searchParams.get('q') ?? 'Provence';
 
   // Rage click: user frantically clicking results without booking
@@ -83,9 +87,12 @@ function ResultsInner() {
       .padStart(2, '0')}`;
   };
 
+  const resultsPrestigeCtx = resultsPrestigeSurface?.context as PrestigeAdvanceContext | undefined;
+  const pointsAway = resultsPrestigeCtx?.pointsToNextTier ?? user.nextTierPoints ?? 8000;
   const nextTierName =
-    user.status === 'Gold' ? 'Platinum' : user.status === 'Platinum' ? 'Diamond' : 'Prestige Elite';
-  const pointsAway = user.nextTierPoints || 8000;
+    resultsPrestigeCtx?.nextTier ?? (user.status === 'Gold' ? 'Platinum' : 'Diamond');
+  const resultsPrestigeHeadline =
+    resultsPrestigeSurface?.copy?.headline ?? 'Prestige Advance Benefit';
 
   const toggleLike = (id: string, e: MouseEvent) => {
     e.stopPropagation();
@@ -318,7 +325,7 @@ function ResultsInner() {
                         {item.description}
                       </p>
 
-                      {item.id === 'bastide-gordes' && (
+                      {item.id === 'bastide-gordes' && resultsPrestigeSurface?.eligible && (
                         <div className="mb-6 p-4 bg-[#775a19]/5 border border-[#775a19]/30 rounded-none relative overflow-hidden text-left animate-fade-in shadow-sm">
                           <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-[#775a19]/10 rounded-full blur-xl pointer-events-none" />
 
@@ -326,7 +333,7 @@ function ResultsInner() {
                             <div className="flex items-center gap-1.5 text-[#775a19]">
                               <Award size={13} className="animate-bounce shrink-0" />
                               <span className="text-[9px] font-bold tracking-widest uppercase font-sans">
-                                Prestige Advance Benefit
+                                {resultsPrestigeHeadline}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 bg-[#775a19] text-white px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold font-mono">

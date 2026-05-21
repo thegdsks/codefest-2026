@@ -1,6 +1,17 @@
 'use client';
 
-import { Bug, LogOut, MapPin, Radio, RefreshCw, Smartphone, User, X } from 'lucide-react';
+import {
+  Bug,
+  ChevronDown,
+  ChevronUp,
+  LogOut,
+  MapPin,
+  Radio,
+  RefreshCw,
+  Smartphone,
+  User,
+  X,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
@@ -15,6 +26,7 @@ import {
   setDemoLoginContext,
   setForceHighRiskTransfer,
 } from '@/lib/hotel/demo-context';
+import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
 
 const LOCATIONS = ['New York', 'Lagos', 'Tokyo', 'Sydney', 'Berlin', 'Moscow'];
 const DEVICE_TYPES = ['desktop', 'mobile', 'tablet', 'unknown'];
@@ -41,11 +53,17 @@ interface SignalStatus {
 export default function DemoPanel() {
   const router = useRouter();
   const { isLoggedIn, user, session, logout, completeLogin, setPendingSessionId } = useCustomer();
+  const {
+    surfaces,
+    isLoading: surfacesLoading,
+    refetch: refetchSurfaces,
+  } = useSurfaceEligibility();
 
   const [open, setOpen] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);
   const [forcedHighRisk, setForcedHighRisk] = useState(false);
+  const [eligibilityOpen, setEligibilityOpen] = useState(false);
   const [signalStatus, setSignalStatus] = useState<SignalStatus>({
     loading: false,
     result: null,
@@ -436,6 +454,68 @@ export default function DemoPanel() {
                         copy: {signalStatus.result.copy}
                       </p>
                     )}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {isLoggedIn && (
+              <section className="border-t border-gray-100 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEligibilityOpen((v) => !v)}
+                  className="w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-[#775a19] mb-2 font-sans"
+                >
+                  <span>Surface Eligibility</span>
+                  {eligibilityOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                </button>
+
+                {eligibilityOpen && (
+                  <div className="space-y-2">
+                    {Object.keys(surfaces).length === 0 && !surfacesLoading && (
+                      <p className="text-[9px] text-gray-400 font-sans">
+                        No data yet. Log in to evaluate surfaces.
+                      </p>
+                    )}
+                    {surfacesLoading && (
+                      <p className="text-[9px] text-gray-400 font-sans">Loading...</p>
+                    )}
+                    {Object.values(surfaces).map((s) => (
+                      <div
+                        key={s.surfaceId}
+                        className="bg-white border border-gray-100 p-2.5 text-[10px] font-sans space-y-1"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-[9px] text-gray-600 break-all">
+                            {s.surfaceId}
+                          </span>
+                          <span
+                            className={`shrink-0 px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold uppercase tracking-wider ${
+                              s.eligible
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-gray-100 text-gray-500'
+                            }`}
+                          >
+                            {s.eligible ? 'SHOWN' : 'HIDDEN'}
+                          </span>
+                        </div>
+                        <p className="text-gray-500 text-[9px]">
+                          rule:{' '}
+                          <span className="font-mono text-gray-700">
+                            {s.ruleId ?? 'no rule matched'}
+                          </span>
+                        </p>
+                        <p className="text-gray-400 text-[9px] leading-snug">{s.reason}</p>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      disabled={surfacesLoading}
+                      onClick={refetchSurfaces}
+                      className="w-full text-[10px] font-bold uppercase tracking-widest border border-[#775a19] text-[#775a19] py-1.5 hover:bg-[#ffdea5]/30 transition-colors font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {surfacesLoading ? 'Evaluating...' : 'Re-evaluate'}
+                    </button>
                   </div>
                 )}
               </section>
