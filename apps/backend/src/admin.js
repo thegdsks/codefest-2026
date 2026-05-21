@@ -17,6 +17,7 @@ const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const {
   DynamoDBDocumentClient,
   DeleteCommand,
+  GetCommand,
   ScanCommand,
   QueryCommand,
   PutCommand,
@@ -909,6 +910,79 @@ async function getMfaStatus(event, correlationId) {
 }
 
 // ---------------------------------------------------------------------------
+// GET /admin/users/{userId}/risk
+// ---------------------------------------------------------------------------
+
+/**
+ * Return the user's current risk score (with decay applied to "now") and
+ * a snapshot of their most recent risk-relevant decisions. The decisions
+ * column lets the admin UI render a sparkline next to the score so an
+ * operator can tell at a glance whether risk is rising or fading.
+ */
+async function getUserRisk(event, correlationId) {
+  const authCheck = requireAdmin(event, correlationId);
+  if (!authCheck.ok) return authCheck.response;
+
+  const rawPath =
+    (event.requestContext && event.requestContext.http && event.requestContext.http.path) ||
+    event.path ||
+    '';
+  const rawId = extractIdFromPath(rawPath, '/admin/users', '/risk');
+  if (!rawId) {
+    return err(400, correlationId, 'VALIDATION_ERROR', 'userId missing from path');
+  }
+  const userId = decodeURIComponent(rawId);
+
+  // UserState carries the rolling riskScore and riskUpdatedAt. Re-apply the
+  // decay against "now" so the response reflects elapsed time since the
+  // last write, not the last write itself.
+  const stateRes = await ddb.send(new GetCommand({ TableName: TABLE_USER_STATE, Key: { userId } }));
+  const state = stateRes.Item;
+  const stored = state && typeof state.riskScore === 'number' ? state.riskScore : 0;
+  const storedTs = state && typeof state.riskUpdatedAt === 'number' ? state.riskUpdatedAt : null;
+  const now = nowSec();
+  const HALF_LIFE_SEC = 24 * 3600;
+  let decayed = stored;
+  if (storedTs && stored > 0 && storedTs < now) {
+    decayed = stored * 2 ** (-(now - storedTs) / HALF_LIFE_SEC);
+  }
+  decayed = Number(decayed.toFixed(2));
+
+  // Last 20 risk-relevant decisions for the sparkline.
+  const cutoff = now - 7 * 86400;
+  const decRes = await ddb.send(
+    new QueryCommand({
+      TableName: TABLE_DECISION,
+      IndexName: 'userId-timestamp-index',
+      KeyConditionExpression: '#u = :u AND #ts >= :cutoff',
+      ExpressionAttributeNames: { '#u': 'userId', '#ts': 'timestamp' },
+      ExpressionAttributeValues: { ':u': userId, ':cutoff': cutoff },
+      ScanIndexForward: false,
+      Limit: 20,
+    })
+  );
+  const recent = (decRes.Items || []).map((it) => ({
+    decisionId: it.decisionId,
+    decisionType: it.decisionType,
+    action: it.action,
+    score: it.score,
+    riskLevel: it.riskLevel,
+    timestamp: it.timestamp,
+  }));
+
+  return json(200, correlationId, {
+    data: {
+      userId,
+      riskScore: decayed,
+      storedRiskScore: stored,
+      riskUpdatedAt: storedTs,
+      asOf: now,
+      recentDecisions: recent,
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
@@ -922,6 +996,7 @@ module.exports = {
   getSessions,
   revokeSession,
   getMfaStatus,
+  getUserRisk,
   extractIdFromPath,
   _setDdb,
 };

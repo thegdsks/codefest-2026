@@ -162,6 +162,83 @@ async function recentActivity(userId, limit = 10) {
 
 async function putDecision(item) {
   await ddb.send(new PutCommand({ TableName: CFG.tDecision, Item: item }));
+  if (item && item.userId && item.action) {
+    await updateUserRisk(item.userId, item.action);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cross-signal user risk score
+// ---------------------------------------------------------------------------
+// Every decision row written through putDecision contributes a weighted
+// delta to UserState.riskScore. Older risk decays exponentially so a clean
+// stretch returns the user toward zero. The half-life is 24h: after a day
+// without new signals a score of 60 falls to 30.
+
+const RISK_HALF_LIFE_SEC = 24 * 3600;
+const RISK_DELTAS = {
+  BLOCK: 30,
+  REVIEW: 15,
+  MFA: 10,
+  ALLOW: -2,
+  // OFFER, NUDGE, and other engagement actions do not move the risk score.
+};
+
+function applyRiskDecay(prev, prevTs, now) {
+  if (typeof prev !== 'number' || prev <= 0) return 0;
+  if (typeof prevTs !== 'number' || prevTs >= now) return prev;
+  const elapsed = now - prevTs;
+  // True half-life: at elapsed = RISK_HALF_LIFE_SEC the score halves.
+  return prev * 2 ** (-elapsed / RISK_HALF_LIFE_SEC);
+}
+
+function nextRiskScore({ prev, prevTs, action, now }) {
+  const delta = RISK_DELTAS[action];
+  const decayed = applyRiskDecay(prev, prevTs, now);
+  if (delta === undefined || delta === 0) {
+    return { changed: false, score: decayed };
+  }
+  const raw = decayed + delta;
+  const clamped = Math.max(0, Math.min(100, raw));
+  return { changed: true, score: Number(clamped.toFixed(2)) };
+}
+
+async function updateUserRisk(userId, action, nowOverride) {
+  const now = typeof nowOverride === 'number' ? nowOverride : nowSec();
+  const st = await getState(userId);
+  const prev = st && typeof st.riskScore === 'number' ? st.riskScore : 0;
+  const prevTs = st && typeof st.riskUpdatedAt === 'number' ? st.riskUpdatedAt : now;
+  const { changed, score } = nextRiskScore({ prev, prevTs, action, now });
+  if (!changed) return { score: prev, written: false };
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserState,
+      Key: { userId },
+      UpdateExpression: 'SET riskScore = :s, riskUpdatedAt = :t',
+      ExpressionAttributeValues: { ':s': score, ':t': now },
+    })
+  );
+  return { score, written: true };
+}
+
+/**
+ * Return the user's current risk score with decay applied to "now". Does
+ * NOT write back -- this is a read used by admin endpoints to render the
+ * current view without disturbing the stored value.
+ */
+async function readUserRisk(userId) {
+  const now = nowSec();
+  const st = await getState(userId);
+  if (!st) return { riskScore: 0, riskUpdatedAt: null, decayed: 0 };
+  const stored = typeof st.riskScore === 'number' ? st.riskScore : 0;
+  const storedTs = typeof st.riskUpdatedAt === 'number' ? st.riskUpdatedAt : null;
+  const decayed = storedTs ? applyRiskDecay(stored, storedTs, now) : stored;
+  return {
+    riskScore: stored,
+    riskUpdatedAt: storedTs,
+    decayed: Number(decayed.toFixed(2)),
+  };
 }
 
 /**
@@ -364,4 +441,8 @@ module.exports = {
   startMfaEnroll,
   confirmMfaEnroll,
   clearMfaSecret,
+  updateUserRisk,
+  readUserRisk,
+  // Pure helpers exposed for unit tests.
+  _riskInternals: { nextRiskScore, applyRiskDecay, RISK_DELTAS, RISK_HALF_LIFE_SEC },
 };
