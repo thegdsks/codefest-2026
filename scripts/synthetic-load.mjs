@@ -88,13 +88,54 @@ function pickTransferAmount() {
   return randInt(10000, 50000);
 }
 
-/** Pick a weighted action type: 50% login, 40% transfer, 10% offer */
+/** Pick a weighted action type. Weights shift when INCLUDE_ENGAGEMENT=1. */
 function pickActionType() {
   const roll = Math.random();
+  if (INCLUDE_ENGAGEMENT) {
+    // 40% login, 25% transfer, 5% offer, 30% engagement
+    if (roll < 0.4) return 'login';
+    if (roll < 0.65) return 'transfer';
+    if (roll < 0.7) return 'offer';
+    return 'engagement';
+  }
   if (roll < 0.5) return 'login';
   if (roll < 0.9) return 'transfer';
   return 'offer';
 }
+
+const INCLUDE_ENGAGEMENT = process.env.INCLUDE_ENGAGEMENT === '1';
+
+const ENGAGEMENT_SIGNALS = [
+  {
+    signal: 'rage_click',
+    params: () => ({
+      clickCount: randInt(3, 9),
+      targetSelector: rand(['#redeem', '#book', '#points-balance']),
+    }),
+  },
+  {
+    signal: 'dwell_no_action',
+    params: () => ({
+      dwellMs: randInt(4000, 20000),
+      target: rand(['points_balance', 'offers-panel', 'tier-progress']),
+    }),
+  },
+  {
+    signal: 'abandoned_flow_step',
+    params: () => ({ flow: rand(['transfer', 'redeem', 'enroll']), step: randInt(1, 4) }),
+  },
+  {
+    signal: 'repeated_query',
+    params: () => ({
+      query: rand(['redeem points', 'flight upgrade', 'tier status']),
+      count: randInt(2, 6),
+    }),
+  },
+  {
+    signal: 'points_balance_stare',
+    params: () => ({ dwellMs: randInt(2000, 12000) }),
+  },
+];
 
 async function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -443,6 +484,73 @@ async function runOfferAction(user, stats) {
   stats.decisionsExpected++;
 }
 
+async function doEngagementEvent(user, token, sessionId, stats) {
+  const spec = rand(ENGAGEMENT_SIGNALS);
+  const body = {
+    signal: spec.signal,
+    userId: user.userId,
+    sessionId: sessionId || `SESSION#${user.userId}`,
+    params: spec.params(),
+  };
+  const result = await apiFetch('/engagement/event', {
+    method: 'POST',
+    body,
+    bearerToken: token,
+  });
+  stats.engagementEvents++;
+  if (result.status >= 500) {
+    console.error(`[engagement] 5xx: ${result.status}`);
+    stats.errors++;
+    return;
+  }
+  if (result.status >= 400) {
+    console.log(`[engagement] 4xx: ${result.status} ${result.body?.error?.code || ''}`);
+    return;
+  }
+  const d = result.body?.data;
+  if (d?.surface) {
+    console.log(
+      `[engagement] ${user.userId} ${spec.signal} -> ${d.action} on ${d.surface} (score ${d.score})`
+    );
+  }
+}
+
+async function runEngagementAction(user, stats) {
+  const tokenResult = await acquireTokenWithSession(user, stats);
+  if (!tokenResult) return;
+  await sleep(PACE_MS);
+  // Fire 1-2 engagement events per session (more realistic dwell pattern)
+  const events = Math.random() < 0.4 ? 2 : 1;
+  for (let i = 0; i < events; i++) {
+    await doEngagementEvent(user, tokenResult.token, tokenResult.sessionId, stats);
+    if (i + 1 < events) await sleep(PACE_MS);
+  }
+  stats.decisionsExpected += events;
+}
+
+const TOKEN_CACHE = new Map();
+
+async function acquireTokenWithSession(user, stats) {
+  const cached = TOKEN_CACHE.get(user.userId);
+  if (cached) return cached;
+  const loginResult = await doLogin(user, stats);
+  if (loginResult?.token) {
+    const entry = { token: loginResult.token, sessionId: loginResult.sessionId };
+    TOKEN_CACHE.set(user.userId, entry);
+    return entry;
+  }
+  if (loginResult?.mfaRequired && loginResult.sessionId) {
+    await sleep(PACE_MS);
+    const token = await doMfaVerify(loginResult, stats);
+    if (token) {
+      const entry = { token, sessionId: loginResult.sessionId };
+      TOKEN_CACHE.set(user.userId, entry);
+      return entry;
+    }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Main orchestrator
 // ---------------------------------------------------------------------------
@@ -455,6 +563,7 @@ async function main() {
     mfaVerifies: 0,
     transfers: 0,
     offerActions: 0,
+    engagementEvents: 0,
     errors: 0,
     durationSec: 0,
     decisionsExpected: 0,
@@ -494,6 +603,8 @@ async function main() {
       await runLoginAction(user, users, stats);
     } else if (actionType === 'transfer') {
       await runTransferAction(user, users, stats);
+    } else if (actionType === 'engagement') {
+      await runEngagementAction(user, stats);
     } else {
       await runOfferAction(user, stats);
     }
