@@ -2,8 +2,15 @@
 
 import { X } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
+import { Check, X as XIcon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { type AuditTrailStep, type DecisionRow, getDecision } from '@/lib/admin-api';
+import {
+  type AuditTrailStep,
+  type DecisionRow,
+  type DecisionTrace,
+  getDecision,
+  type TraceCondition,
+} from '@/lib/admin-api';
 import { DECISION_TYPE_LABEL } from './LiveActivityFeed';
 import Skeleton from './Skeleton';
 
@@ -73,6 +80,108 @@ function AuditTrailItem({ step }: { step: AuditTrailStep }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Trace components
+// ---------------------------------------------------------------------------
+
+function EngineLayerChip({ layer }: { layer: 'L1' | 'L1+L2' }) {
+  const isL2 = layer === 'L1+L2';
+  return (
+    <span
+      className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+        isL2 ? 'bg-amber-500/15 text-amber-400' : 'bg-indigo-500/15 text-indigo-400'
+      }`}
+    >
+      {layer}
+    </span>
+  );
+}
+
+function MatchedConditionRow({ condition }: { condition: TraceCondition }) {
+  const valueIsComplex = typeof condition.value === 'object' && condition.value !== null;
+  const displayValue = valueIsComplex
+    ? JSON.stringify(condition.value, null, 2)
+    : String(condition.value);
+
+  return (
+    <li className="flex items-start gap-2 py-1">
+      <span className="mt-0.5 shrink-0">
+        {condition.satisfied ? (
+          <Check size={12} className="text-emerald-500" />
+        ) : (
+          <XIcon size={12} className="text-rose-500" />
+        )}
+      </span>
+      <span className="min-w-0 text-[11px]">
+        <span className="text-[color:var(--text)]">{condition.field}</span>
+        <span className="mx-1 text-[color:var(--text-dim)]">{condition.operator}</span>
+        {valueIsComplex ? (
+          <pre className="mt-1 overflow-x-auto rounded border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-1.5 text-[10px] leading-relaxed text-[color:var(--text-muted)]">
+            {displayValue}
+          </pre>
+        ) : (
+          <span className="font-mono text-[color:var(--text-muted)]">{displayValue}</span>
+        )}
+      </span>
+    </li>
+  );
+}
+
+function TraceSection({ trace }: { trace: DecisionTrace | null }) {
+  if (trace === null) {
+    return (
+      <section>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-dim)]">
+          Why this fired
+        </h3>
+        <p className="text-xs text-[color:var(--text-dim)]">No trace recorded for this decision.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-dim)]">
+        Why this fired
+      </h3>
+
+      <div className="mb-3 flex items-center gap-3">
+        <span className="text-sm font-medium text-[color:var(--text)]">
+          {trace.ruleName ?? 'No rule attribution'}
+        </span>
+        <EngineLayerChip layer={trace.engineLayer} />
+        {typeof trace.latencyMs === 'number' && (
+          <span className="font-mono text-[11px] text-[color:var(--text-dim)]">
+            {trace.latencyMs} ms
+          </span>
+        )}
+      </div>
+
+      {trace.matched.length > 0 && (
+        <ul className="mb-3 space-y-0.5">
+          {trace.matched.map((condition) => (
+            <MatchedConditionRow
+              key={`${condition.field}-${condition.operator}-${String(condition.value)}`}
+              condition={condition}
+            />
+          ))}
+        </ul>
+      )}
+
+      {trace.llmRationale && (
+        <details className="rounded-md border border-[color:var(--border)] bg-[color:var(--bg-surface)]">
+          <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-[color:var(--text-muted)]">
+            LLM rationale
+          </summary>
+          <p className="whitespace-pre-wrap px-3 pb-3 pt-1 font-sans text-xs leading-relaxed text-[color:var(--text-muted)]">
+            {trace.llmRationale}
+          </p>
+        </details>
+      )}
+    </section>
+  );
+}
+
 export default function DecisionDrawer({ decisionId, onClose }: DecisionDrawerProps) {
   const isOpen = decisionId !== null;
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -105,6 +214,7 @@ export default function DecisionDrawer({ decisionId, onClose }: DecisionDrawerPr
 
   const decision = data?.decision ?? null;
   const auditTrail = data?.auditTrail ?? [];
+  const trace = data !== null && data !== undefined && 'trace' in data ? data.trace : undefined;
 
   return (
     <>
@@ -146,6 +256,8 @@ export default function DecisionDrawer({ decisionId, onClose }: DecisionDrawerPr
           {!isLoading && decision && (
             <>
               <DecisionSummary decision={decision} />
+
+              {trace !== undefined && <TraceSection trace={trace} />}
 
               {(decision.reasonText || decision.explanation || decision.reason) && (
                 <section>

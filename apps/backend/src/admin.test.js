@@ -903,6 +903,151 @@ describe('getMfaStatus', () => {
 });
 
 // ---------------------------------------------------------------------------
+// getDecisionById - trace sub-object
+// ---------------------------------------------------------------------------
+
+describe('getDecisionById trace sub-object', () => {
+  test('decision with full trace fields returns populated trace', async () => {
+    const dec = makeDecision({
+      decisionId: 'DEC#TRACE-001',
+      engineLayer: 'L1+L2',
+      reasonCode: 'IMPOSSIBLE_TRAVEL',
+      ruleId: 'IMPOSSIBLE_TRAVEL',
+      ruleName: 'Impossible Travel',
+      latencyMs: 42,
+      llmRationale: 'Location changed too fast to be physically possible.',
+      matched: [
+        { field: 'delta', operator: 'lessThanInclusive', value: 600, satisfied: true },
+        { field: 'sameLocation', operator: 'equal', value: false, satisfied: true },
+      ],
+    });
+    loadAdmin(fakeDdb({ scanItems: [dec] }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      rawPath: `/admin/decisions/${encodeURIComponent(dec.decisionId)}`,
+      pathParameters: null,
+      queryStringParameters: {},
+    };
+    const resp = await admin.getDecisionById(event, 'cid-trace-001');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    const trace = body.data.trace;
+    assert.ok(trace !== null, 'trace should not be null when engineLayer is present');
+    assert.equal(trace.ruleId, 'IMPOSSIBLE_TRAVEL');
+    assert.equal(trace.ruleName, 'Impossible Travel');
+    assert.equal(trace.engineLayer, 'L1+L2');
+    assert.equal(trace.latencyMs, 42);
+    assert.equal(trace.llmRationale, 'Location changed too fast to be physically possible.');
+    assert.ok(Array.isArray(trace.matched));
+    assert.equal(trace.matched.length, 2);
+  });
+
+  test('decision without engineLayer returns trace: null', async () => {
+    // Old seed-style row - no engineLayer field
+    const dec = {
+      decisionId: 'DEC#NOTRACE-001',
+      userId: 'user-001',
+      decisionType: 'FRAUD_TRANSFER',
+      score: 10,
+      riskLevel: 'LOW',
+      action: 'ALLOW',
+      channel: 'EARN_REDEEM',
+      correlationId: 'CORR#001',
+      isFinalDecision: true,
+      timestamp: nowSec(),
+      modelVersion: 'v1',
+    };
+    loadAdmin(fakeDdb({ scanItems: [dec] }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      rawPath: `/admin/decisions/${encodeURIComponent(dec.decisionId)}`,
+      pathParameters: null,
+      queryStringParameters: {},
+    };
+    const resp = await admin.getDecisionById(event, 'cid-trace-002');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.trace, null, 'trace should be null for decisions without engineLayer');
+  });
+
+  test('matched[].satisfied values are booleans', async () => {
+    const dec = makeDecision({
+      decisionId: 'DEC#TRACE-003',
+      engineLayer: 'L1+L2',
+      matched: [
+        { field: 'delta', operator: 'lessThanInclusive', value: 600, satisfied: true },
+        { field: 'sameLocation', operator: 'equal', value: false, satisfied: false },
+      ],
+    });
+    loadAdmin(fakeDdb({ scanItems: [dec] }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      rawPath: `/admin/decisions/${encodeURIComponent(dec.decisionId)}`,
+      pathParameters: null,
+      queryStringParameters: {},
+    };
+    const resp = await admin.getDecisionById(event, 'cid-trace-003');
+    const body = JSON.parse(resp.body);
+    const matched = body.data.trace.matched;
+    assert.ok(Array.isArray(matched));
+    for (const condition of matched) {
+      assert.equal(
+        typeof condition.satisfied,
+        'boolean',
+        `satisfied should be boolean, got ${typeof condition.satisfied}`
+      );
+    }
+  });
+
+  test('L1-only decision with reasonCode synthesises a matched entry', async () => {
+    const dec = makeDecision({
+      decisionId: 'DEC#TRACE-004',
+      engineLayer: 'L1',
+      reasonCode: 'NORMAL_LOGIN',
+      latencyMs: 1,
+    });
+    loadAdmin(fakeDdb({ scanItems: [dec] }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      rawPath: `/admin/decisions/${encodeURIComponent(dec.decisionId)}`,
+      pathParameters: null,
+      queryStringParameters: {},
+    };
+    const resp = await admin.getDecisionById(event, 'cid-trace-004');
+    const body = JSON.parse(resp.body);
+    const trace = body.data.trace;
+    assert.ok(trace !== null);
+    assert.equal(trace.engineLayer, 'L1');
+    assert.ok(Array.isArray(trace.matched));
+    assert.equal(trace.matched.length, 1);
+    assert.equal(trace.matched[0].value, 'NORMAL_LOGIN');
+    assert.equal(trace.matched[0].satisfied, true);
+    assert.equal(trace.llmRationale, null);
+  });
+
+  test('trace is returned alongside decision and auditTrail', async () => {
+    const dec = makeDecision({ decisionId: 'DEC#TRACE-005', engineLayer: 'L1' });
+    loadAdmin(fakeDdb({ scanItems: [dec] }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      rawPath: `/admin/decisions/${encodeURIComponent(dec.decisionId)}`,
+      pathParameters: null,
+      queryStringParameters: {},
+    };
+    const resp = await admin.getDecisionById(event, 'cid-trace-005');
+    const body = JSON.parse(resp.body);
+    assert.ok(body.data.decision, 'decision field must be present');
+    assert.ok(Array.isArray(body.data.auditTrail), 'auditTrail must be present');
+    assert.ok(Object.hasOwn(body.data, 'trace'), 'trace key must be present');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // getUserRisk
 // ---------------------------------------------------------------------------
 
