@@ -9,7 +9,7 @@
     "remove": "serverless remove",
     "offline": "serverless offline",
     "lint": "node -c src/handler.js",
-    "test": "node --test src/engine/*.test.js src/rules/*.test.js src/lib/*.test.js src/admin.test.js src/handler.test.js"
+    "test": "node --test src/engine/*.test.js src/rules/*.test.js src/lib/*.test.js src/routes/*.test.js src/admin.test.js src/handler.test.js"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^0.2.0",
