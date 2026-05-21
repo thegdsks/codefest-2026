@@ -259,6 +259,43 @@ export function fetchSurfaceEligibility(
   );
 }
 
+// ----------------------------------------------------------------------------
+// Demo mutation
+// ----------------------------------------------------------------------------
+
+export interface UserMutation {
+  profileCompletion?: number;
+  tier?: 'Silver' | 'Gold' | 'Platinum';
+  mfaEnrolled?: boolean;
+  loyaltyScore?: number;
+  flow?: { transfer?: { resume?: boolean; abandon?: boolean } };
+  booking?: { trigger?: boolean };
+}
+
+export interface MutateUserResult {
+  userId: string;
+  touched: Record<string, { from: unknown; to: unknown }>;
+  activityId: string;
+  mutatedAt: number;
+}
+
+/**
+ * mutateDemoUser
+ *
+ * Calls POST /admin/demo-actions/mutate-user via Basic Auth (apiFetch adds it
+ * automatically). Returns the touched-fields snapshot so DemoPanel can echo
+ * "tier: Gold -> Platinum" next to each button.
+ */
+export function mutateDemoUser(
+  userId: string,
+  mutation: UserMutation
+): Promise<ApiResult<MutateUserResult>> {
+  return apiFetch<MutateUserResult>('/admin/demo-actions/mutate-user', {
+    method: 'POST',
+    body: JSON.stringify({ userId, mutation }),
+  });
+}
+
 /**
  * fireEngagementSignal
  *
