@@ -71,22 +71,20 @@ export default function TypeDonutChart({ window: windowKey, height = 240 }: Prop
     <div
       role="img"
       aria-label="Donut chart showing distribution of decisions by type"
-      className="relative h-72 px-4"
+      className="relative h-80 px-4"
     >
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-start pl-[19%]">
-        <div className="flex flex-col items-center">
-          <span className="text-xl font-semibold text-zinc-100 tabular-nums">
-            {total.toLocaleString()}
-          </span>
-          <span className="text-xs text-zinc-500">decisions</span>
-        </div>
+      <div className="pointer-events-none absolute left-1/2 top-[38%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+        <span className="text-2xl font-semibold text-zinc-100 tabular-nums leading-none">
+          {total.toLocaleString()}
+        </span>
+        <span className="mt-1 text-xs text-zinc-500">decisions</span>
       </div>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <Pie
             data={slices}
-            cx="35%"
-            cy="50%"
+            cx="50%"
+            cy="38%"
             innerRadius={55}
             outerRadius={85}
             paddingAngle={2}
@@ -108,14 +106,14 @@ export default function TypeDonutChart({ window: windowKey, height = 240 }: Prop
             formatter={(value, name) => [(value ?? 0).toLocaleString(), name as string]}
           />
           <Legend
-            layout="vertical"
-            align="right"
-            verticalAlign="middle"
+            layout="horizontal"
+            align="center"
+            verticalAlign="bottom"
             iconType="circle"
-            iconSize={10}
-            wrapperStyle={{ paddingLeft: 16 }}
+            iconSize={8}
+            wrapperStyle={{ paddingTop: 12, fontSize: 11, lineHeight: '18px' }}
             formatter={(value: string) => (
-              <span style={{ color: '#a1a1aa', fontSize: 11 }}>{value}</span>
+              <span style={{ color: '#a1a1aa', fontSize: 11, paddingRight: 8 }}>{value}</span>
             )}
           />
         </PieChart>
