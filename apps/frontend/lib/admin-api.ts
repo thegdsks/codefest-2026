@@ -198,6 +198,8 @@ export interface DecisionsQuery {
   type?: string;
   userId?: string;
   limit?: number;
+  /** ISO timestamp cursor — only return decisions after this point */
+  since?: string;
 }
 
 function decisionsQueryString(q: DecisionsQuery): string {
@@ -206,6 +208,7 @@ function decisionsQueryString(q: DecisionsQuery): string {
   if (q.type) params.set('type', q.type);
   if (q.userId) params.set('userId', q.userId);
   if (q.limit) params.set('limit', String(q.limit));
+  if (q.since) params.set('since', q.since);
   const str = params.toString();
   return str ? `?${str}` : '';
 }
