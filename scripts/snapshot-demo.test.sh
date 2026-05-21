@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # scripts/snapshot-demo.test.sh
-# Verifies that snapshot-demo.sh handles network failures gracefully.
+# Verifies that snapshot-demo.sh handles network failures gracefully and
+# produces all expected snapshot files under docs-local/snapshots/.
+#
 # No external dependencies beyond bash, jq (same requirements as the main script).
 #
 # Exit 0 if the script handled errors gracefully.
@@ -41,6 +43,17 @@ fi
 exit 1
 MOCK
 chmod +x "$MOCK_AWS"
+
+# Mock oathtool so the TOTP generation step does not require the real binary.
+# The mock returns a fixed 6-digit code that the unreachable server will
+# reject (which is expected - the test only validates file production, not
+# live API responses).
+MOCK_OATHTOOL="$(dirname "$MOCK_AWS")/oathtool"
+cat > "$MOCK_OATHTOOL" <<'MOCK'
+#!/usr/bin/env bash
+echo "123456"
+MOCK
+chmod +x "$MOCK_OATHTOOL"
 
 # ---------------------------------------------------------------------------
 # Prepare output directory
@@ -107,7 +120,7 @@ if [[ "$error_count" -le 0 ]]; then
 fi
 pass "summary.errors=$error_count (all endpoint failures recorded)"
 
-# 7. Summary should report the correct endpoint count (15 canonical endpoints)
+# 7. Summary should report the correct endpoint count (at least 1 canonical endpoint)
 ep_count=$(jq '.summary.endpoints' "$OUTPUT_FILE")
 if [[ "$ep_count" -lt 1 ]]; then
   fail "summary.endpoints is $ep_count, expected >= 1"
@@ -119,6 +132,43 @@ if ! grep -q "demo-evidence-" /tmp/snapshot-test-output.txt; then
   fail "final output path not printed to stdout"
 fi
 pass "output path printed to stdout"
+
+# 9. snapshots/ directory must exist under OUT_DIR
+SNAP_DIR="${TMP_OUT}/snapshots"
+if [[ ! -d "$SNAP_DIR" ]]; then
+  fail "snapshots/ directory not found under $TMP_OUT"
+fi
+pass "snapshots/ directory created"
+
+# 10. All expected per-endpoint snapshot files must be present
+EXPECTED_SNAPS=(
+  "auth-login-success.json"
+  "auth-session.json"
+  "auth-mfa-verify-totp.json"
+  "admin-sessions-list.json"
+  "admin-mfa-status.json"
+  "auth-logout-204.json"
+)
+
+for snap in "${EXPECTED_SNAPS[@]}"; do
+  snap_path="${SNAP_DIR}/${snap}"
+  if [[ ! -f "$snap_path" ]]; then
+    fail "missing snapshot file: snapshots/${snap}"
+  fi
+  if ! jq . "$snap_path" &>/dev/null; then
+    fail "snapshot file is not valid JSON: snapshots/${snap}"
+  fi
+  pass "snapshot present and valid JSON: ${snap}"
+done
+
+# 11. Each snapshot must carry a capturedAt timestamp field
+for snap in "${EXPECTED_SNAPS[@]}"; do
+  snap_path="${SNAP_DIR}/${snap}"
+  if ! jq -e 'has("capturedAt")' "$snap_path" &>/dev/null; then
+    fail "snapshot missing capturedAt field: snapshots/${snap}"
+  fi
+done
+pass "all snapshots carry capturedAt field"
 
 # ---------------------------------------------------------------------------
 # Cleanup
