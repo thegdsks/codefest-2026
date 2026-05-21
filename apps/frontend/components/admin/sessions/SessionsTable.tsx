@@ -87,7 +87,7 @@ function MfaCell({ row }: { row: SessionRow }) {
     );
   }
   if (row.revokedAt || (row.expiresAt && row.expiresAt * 1000 < Date.now())) {
-    return <span className="text-xs text-zinc-500">-</span>;
+    return <span className="text-xs text-[color:var(--text-dim)]">-</span>;
   }
   return (
     <span className="inline-flex items-center gap-1 text-xs text-amber-400">
@@ -200,7 +200,7 @@ export function SessionsTable({
                 <tr
                   key={row.sessionId}
                   onClick={() => onRowClick(row)}
-                  className="cursor-pointer transition-colors hover:bg-zinc-900/60"
+                  className="cursor-pointer transition-colors hover:bg-[color:var(--hover)]"
                 >
                   <td className="px-4 py-3">
                     <StatusPill status={status} />
@@ -213,7 +213,7 @@ export function SessionsTable({
                         e.stopPropagation();
                         copyText(row.sessionId);
                       }}
-                      className="group inline-flex items-center gap-1 font-mono text-[11px] text-zinc-300 hover:text-zinc-100"
+                      className="group inline-flex items-center gap-1 font-mono text-[11px] text-[color:var(--text)] hover:text-[color:var(--text)]"
                     >
                       <span className="max-w-[120px] truncate">{row.sessionId}</span>
                       <Copy
@@ -235,8 +235,10 @@ export function SessionsTable({
                       {row.userId}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-xs text-zinc-400">{row.type ?? '-'}</td>
-                  <td className="px-4 py-3 tabular-nums text-xs text-zinc-400">
+                  <td className="px-4 py-3 text-xs text-[color:var(--text-muted)]">
+                    {row.type ?? '-'}
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-xs text-[color:var(--text-muted)]">
                     {createdTs ? (
                       <span title={new Date(createdTs * 1000).toLocaleString()}>
                         {relativeTime(createdTs)}
@@ -249,8 +251,8 @@ export function SessionsTable({
                     <span
                       className={
                         status === 'expired' || status === 'revoked'
-                          ? 'text-zinc-500'
-                          : 'text-zinc-300'
+                          ? 'text-[color:var(--text-dim)]'
+                          : 'text-[color:var(--text)]'
                       }
                     >
                       <span className="inline-flex items-center gap-1">
@@ -263,12 +265,12 @@ export function SessionsTable({
                     <MfaCell row={row} />
                   </td>
                   <td
-                    className="max-w-[100px] truncate px-4 py-3 text-xs text-zinc-500"
+                    className="max-w-[100px] truncate px-4 py-3 text-xs text-[color:var(--text-dim)]"
                     title={row.location ?? row.source ?? undefined}
                   >
                     {row.location ?? row.source ?? '-'}
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-xs text-zinc-500">
+                  <td className="px-4 py-3 tabular-nums text-xs text-[color:var(--text-dim)]">
                     {row.lastActivityAt ? (
                       <span title={new Date(row.lastActivityAt * 1000).toLocaleString()}>
                         {relativeTime(row.lastActivityAt)}
@@ -283,7 +285,7 @@ export function SessionsTable({
                     onKeyDown={(e) => e.stopPropagation()}
                   >
                     {isRevoked ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-zinc-600">
+                      <span className="inline-flex items-center gap-1 text-xs text-[color:var(--text-dim)]">
                         <XCircle size={11} />
                         Revoked
                       </span>
@@ -323,12 +325,12 @@ function TableHeader() {
     'Actions',
   ];
   return (
-    <tr className="border-b border-[var(--border)] bg-zinc-900/40">
+    <tr className="border-b border-[var(--border)] bg-[color:var(--bg-elevated)]/40">
       {cols.map((col) => (
         <th
           key={col}
           scope="col"
-          className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-500"
+          className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-dim)]"
         >
           {col}
         </th>

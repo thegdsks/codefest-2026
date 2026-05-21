@@ -76,7 +76,7 @@ function StatusPill({ status }: { status: ReturnType<typeof sessionStatus> }) {
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+    <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-dim)]">
       {children}
     </h3>
   );
@@ -85,8 +85,8 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex gap-3">
-      <dt className="w-32 shrink-0 text-xs text-zinc-500">{label}</dt>
-      <dd className="text-xs text-zinc-200">{children}</dd>
+      <dt className="w-32 shrink-0 text-xs text-[color:var(--text-dim)]">{label}</dt>
+      <dd className="text-xs text-[color:var(--text)]">{children}</dd>
     </div>
   );
 }
@@ -121,12 +121,17 @@ function RecentDecisionRow({ d }: { d: RiskRecentDecision }) {
 
   return (
     <li className="flex items-start gap-2 py-2 text-xs">
-      <span className="w-20 shrink-0 tabular-nums text-zinc-600" title={absoluteTs(d.timestamp)}>
+      <span
+        className="w-20 shrink-0 tabular-nums text-[color:var(--text-dim)]"
+        title={absoluteTs(d.timestamp)}
+      >
         {relativeTime(d.timestamp)}
       </span>
-      <span className="w-28 shrink-0 truncate text-zinc-400">{d.decisionType}</span>
+      <span className="w-28 shrink-0 truncate text-[color:var(--text-muted)]">
+        {d.decisionType}
+      </span>
       <span className={`w-16 shrink-0 font-medium ${actionColor}`}>{d.action}</span>
-      <span className="text-zinc-500">{d.riskLevel ?? ''}</span>
+      <span className="text-[color:var(--text-dim)]">{d.riskLevel ?? ''}</span>
     </li>
   );
 }
@@ -192,7 +197,7 @@ function LifecycleSection({
         )}
         {!isRevoked && status !== 'expired' && (
           <FieldRow label="TTL remaining">
-            <span className="inline-flex items-center gap-1 text-zinc-300">
+            <span className="inline-flex items-center gap-1 text-[color:var(--text)]">
               <Clock size={11} />
               {ttlLabel(session.expiresAt)}
             </span>
@@ -254,10 +259,12 @@ function RiskSection({
       ) : riskData ? (
         <dl className="space-y-2">
           <FieldRow label="Risk score">
-            <span className="tabular-nums text-zinc-200">{Math.round(riskData.riskScore)}</span>
+            <span className="tabular-nums text-[color:var(--text)]">
+              {Math.round(riskData.riskScore)}
+            </span>
           </FieldRow>
           <FieldRow label="Stored score">
-            <span className="tabular-nums text-zinc-400">
+            <span className="tabular-nums text-[color:var(--text-muted)]">
               {riskData.storedRiskScore !== undefined ? Math.round(riskData.storedRiskScore) : '-'}
             </span>
           </FieldRow>
@@ -283,7 +290,7 @@ function RiskSection({
           )}
         </dl>
       ) : (
-        <p className="text-xs text-zinc-600">Risk data unavailable.</p>
+        <p className="text-xs text-[color:var(--text-dim)]">Risk data unavailable.</p>
       )}
     </section>
   );
@@ -312,7 +319,7 @@ function DecisionsSection({
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-zinc-600">No recent decisions found.</p>
+        <p className="text-xs text-[color:var(--text-dim)]">No recent decisions found.</p>
       )}
     </section>
   );
@@ -381,17 +388,17 @@ export function SessionDetailDrawer({
         role="dialog"
         aria-modal="true"
         aria-label="Session detail"
-        className={`fixed inset-y-0 right-0 z-50 flex w-[520px] flex-col overflow-hidden border-l border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/60 transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 right-0 z-50 flex w-[520px] flex-col overflow-hidden border-l border-[color:var(--border)] bg-[color:var(--bg)] shadow-2xl shadow-black/60 transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {session && (
           <>
-            <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-5 py-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-[color:var(--border)] px-5 py-4">
               <div className="flex items-center gap-3">
                 <Shield size={16} className="text-indigo-400" />
                 <span
-                  className="max-w-[220px] truncate font-mono text-xs text-zinc-300"
+                  className="max-w-[220px] truncate font-mono text-xs text-[color:var(--text)]"
                   title={session.sessionId}
                 >
                   {session.sessionId}
@@ -403,7 +410,7 @@ export function SessionDetailDrawer({
                 type="button"
                 onClick={onClose}
                 aria-label="Close session detail"
-                className="rounded-md p-1 text-zinc-500 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                className="rounded-md p-1 text-[color:var(--text-dim)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg)]"
               >
                 <X size={16} />
               </button>
@@ -413,7 +420,7 @@ export function SessionDetailDrawer({
               <div className="space-y-6 p-5">
                 <section>
                   {isRevoked ? (
-                    <div className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-500">
+                    <div className="inline-flex items-center gap-2 rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg)] px-3 py-2 text-xs text-[color:var(--text-dim)]">
                       <XCircle size={12} />
                       Revoked{session.revokedAt ? ` ${absoluteTs(session.revokedAt)}` : ''}
                     </div>
@@ -438,7 +445,7 @@ export function SessionDetailDrawer({
               </div>
             </div>
 
-            <div className="shrink-0 border-t border-zinc-800 px-5 py-4">
+            <div className="shrink-0 border-t border-[color:var(--border)] px-5 py-4">
               <Link
                 href={`/admin/users/${encodeURIComponent(session.userId)}`}
                 className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 hover:underline"
