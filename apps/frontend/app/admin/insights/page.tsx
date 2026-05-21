@@ -20,10 +20,12 @@ const WINDOWS: Window[] = ['1h', '24h', '7d'];
 
 function StatCard({ label, value, sub }: { label: string; value: React.ReactNode; sub?: string }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-      <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</div>
-      <div className="mt-2 text-3xl font-semibold tabular-nums text-zinc-100">{value}</div>
-      {sub && <div className="mt-1 text-xs text-zinc-500">{sub}</div>}
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+      <div className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        {label}
+      </div>
+      <div className="mt-2 text-3xl font-semibold tabular-nums text-[var(--text)]">{value}</div>
+      {sub && <div className="mt-1 text-sm text-[var(--text-dim)]">{sub}</div>}
     </div>
   );
 }
@@ -50,14 +52,16 @@ function RuleFires({ byType }: RuleFiresProps) {
     <ul className="space-y-2">
       {entries.map(([type, count]) => (
         <li key={type} className="flex items-center gap-3">
-          <span className="w-44 shrink-0 truncate font-mono text-[11px] text-zinc-300">{type}</span>
-          <div className="flex-1 rounded-full bg-zinc-800">
+          <span className="w-44 shrink-0 truncate font-mono text-xs text-[var(--text-muted)]">
+            {type}
+          </span>
+          <div className="flex-1 rounded-full bg-[var(--bg-elevated)]">
             <div
-              className="h-1.5 rounded-full bg-indigo-500 transition-all"
+              className="h-1.5 rounded-full bg-indigo-500 motion-safe:transition-all"
               style={{ width: `${Math.round((count / max) * 100)}%` }}
             />
           </div>
-          <span className="w-10 shrink-0 text-right tabular-nums text-[11px] text-zinc-400">
+          <span className="w-10 shrink-0 text-right tabular-nums text-xs text-[var(--text-muted)]">
             {count}
           </span>
         </li>
@@ -83,13 +87,15 @@ function TopBlocked({ users }: { users: TopBlockedUser[] }) {
   }
 
   return (
-    <ul className="divide-y divide-zinc-800 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
+    <ul className="divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
       {users.map((u, i) => (
         <li key={u.userId} className="flex items-center gap-3 px-4 py-2.5">
-          <span className="w-6 shrink-0 text-center text-[11px] font-semibold text-zinc-500">
+          <span className="w-6 shrink-0 text-center text-xs font-semibold text-[var(--text-dim)]">
             {i + 1}
           </span>
-          <span className="flex-1 truncate font-mono text-xs text-zinc-300">{u.userId}</span>
+          <span className="flex-1 truncate font-mono text-xs text-[var(--text-muted)]">
+            {u.userId}
+          </span>
           <Badge variant="danger" size="sm">
             {u.count} blocks
           </Badge>
@@ -108,7 +114,7 @@ function MfaConversion({ mfaFired, total }: { mfaFired: number; total: number })
         <StatCard label="MFA rate" value={`${pct}%`} sub={`of ${total} total decisions`} />
       </div>
       {mfaFired === 0 && (
-        <p className="text-xs text-zinc-500">
+        <p className="text-sm text-[var(--text-dim)]">
           No MFA decisions found in this window. getDecisions returned no MFA actions.
         </p>
       )}
@@ -163,8 +169,8 @@ function BreakdownSection({
     <>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <section>
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-300">
-            <ShieldAlert size={16} className="text-indigo-400" />
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--text-muted)]">
+            <ShieldAlert size={16} className="text-indigo-500 dark:text-indigo-400" />
             Fires by rule type
           </h2>
           {loading ? (
@@ -178,8 +184,8 @@ function BreakdownSection({
           )}
         </section>
         <section>
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-300">
-            <Users size={16} className="text-rose-400" />
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--text-muted)]">
+            <Users size={16} className="text-rose-500 dark:text-rose-400" />
             Top blocked users
           </h2>
           {loading ? (
@@ -227,17 +233,17 @@ function MfaSection({
 }: MfaSectionProps) {
   return (
     <section>
-      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-300">
-        <CheckSquare size={16} className="text-emerald-400" />
+      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--text-muted)]">
+        <CheckSquare size={16} className="text-emerald-500 dark:text-emerald-400" />
         MFA conversion
       </h2>
       {loading ? (
         <div className="flex gap-4">
-          <div className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+          <div className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
             <Skeleton className="mb-2 h-3 w-24" />
             <Skeleton className="h-8 w-12" />
           </div>
-          <div className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+          <div className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
             <Skeleton className="mb-2 h-3 w-24" />
             <Skeleton className="h-8 w-12" />
           </div>
@@ -298,20 +304,22 @@ export default function InsightsPage() {
     <div className="mx-auto max-w-5xl space-y-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-100">Insights</h1>
-          <p className="mt-1 text-sm text-zinc-500">Engine performance and fraud breakdown.</p>
+          <h1 className="text-2xl font-semibold text-[var(--text)]">Insights</h1>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
+            Engine performance and fraud breakdown.
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-md border border-zinc-800 bg-zinc-900 p-0.5">
+          <div className="inline-flex rounded-md border border-[var(--border)] bg-[var(--bg-surface)] p-0.5">
             {WINDOWS.map((w) => (
               <button
                 key={w}
                 type="button"
                 onClick={() => setActiveWindow(w)}
-                className={`rounded px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
+                className={`rounded px-3 py-1 text-xs font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] ${
                   activeWindow === w
-                    ? 'bg-zinc-100 text-zinc-900'
-                    : 'text-zinc-400 hover:text-zinc-100'
+                    ? 'bg-[var(--text)] text-[var(--bg)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}
               >
                 {w}
@@ -325,7 +333,7 @@ export default function InsightsPage() {
               metricsQuery.refetch();
               decisionsQuery.refetch();
             }}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
           >
             <RefreshCcw size={12} className={loading ? 'animate-spin' : ''} />
             Refresh
@@ -336,7 +344,10 @@ export default function InsightsPage() {
       {loading && (
         <div className="grid grid-cols-3 gap-4">
           {['k0', 'k1', 'k2'].map((k) => (
-            <div key={k} className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+            <div
+              key={k}
+              className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5"
+            >
               <Skeleton className="mb-2 h-3 w-24" />
               <Skeleton className="h-8 w-16" />
             </div>
@@ -378,22 +389,22 @@ export default function InsightsPage() {
       )}
 
       <section>
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
           Score and engine routing
         </h2>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
           <ScoreDistributionChart window={activeWindow} height={260} />
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Decisions over time
             </h3>
             <DecisionsOverTimeChart window={activeWindow} height={220} />
           </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               By type
             </h3>
             <TypeDonutChart window={activeWindow} height={220} />

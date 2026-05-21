@@ -43,7 +43,7 @@ function widthClass(pct: number): string {
 export default function ProgressBar({ value, tone = 'indigo' }: ProgressBarProps) {
   return (
     <div
-      className="h-1.5 w-full overflow-hidden rounded bg-zinc-800"
+      className="h-1.5 w-full overflow-hidden rounded bg-[var(--bg-elevated)]"
       role="progressbar"
       aria-valuenow={Math.round(value)}
       aria-valuemin={0}

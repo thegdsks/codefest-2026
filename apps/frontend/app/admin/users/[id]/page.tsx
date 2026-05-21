@@ -111,24 +111,26 @@ function ActivityTab({ userId }: ActivityTabProps) {
 
   return (
     <section aria-live="polite" aria-label="User activity decisions">
-      <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+      <ul className="divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
         {decisions.map((row) => (
           <li
             key={row.decisionId}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--bg-elevated)]"
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm motion-safe:transition-colors hover:bg-[var(--bg-elevated)]"
           >
-            <span className="w-24 shrink-0 tabular-nums text-[11px] text-zinc-500">
+            <span className="w-24 shrink-0 tabular-nums text-xs text-[var(--text-dim)]">
               {formatTimeAgo(row.timestamp)}
             </span>
-            <span className="shrink-0 text-[11px] text-zinc-300">{row.decisionType}</span>
+            <span className="shrink-0 text-xs text-[var(--text-muted)]">{row.decisionType}</span>
             <ActionPill action={row.action} />
-            <span className="ml-auto shrink-0 tabular-nums text-[11px] text-zinc-400">
+            <span className="ml-auto shrink-0 tabular-nums text-xs text-[var(--text-muted)]">
               score {Math.round(row.score)}
             </span>
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-[11px] text-zinc-600">{decisions.length} decisions, last 7 days</p>
+      <p className="mt-2 text-xs text-[var(--text-dim)]">
+        {decisions.length} decisions, last 7 days
+      </p>
     </section>
   );
 }
@@ -185,11 +187,11 @@ function SessionsTab() {
   }
 
   return (
-    <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+    <ul className="divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
       {sessions.map((s) => (
         <li key={s.sessionId} className="px-4 py-2.5 text-sm">
-          <div className="font-mono text-[11px] text-zinc-300">{s.sessionId}</div>
-          <div className="mt-0.5 text-[11px] text-zinc-500">
+          <div className="font-mono text-xs text-[var(--text)]">{s.sessionId}</div>
+          <div className="mt-0.5 text-xs text-[var(--text-dim)]">
             Issued {formatDate(s.issuedAt)} &middot; expires {formatDate(s.expiresAt)}
           </div>
         </li>
@@ -204,8 +206,8 @@ interface ProfileTabProps {
 
 function ProfileTab({ user }: ProfileTabProps) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[11px] text-zinc-300">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+      <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs text-[var(--text-muted)]">
         {JSON.stringify(user, null, 2)}
       </pre>
     </div>
@@ -252,12 +254,12 @@ export default function UserDetailPage({ params }: PageProps) {
       <div className="mb-6 flex items-center gap-3">
         <Link
           href="/admin/users"
-          className="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="rounded-md p-1 text-[var(--text-muted)] motion-safe:transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
           aria-label="Back to users"
         >
           <ArrowLeft size={16} />
         </Link>
-        <h1 className="text-xl font-semibold text-zinc-100">User detail</h1>
+        <h1 className="text-xl font-semibold text-[var(--text)]">User detail</h1>
         <div className="ml-auto">
           <IconButton label="Reload user data" onClick={load} disabled={loading}>
             <ArrowClockwise size={16} className={loading ? 'animate-spin' : ''} />
@@ -266,7 +268,7 @@ export default function UserDetailPage({ params }: PageProps) {
       </div>
 
       {loading && !user && (
-        <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
+        <div className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
           <div className="flex items-center gap-4">
             <Skeleton className="h-14 w-14 rounded-full" />
             <div className="flex-1 space-y-2">
@@ -292,43 +294,47 @@ export default function UserDetailPage({ params }: PageProps) {
 
       {user && (
         <>
-          <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
+          <div className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
             <div className="flex flex-wrap items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-lg font-semibold text-zinc-100">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-lg font-semibold text-[var(--text)]">
                 {(user.username ?? user.userId).slice(0, 2).toUpperCase()}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-base font-semibold text-zinc-100">{user.username}</span>
+                  <span className="text-base font-semibold text-[var(--text)]">
+                    {user.username}
+                  </span>
                   {user.tier && (
                     <Badge variant={tierVariant(user.tier)} size="sm">
                       {user.tier}
                     </Badge>
                   )}
                 </div>
-                <div className="mt-0.5 font-mono text-xs text-zinc-500">{user.userId}</div>
+                <div className="mt-0.5 font-mono text-xs text-[var(--text-dim)]">{user.userId}</div>
               </div>
               {typeof user.points === 'number' && (
                 <div className="text-right">
-                  <div className="text-lg font-semibold tabular-nums text-zinc-100">
+                  <div className="text-lg font-semibold tabular-nums text-[var(--text)]">
                     {user.points.toLocaleString()}
                   </div>
-                  <div className="text-[11px] text-zinc-500">points</div>
+                  <div className="text-xs text-[var(--text-dim)]">points</div>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="mb-4 flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/40 p-1">
+          <div className="mb-4 flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-1">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={[
-                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors duration-100',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950',
-                  tab === t.id ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-100',
+                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium motion-safe:transition-colors duration-100',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]',
+                  tab === t.id
+                    ? 'bg-[var(--text)] text-[var(--bg)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)]',
                 ].join(' ')}
               >
                 {t.icon}

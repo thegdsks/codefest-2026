@@ -16,7 +16,7 @@ const CHIPS: Array<{ value: FeedFilter; label: string }> = [
 
 export default function FilterChips({ active, onChange }: FilterChipsProps) {
   return (
-    <fieldset className="border-0 p-0 m-0">
+    <fieldset className="m-0 border-0 p-0">
       <legend className="sr-only">Decision type filter</legend>
       <div className="flex flex-wrap items-center gap-2">
         {CHIPS.map((chip) => {
@@ -29,8 +29,8 @@ export default function FilterChips({ active, onChange }: FilterChipsProps) {
               aria-pressed={isActive}
               className={
                 isActive
-                  ? 'inline-flex items-center rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950'
-                  : 'inline-flex items-center rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950'
+                  ? 'inline-flex items-center rounded-full bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-[var(--accent-fg)] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]'
+                  : 'inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] motion-safe:transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]'
               }
             >
               {chip.label}

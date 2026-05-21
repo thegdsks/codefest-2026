@@ -60,18 +60,18 @@ function RuleEditorInner({ initial }: { initial: EngagementRule }) {
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <input
             type="text"
             value={form.name}
             onChange={(e) => form.setName(e.target.value)}
             placeholder="Rule name..."
-            className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-lg font-semibold text-zinc-100 placeholder:font-normal placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-lg font-semibold text-[var(--text)] placeholder:font-normal placeholder:text-[var(--text-dim)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
           />
           <select
             value={form.status}
             onChange={(e) => form.setStatus(e.target.value as typeof form.status)}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1.5 text-xs text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
             aria-label="Rule status"
           >
             {STATUS_OPTIONS.map((o) => (
@@ -86,7 +86,7 @@ function RuleEditorInner({ initial }: { initial: EngagementRule }) {
           type="button"
           onClick={handleSave}
           disabled={form.saving}
-          className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
         >
           <FloppyDisk size={14} />
           {form.saving ? 'Saving...' : 'Save'}
@@ -94,7 +94,7 @@ function RuleEditorInner({ initial }: { initial: EngagementRule }) {
       </div>
 
       {form.saveError ? (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-600 dark:text-rose-400">
           <Warning size={14} className="shrink-0" />
           {form.saveError}
         </div>
@@ -102,26 +102,26 @@ function RuleEditorInner({ initial }: { initial: EngagementRule }) {
 
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-6">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
             <RuleConditionsEditor
               label="When (signals)"
               conditions={form.whenConditions}
               onChange={form.setWhenConditions}
             />
           </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
             <RuleConditionsEditor
               label="Who (user attributes)"
               conditions={form.whoConditions}
               onChange={form.setWhoConditions}
             />
           </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
             <RuleActionPanel action={form.action} onChange={form.updateAction} />
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
           <RulePreviewPanel rule={previewRule} />
         </div>
       </div>

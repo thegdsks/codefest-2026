@@ -28,13 +28,13 @@ function formatTimeAgo(epochSec: number): string {
 
 function DecisionRow_({ row }: { row: DecisionRow }) {
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--bg-elevated)]">
-      <span className="w-20 shrink-0 tabular-nums text-[11px] text-zinc-500">
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm motion-safe:transition-colors hover:bg-[var(--bg-elevated)]">
+      <span className="w-20 shrink-0 tabular-nums text-xs text-[var(--text-dim)]">
         {formatTimeAgo(row.timestamp)}
       </span>
-      <span className="shrink-0 text-[11px] text-zinc-300">{row.decisionType}</span>
+      <span className="shrink-0 text-xs text-[var(--text-muted)]">{row.decisionType}</span>
       <ActionPill action={row.action} />
-      <span className="ml-auto shrink-0 tabular-nums text-[11px] text-zinc-400">
+      <span className="ml-auto shrink-0 tabular-nums text-xs text-[var(--text-muted)]">
         score {Math.round(row.score)}
       </span>
     </li>
@@ -94,7 +94,7 @@ export default function DecisionInsightsPage({ params }: PageProps) {
   const clustered = useMemo(() => {
     if (!related || !detail) return [];
     const pivot = detail.decision.timestamp;
-    const WINDOW_SEC = 300; // 5 minutes around the decision
+    const WINDOW_SEC = 300;
     return related.filter((d) => Math.abs(d.timestamp - pivot) <= WINDOW_SEC);
   }, [related, detail]);
 
@@ -105,12 +105,12 @@ export default function DecisionInsightsPage({ params }: PageProps) {
       <div className="mb-6 flex items-center gap-3">
         <Link
           href={`/admin/decisions/${encodeURIComponent(decodedId)}`}
-          className="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="rounded-md p-1 text-[var(--text-muted)] motion-safe:transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
           aria-label="Back to decision"
         >
           <ArrowLeft size={16} />
         </Link>
-        <h1 className="text-xl font-semibold text-zinc-100">Decision insights</h1>
+        <h1 className="text-xl font-semibold text-[var(--text)]">Decision insights</h1>
         <div className="ml-auto">
           <IconButton
             label="Reload"
@@ -126,7 +126,7 @@ export default function DecisionInsightsPage({ params }: PageProps) {
       </div>
 
       {loadingDetail && (
-        <div className="mb-6 space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div className="mb-6 space-y-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
           <Skeleton className="h-4 w-48" />
           <Skeleton className="h-4 w-32" />
         </div>
@@ -141,15 +141,19 @@ export default function DecisionInsightsPage({ params }: PageProps) {
       )}
 
       {decision && (
-        <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="font-mono text-xs text-zinc-400">{decision.decisionId}</span>
+            <span className="font-mono text-xs text-[var(--text-muted)]">
+              {decision.decisionId}
+            </span>
             <ActionPill action={decision.action} />
-            <span className="text-xs text-zinc-300">{decision.decisionType}</span>
-            <span className="ml-auto font-mono text-xs text-zinc-400">user: {decision.userId}</span>
+            <span className="text-xs text-[var(--text-muted)]">{decision.decisionType}</span>
+            <span className="ml-auto font-mono text-xs text-[var(--text-muted)]">
+              user: {decision.userId}
+            </span>
           </div>
           {decision.correlationId && (
-            <div className="mt-1 font-mono text-[11px] text-zinc-600">
+            <div className="mt-1 font-mono text-xs text-[var(--text-dim)]">
               correlation: {decision.correlationId}
             </div>
           )}
@@ -158,7 +162,7 @@ export default function DecisionInsightsPage({ params }: PageProps) {
 
       <div className="space-y-6">
         <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
             Related decisions (same user, last 24h)
           </h2>
           {loadingRelated && !related && (
@@ -185,7 +189,7 @@ export default function DecisionInsightsPage({ params }: PageProps) {
           {related !== null && related.length > 0 && (
             <ul
               aria-live="polite"
-              className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 bg-zinc-900/40 overflow-hidden"
+              className="divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]"
             >
               {related.map((row) => (
                 <DecisionRow_ key={row.decisionId} row={row} />
@@ -195,7 +199,7 @@ export default function DecisionInsightsPage({ params }: PageProps) {
         </section>
 
         <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
             Time-clustered events (within 5 min)
           </h2>
           {!loadingRelated && clustered.length === 0 && (
@@ -208,7 +212,7 @@ export default function DecisionInsightsPage({ params }: PageProps) {
           {clustered.length > 0 && (
             <ul
               aria-live="polite"
-              className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 bg-zinc-900/40 overflow-hidden"
+              className="divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]"
             >
               {clustered.map((row) => (
                 <DecisionRow_ key={row.decisionId} row={row} />
