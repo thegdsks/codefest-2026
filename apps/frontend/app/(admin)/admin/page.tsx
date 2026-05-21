@@ -39,6 +39,12 @@ function formatUsd(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+function budgetBarColor(pct: number): string {
+  if (pct > 95) return 'bg-rose-400';
+  if (pct > 80) return 'bg-amber-400';
+  return 'bg-indigo-400';
+}
+
 export default function AdminDashboardPage() {
   const [activeWindow, setActiveWindow] = useState<Window>('24h');
 
@@ -176,13 +182,32 @@ export default function AdminDashboardPage() {
             />
             <Tile
               label="LLM spend"
-              value={formatUsd(data?.costEstimateUsd ?? 0)}
+              value={
+                <div className="space-y-1">
+                  <div className="font-mono text-2xl font-semibold tabular-nums text-amber-300">
+                    {formatUsd(data?.budget?.usedUsd ?? data?.costEstimateUsd ?? 0)}
+                    <span className="text-base font-normal text-[color:var(--text-muted)]">
+                      {' / '}
+                      {formatUsd(data?.budget?.llmDailyUsd ?? 250)}
+                    </span>
+                  </div>
+                  <div className="text-xs text-[color:var(--text-muted)]">
+                    {data?.budget?.percentUsed ?? 0}% used
+                  </div>
+                  <div className="h-0.5 w-full overflow-hidden rounded-full bg-[color:var(--bg-elevated)]">
+                    <div
+                      className={`h-full rounded-full transition-all ${budgetBarColor(data?.budget?.percentUsed ?? 0)}`}
+                      style={{ width: `${Math.min(data?.budget?.percentUsed ?? 0, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              }
               hint={`At ${l2} calls`}
               icon={CurrencyCircleDollar}
               accent="amber"
               loading={loading}
               trend={<Sparkline data={sparkTotal} color="#FBBF24" />}
-              description="Estimated USD cost for LLM calls this window. The engine guard caps this in a rolling window so spikes cannot run away."
+              description={`USD spent on LLM calls today vs the $${data?.budget?.llmDailyUsd ?? 250} daily cap. Resets at UTC midnight.`}
             />
           </div>
 
