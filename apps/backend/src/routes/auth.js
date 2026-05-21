@@ -53,6 +53,8 @@ async function login(event, correlationId) {
   const ip = body && body.ipAddress ? body.ipAddress : '';
   const deviceType = body && body.deviceType ? body.deviceType : '';
   const browser = body && body.browser ? body.browser : '';
+  // forceMfa: optional boolean, only honored when DEMO_MODE=1
+  const forceMfa = body && body.forceMfa === true && CFG.demoMode;
 
   const profile = await findUserByUsername(username);
   if (!profile || profile.passwordHash !== password) {
@@ -72,15 +74,6 @@ async function login(event, correlationId) {
     );
 
   const now = nowSec();
-  const lastLoc = st ? st.lastLoginLocation : null;
-  const lastTime = st ? st.lastLoginTime : null;
-
-  const l1Draft = scoreLogin({ lastLocation: lastLoc, lastTime, currentLocation: location, now });
-  const final = await engineRoute(l1Draft, {
-    userId,
-    category: 'AUTH',
-    payload: { currentLocation: location },
-  });
 
   const sessionId = `SESSION#${randomUUID().slice(0, 8)}`;
   await putSession({
@@ -97,6 +90,44 @@ async function login(event, correlationId) {
     createdAt: now,
   });
   await putActivity(activityLogin(userId, now, location, ip, deviceId, correlationId));
+
+  // Demo shortcut: bypass the fraud engine and force an MFA challenge.
+  if (forceMfa) {
+    await putDecision(
+      decision(
+        userId,
+        'FRAUD_LOGIN',
+        0,
+        'LOW',
+        'MFA',
+        'DEMO_FORCED_MFA',
+        'MFA challenge forced via demo flag',
+        'AUTH',
+        correlationId,
+        {}
+      )
+    );
+    await upsertLoginState(userId, now, location, true);
+    return json(200, correlationId, {
+      data: {
+        status: 'MFA_REQUIRED',
+        reason: 'DEMO_FORCED_MFA',
+        sessionId,
+        mfaPath: 'DEMO_FORCED',
+        mfa: { type: 'OTP', expiresInSeconds: 300 },
+      },
+    });
+  }
+
+  const lastLoc = st ? st.lastLoginLocation : null;
+  const lastTime = st ? st.lastLoginTime : null;
+
+  const l1Draft = scoreLogin({ lastLocation: lastLoc, lastTime, currentLocation: location, now });
+  const final = await engineRoute(l1Draft, {
+    userId,
+    category: 'AUTH',
+    payload: { currentLocation: location },
+  });
 
   if (final.action === 'BLOCK') {
     await putDecision(
