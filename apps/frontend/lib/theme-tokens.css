@@ -1,8 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Theme tokens — light mode defaults */
+/* Light mode defaults */
 :root {
   --bg: #ffffff;
   --bg-surface: #f4f4f5;

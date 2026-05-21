@@ -294,6 +294,10 @@ export function getUsers(q: UsersQuery = {}): Promise<ApiResult<UsersListRespons
   return adminFetch<UsersListResponse>(`/admin/users${qs ? `?${qs}` : ''}`);
 }
 
+export function getUser(id: string): Promise<ApiResult<AdminUser>> {
+  return adminFetch<AdminUser>(`/admin/users/${encodeURIComponent(id)}`);
+}
+
 export function getSessions(): Promise<ApiResult<SessionsListResponse>> {
   return adminFetch<SessionsListResponse>('/admin/sessions');
 }
