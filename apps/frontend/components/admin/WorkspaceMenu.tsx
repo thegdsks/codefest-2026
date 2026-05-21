@@ -52,11 +52,11 @@ export default function WorkspaceMenu() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-all duration-200 ease-out hover:bg-[color:var(--hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/40"
       >
         <span
           aria-hidden="true"
-          className="inline-grid h-7 w-7 shrink-0 place-items-center rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 text-[11px] font-bold text-white shadow-[0_4px_12px_-2px_rgba(99,102,241,0.5)]"
+          className="inline-grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[color:var(--accent)] text-[11px] font-bold text-[color:var(--accent-fg)] shadow-[0_4px_12px_-2px_rgba(0,0,0,0.35)]"
         >
           {active.initials}
         </span>
