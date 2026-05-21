@@ -1,12 +1,13 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const {
   DynamoDBDocumentClient,
+  DeleteCommand,
   GetCommand,
   PutCommand,
   UpdateCommand,
   QueryCommand,
 } = require('@aws-sdk/lib-dynamodb');
-const { randomUUID } = require('node:crypto');
+const { randomBytes, randomUUID } = require('node:crypto');
 
 const { scoreLogin } = require('./rules/login');
 const { scoreTransfer } = require('./rules/transfer');
@@ -31,6 +32,11 @@ const CFG = {
   clientId: process.env.CLIENT_ID || 'demoClient',
   clientSecret: process.env.CLIENT_SECRET || 'demoSecret',
   mfaOtp: process.env.MFA_OTP || '123456',
+  // 'totp' (default) accepts only valid TOTP codes from an authenticator app.
+  // 'static' additionally accepts the legacy demo OTP, for the judges-have-
+  // no-phone fallback. 'static-only' rejects TOTP entirely (legacy demo mode).
+  mfaMode: process.env.MFA_MODE || 'totp',
+  sessionTtlSec: Number(process.env.SESSION_TTL_SEC || 1800),
 
   tUserProfile: process.env.TABLE_USER_PROFILE || 'UserProfile',
   tUserSession: process.env.TABLE_USER_SESSION || 'UserSession',
@@ -38,6 +44,8 @@ const CFG = {
   tDecision: process.env.TABLE_DECISION_STORE || 'DecisionStore',
   tUserState: process.env.TABLE_USER_STATE || 'UserState',
 };
+
+const totp = require('./lib/totp');
 
 function nowSec() {
   return Math.floor(Date.now() / 1000);
@@ -225,6 +233,126 @@ async function getSession(sessionId) {
   return r.Item || null;
 }
 
+/**
+ * Generate an opaque bearer token (32 random bytes, base64url-encoded) and
+ * persist a UserSession "access" row keyed by the token itself. The token
+ * IS the row's sessionId, which gives O(1) lookup during bearer validation
+ * without needing a token-index GSI.
+ *
+ * Access rows carry recordType=ACCESS to keep them distinct from the
+ * existing MFA-challenge rows written during /auth/login.
+ */
+async function issueAccessToken({
+  userId,
+  mfaVerified,
+  correlationId,
+  location,
+  ipAddress,
+  deviceId,
+}) {
+  const token = randomBytes(32).toString('base64url');
+  const now = nowSec();
+  const expiresAt = now + CFG.sessionTtlSec;
+  const item = {
+    sessionId: token,
+    recordType: 'ACCESS',
+    userId,
+    token,
+    issuedAt: now,
+    expiresAt,
+    lastActivityAt: now,
+    mfaVerified: !!mfaVerified,
+    location: location || '',
+    ipAddress: ipAddress || '',
+    deviceId: deviceId || '',
+    correlationId: correlationId || '',
+  };
+  await putSession(item);
+  return { token, issuedAt: now, expiresAt };
+}
+
+/**
+ * Validate an `Authorization: Bearer <token>` header against UserSession.
+ *
+ * On success, slides the row's expiresAt forward by SESSION_TTL_SEC from
+ * now and bumps lastActivityAt. Returns the resolved principal so callers
+ * can compare the request's userId against the token's userId.
+ *
+ * Throws a status-bearing error object that exports.main translates to a
+ * JSON error response. Codes:
+ *   UNAUTHORIZED    - missing / non-Bearer Authorization header
+ *   INVALID_TOKEN   - token not present in UserSession (or wrong row type)
+ *   TOKEN_EXPIRED   - row found but expiresAt <= now
+ */
+async function validateBearer(event) {
+  const auth = getHeader(event.headers, 'authorization');
+  if (!auth || !auth.startsWith('Bearer ')) {
+    throw { status: 401, code: 'UNAUTHORIZED', message: 'Missing bearer token' };
+  }
+  const token = auth.substring('Bearer '.length).trim();
+  if (!token) {
+    throw { status: 401, code: 'UNAUTHORIZED', message: 'Empty bearer token' };
+  }
+
+  const row = await getSession(token);
+  if (!row || row.recordType !== 'ACCESS' || row.token !== token) {
+    throw { status: 401, code: 'INVALID_TOKEN', message: 'Token not recognized' };
+  }
+
+  const now = nowSec();
+  if (typeof row.expiresAt !== 'number' || row.expiresAt <= now) {
+    throw { status: 401, code: 'TOKEN_EXPIRED', message: 'Token expired' };
+  }
+
+  const newExpiresAt = now + CFG.sessionTtlSec;
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserSession,
+      Key: { sessionId: token },
+      UpdateExpression: 'SET lastActivityAt = :now, expiresAt = :exp',
+      ExpressionAttributeValues: { ':now': now, ':exp': newExpiresAt },
+    })
+  );
+
+  return {
+    userId: row.userId,
+    sessionId: token,
+    token,
+    mfaVerified: !!row.mfaVerified,
+    issuedAt: row.issuedAt,
+    expiresAt: newExpiresAt,
+    lastActivityAt: now,
+  };
+}
+
+/**
+ * Validate the bearer token and assert the request's userId matches.
+ * Throws a status-bearing error so exports.main converts it to JSON.
+ */
+async function requireBearer(event, expectedUserId) {
+  const principal = await validateBearer(event);
+  if (expectedUserId && principal.userId !== expectedUserId) {
+    throw {
+      status: 403,
+      code: 'FORBIDDEN',
+      message: 'Token does not match userId in request',
+    };
+  }
+  return principal;
+}
+
+/**
+ * Delete an access-token row, idempotently. Used by /auth/logout.
+ */
+async function revokeAccessToken(token) {
+  await ddb.send(
+    new DeleteCommand({
+      TableName: CFG.tUserSession,
+      Key: { sessionId: token },
+    })
+  );
+}
+
 async function putActivity(item) {
   await ddb.send(new PutCommand({ TableName: CFG.tUserActivity, Item: item }));
 }
@@ -397,6 +525,12 @@ async function route(event, correlationId) {
 
   if (method === 'POST' && p === '/auth/login') return login(event, correlationId);
   if (method === 'POST' && p === '/auth/mfa/verify') return mfaVerify(event, correlationId);
+  if (method === 'POST' && p === '/auth/mfa/enroll') return mfaEnroll(event, correlationId);
+  if (method === 'POST' && p === '/auth/mfa/confirm-enroll')
+    return mfaConfirmEnroll(event, correlationId);
+  if (method === 'POST' && p === '/auth/mfa/recover') return mfaRecover(event, correlationId);
+  if (method === 'POST' && p === '/auth/logout') return logout(event, correlationId);
+  if (method === 'GET' && p === '/auth/session') return sessionInfo(event, correlationId);
   if (method === 'POST' && p === '/transactions/transfer') return transfer(event, correlationId);
   if (method === 'GET' && p === '/offers') return getOffers(event, correlationId);
   if (method === 'POST' && p === '/offers/action') return offerAction(event, correlationId);
@@ -537,7 +671,44 @@ async function login(event, correlationId) {
     )
   );
   await upsertLoginState(userId, now, location, true);
-  return json(200, correlationId, { data: { status: 'SUCCESS', userId, sessionId } });
+
+  // Auth fully complete (no MFA required). Issue a bearer access token.
+  const access = await issueAccessToken({
+    userId,
+    mfaVerified: false,
+    correlationId,
+    location,
+    ipAddress: ip,
+    deviceId,
+  });
+  return json(200, correlationId, {
+    data: {
+      status: 'SUCCESS',
+      userId,
+      sessionId,
+      token: access.token,
+      expiresAt: access.expiresAt,
+    },
+  });
+}
+
+/**
+ * Try to validate a code against the user's mfaSecret using TOTP. Falls
+ * back to the static demo OTP when MFA_MODE is `static` (judges-without-
+ * a-phone backup) and the user has no enrolled secret. Returns a string
+ * tag identifying the path that accepted (or null on rejection):
+ *   TOTP    valid current TOTP code
+ *   STATIC  matched the env-configured static OTP
+ *   null    rejected
+ */
+function evaluateMfaCode(code, profile) {
+  const secret = profile && profile.mfaSecret;
+  if (secret && totp.verifyTotpCode(code, secret)) return 'TOTP';
+
+  const staticAllowed = CFG.mfaMode === 'static' || CFG.mfaMode === 'static-only';
+  if (staticAllowed && String(code).trim() === String(CFG.mfaOtp)) return 'STATIC';
+
+  return null;
 }
 
 async function mfaVerify(event, correlationId) {
@@ -549,16 +720,19 @@ async function mfaVerify(event, correlationId) {
   if (!session) return err(404, correlationId, 'SESSION_NOT_FOUND', 'Session not found');
 
   const userId = session.userId;
-  if (otp !== CFG.mfaOtp) {
+  const profile = await getUserById(userId);
+  const path = evaluateMfaCode(otp, profile);
+
+  if (!path) {
     await putDecision(
       decision(
         userId,
-        'MFA_VERIFY',
+        'MFA_EVENT',
         0.0,
         'LOW',
         'BLOCK',
         'OTP_INVALID',
-        'OTP invalid',
+        'MFA code invalid',
         'AUTH',
         correlationId
       )
@@ -569,22 +743,299 @@ async function mfaVerify(event, correlationId) {
   await putDecision(
     decision(
       userId,
-      'MFA_VERIFY',
+      'MFA_EVENT',
       0.0,
       'LOW',
       'ALLOW',
-      'OTP_VALID',
-      'MFA verified',
+      path === 'TOTP' ? 'TOTP_VALID' : 'STATIC_OTP_VALID',
+      `MFA verified via ${path}`,
       'AUTH',
       correlationId
     )
   );
-  return json(200, correlationId, { data: { status: 'SUCCESS', message: 'MFA verified' } });
+
+  // MFA gate passed. Issue a bearer access token. The location / device
+  // fields come from the prior login-challenge row so the access row
+  // carries the same demo context.
+  const access = await issueAccessToken({
+    userId,
+    mfaVerified: true,
+    correlationId,
+    location: session.location || '',
+    ipAddress: session.ipAddress || '',
+    deviceId: session.deviceId || '',
+  });
+  return json(200, correlationId, {
+    data: {
+      status: 'SUCCESS',
+      message: 'MFA verified',
+      mfaPath: path,
+      token: access.token,
+      expiresAt: access.expiresAt,
+    },
+  });
+}
+
+/**
+ * POST /auth/mfa/enroll - generate a TOTP secret + QR code + recovery codes
+ * for the calling user. Requires a valid bearer (already-logged-in user).
+ * The secret is parked in UserProfile.pendingMfaSecret; it does NOT activate
+ * MFA on the account until /auth/mfa/confirm-enroll succeeds, so a half-
+ * complete enrollment can't lock anyone out.
+ */
+async function mfaEnroll(event, correlationId) {
+  const principal = await validateBearer(event);
+  const userId = principal.userId;
+  const profile = await getUserById(userId);
+  if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
+
+  const secret = totp.generateMfaSecret();
+  const username = profile.username || userId;
+  const otpauthUrl = totp.buildOtpauthUrl(username, secret);
+  const qrCodePngBase64 = await totp.generateQrCodePngBase64(otpauthUrl);
+  const recoveryCodes = totp.generateRecoveryCodes();
+  const recoveryHashes = totp.hashRecoveryCodes(recoveryCodes);
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserProfile,
+      Key: { userId },
+      UpdateExpression:
+        'SET pendingMfaSecret = :s, pendingRecoveryHashes = :h, pendingMfaCreatedAt = :t',
+      ExpressionAttributeValues: {
+        ':s': secret,
+        ':h': recoveryHashes,
+        ':t': nowSec(),
+      },
+    })
+  );
+
+  await putDecision(
+    decision(
+      userId,
+      'MFA_EVENT',
+      0.0,
+      'LOW',
+      'ALLOW',
+      'MFA_ENROLL_STARTED',
+      'MFA enrollment started',
+      'AUTH',
+      correlationId
+    )
+  );
+
+  return json(200, correlationId, {
+    data: {
+      otpauthUrl,
+      qrCodePngBase64,
+      recoveryCodes,
+      issuer: process.env.MFA_ISSUER || 'SignalForce',
+      username,
+    },
+  });
+}
+
+/**
+ * POST /auth/mfa/confirm-enroll - validate a TOTP code generated from the
+ * pending secret. On success, promote pendingMfaSecret -> mfaSecret and
+ * pendingRecoveryHashes -> mfaRecoveryHashes, set mfaEnabled = true.
+ * On failure, leave the pending state in place so the user can retry.
+ */
+async function mfaConfirmEnroll(event, correlationId) {
+  const principal = await validateBearer(event);
+  const userId = principal.userId;
+  const body = parseBody(event);
+  const code = requireField(body, 'code');
+
+  const profile = await getUserById(userId);
+  if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
+
+  const pending = profile.pendingMfaSecret;
+  if (!pending) {
+    return err(
+      400,
+      correlationId,
+      'NO_PENDING_ENROLLMENT',
+      'No pending MFA enrollment for this user'
+    );
+  }
+
+  if (!totp.verifyTotpCode(code, pending)) {
+    await putDecision(
+      decision(
+        userId,
+        'MFA_EVENT',
+        0.0,
+        'LOW',
+        'BLOCK',
+        'MFA_ENROLL_INVALID_CODE',
+        'Confirm-enroll code rejected',
+        'AUTH',
+        correlationId
+      )
+    );
+    return err(401, correlationId, 'OTP_INVALID', 'Confirmation code invalid');
+  }
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserProfile,
+      Key: { userId },
+      UpdateExpression:
+        'SET mfaSecret = :s, mfaRecoveryHashes = :h, mfaEnabled = :e ' +
+        'REMOVE pendingMfaSecret, pendingRecoveryHashes, pendingMfaCreatedAt',
+      ExpressionAttributeValues: {
+        ':s': pending,
+        ':h': profile.pendingRecoveryHashes || [],
+        ':e': true,
+      },
+    })
+  );
+
+  await putDecision(
+    decision(
+      userId,
+      'MFA_EVENT',
+      0.0,
+      'LOW',
+      'ALLOW',
+      'MFA_ENROLL_CONFIRMED',
+      'MFA enrollment confirmed',
+      'AUTH',
+      correlationId
+    )
+  );
+
+  return json(200, correlationId, { data: { status: 'ENROLLED' } });
+}
+
+/**
+ * POST /auth/mfa/recover - consume a single-use recovery code to reset
+ * the user's MFA secret (typically when the phone is lost). On success,
+ * removes the consumed hash, clears mfaSecret (so the user must re-enroll),
+ * and returns a bearer token so the recovering user can proceed.
+ *
+ * Authenticated by username + password in the body, NOT by bearer, since
+ * the whole point is the user lost access to their second factor.
+ */
+async function mfaRecover(event, correlationId) {
+  const body = parseBody(event);
+  const username = requireField(body, 'username');
+  const password = requireField(body, 'password');
+  const code = requireField(body, 'code');
+
+  const profile = await findUserByUsername(username);
+  if (!profile || profile.passwordHash !== password) {
+    return err(401, correlationId, 'INVALID_CREDENTIALS', 'Invalid username/password');
+  }
+  const userId = profile.userId;
+
+  const hashes = profile.mfaRecoveryHashes || [];
+  const consumedHash = totp.findRecoveryCodeHash(code, hashes);
+  if (!consumedHash) {
+    await putDecision(
+      decision(
+        userId,
+        'MFA_EVENT',
+        0.0,
+        'LOW',
+        'BLOCK',
+        'MFA_RECOVERY_INVALID',
+        'Recovery code rejected',
+        'AUTH',
+        correlationId
+      )
+    );
+    return err(401, correlationId, 'RECOVERY_CODE_INVALID', 'Recovery code invalid');
+  }
+
+  const remaining = hashes.filter((h) => h !== consumedHash);
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserProfile,
+      Key: { userId },
+      UpdateExpression: 'SET mfaRecoveryHashes = :h, mfaEnabled = :e REMOVE mfaSecret',
+      ExpressionAttributeValues: {
+        ':h': remaining,
+        ':e': false,
+      },
+    })
+  );
+
+  await putDecision(
+    decision(
+      userId,
+      'MFA_EVENT',
+      0.0,
+      'LOW',
+      'ALLOW',
+      'MFA_RECOVERY_USED',
+      `Recovery code consumed (${remaining.length} remaining)`,
+      'AUTH',
+      correlationId
+    )
+  );
+
+  const access = await issueAccessToken({
+    userId,
+    mfaVerified: false,
+    correlationId,
+  });
+  return json(200, correlationId, {
+    data: {
+      status: 'RECOVERED',
+      token: access.token,
+      expiresAt: access.expiresAt,
+      recoveryCodesRemaining: remaining.length,
+      message: 'MFA disabled. Please re-enroll a new authenticator app.',
+    },
+  });
+}
+
+/**
+ * POST /auth/logout - revoke the current bearer token. Idempotent: returns
+ * 204 whether the token row existed or not, so a double-click on logout
+ * is harmless. Requires a valid bearer (otherwise 401 from validateBearer).
+ */
+async function logout(event, correlationId) {
+  const principal = await validateBearer(event);
+  await revokeAccessToken(principal.token);
+  return {
+    statusCode: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Methods': '*',
+      'x-correlation-id': correlationId || '',
+    },
+    body: '',
+  };
+}
+
+/**
+ * GET /auth/session - return metadata about the current bearer's session
+ * row. Used by the FE to render the "session expires in 12m" indicator.
+ * Calling this slides the expiry forward via validateBearer (same as any
+ * other authenticated call) so just polling /auth/session keeps the
+ * session alive.
+ */
+async function sessionInfo(event, correlationId) {
+  const principal = await validateBearer(event);
+  return json(200, correlationId, {
+    data: {
+      userId: principal.userId,
+      issuedAt: principal.issuedAt,
+      expiresAt: principal.expiresAt,
+      lastActivityAt: principal.lastActivityAt,
+      mfaVerified: principal.mfaVerified,
+    },
+  });
 }
 
 async function transfer(event, correlationId) {
   const body = parseBody(event);
   const userId = requireField(body, 'userId');
+  await requireBearer(event, userId);
   const recipientId = requireField(body, 'recipientId');
   const amount = Number(requireField(body, 'amount'));
   const channel = body.channel || 'APP';
@@ -672,6 +1123,7 @@ async function transfer(event, correlationId) {
 
 async function getOffers(event, correlationId) {
   const userId = qparam(event, 'userId');
+  await requireBearer(event, userId);
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -721,6 +1173,7 @@ async function getOffers(event, correlationId) {
 async function offerAction(event, correlationId) {
   const body = parseBody(event);
   const userId = requireField(body, 'userId');
+  await requireBearer(event, userId);
   const offerId = requireField(body, 'offerId');
   const action = requireField(body, 'action').toUpperCase();
 
@@ -749,6 +1202,7 @@ async function offerAction(event, correlationId) {
 
 async function getNudges(event, correlationId) {
   const userId = qparam(event, 'userId');
+  await requireBearer(event, userId);
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -795,6 +1249,7 @@ async function getNudges(event, correlationId) {
 async function nudgeAction(event, correlationId) {
   const body = parseBody(event);
   const userId = requireField(body, 'userId');
+  await requireBearer(event, userId);
   const nudgeId = requireField(body, 'nudgeId');
   const action = requireField(body, 'action').toUpperCase();
 
@@ -823,6 +1278,7 @@ async function nudgeAction(event, correlationId) {
 
 async function getProfile(event, correlationId) {
   const userId = qparam(event, 'userId');
+  await requireBearer(event, userId);
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -840,6 +1296,7 @@ async function getProfile(event, correlationId) {
 
 async function dashboard(event, correlationId) {
   const userId = qparam(event, 'userId');
+  await requireBearer(event, userId);
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -915,6 +1372,7 @@ async function dashboard(event, correlationId) {
  */
 async function profileCompletenessEndpoint(event, correlationId) {
   const userId = qparam(event, 'userId');
+  await requireBearer(event, userId);
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -951,12 +1409,43 @@ async function profileCompletenessEndpoint(event, correlationId) {
 }
 
 exports._setDdb = _setDdb;
+// Exported for unit tests; not part of the HTTP-facing public API.
+exports._validateBearer = validateBearer;
+
+/**
+ * Routes authenticated via a per-user bearer token. For these, exports.main
+ * skips the handler-level Basic Auth gate; the route itself calls
+ * validateBearer/requireBearer and verifies the userId match.
+ *
+ * Auth handshake routes (/auth/login, /auth/mfa/verify), admin, and any
+ * unknown path keep the Basic Auth client-id check.
+ */
+const BEARER_ROUTES = [
+  ['POST', '/transactions/transfer'],
+  ['GET', '/user/profile'],
+  ['GET', '/user/profile-completeness'],
+  ['GET', '/offers'],
+  ['POST', '/offers/action'],
+  ['GET', '/nudges'],
+  ['POST', '/nudges/action'],
+  ['GET', '/dashboard'],
+  ['POST', '/auth/logout'],
+  ['GET', '/auth/session'],
+  ['POST', '/auth/mfa/enroll'],
+  ['POST', '/auth/mfa/confirm-enroll'],
+];
+
+function isBearerRoute(method, path) {
+  for (const [m, p] of BEARER_ROUTES) {
+    if (m === method && p === path) return true;
+  }
+  return false;
+}
 
 exports.main = async (event) => {
   const correlationId = getHeader(event.headers, 'x-correlation-id') || '';
 
   try {
-    // /health is intentionally unauthenticated - resolve it before the auth gate.
     const method =
       (event.requestContext && event.requestContext.http && event.requestContext.http.method) ||
       event.httpMethod;
@@ -964,11 +1453,19 @@ exports.main = async (event) => {
       (event.requestContext && event.requestContext.http && event.requestContext.http.path) ||
       event.path ||
       '/';
+
+    // /health is intentionally unauthenticated.
     if (method === 'GET' && rawP === '/health') return healthEndpoint();
 
-    if (!basicAuthOk(event)) {
-      return err(401, correlationId, 'UNAUTHORIZED_CLIENT', 'Missing/invalid Basic Auth');
+    // Bearer routes carry their own auth via validateBearer in the route
+    // handler. Skip the handler-level Basic Auth gate so a client that
+    // already has a bearer doesn't need to also present Basic credentials.
+    if (!isBearerRoute(method, rawP)) {
+      if (!basicAuthOk(event)) {
+        return err(401, correlationId, 'UNAUTHORIZED_CLIENT', 'Missing/invalid Basic Auth');
+      }
     }
+
     return await route(event, correlationId);
   } catch (e) {
     if (e && e.status) return err(e.status, correlationId, e.code || 'ERROR', e.message || 'Error');

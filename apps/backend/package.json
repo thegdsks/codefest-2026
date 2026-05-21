@@ -9,13 +9,15 @@
     "remove": "serverless remove",
     "offline": "serverless offline",
     "lint": "node -c src/handler.js",
-    "test": "node --test src/engine/*.test.js src/rules/*.test.js src/admin.test.js src/handler.test.js"
+    "test": "node --test src/engine/*.test.js src/rules/*.test.js src/lib/*.test.js src/admin.test.js src/handler.test.js"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^0.2.0",
     "@aws-sdk/client-dynamodb": "^3.600.0",
     "@aws-sdk/lib-dynamodb": "^3.600.0",
     "ai": "^4.0.0",
+    "otplib": "^12.0.1",
+    "qrcode": "^1.5.4",
     "zod": "^3.0.0"
   },
   "devDependencies": {

@@ -64,6 +64,44 @@ function makeDdb(handlers = {}) {
   };
 }
 
+/**
+ * Build a DDB stub whose UserSession GetCommand returns a valid ACCESS row
+ * for the given token. Other GetCommand cases the caller passed are layered
+ * on top, matched by table name. UpdateCommand is no-op'd so the sliding-
+ * window write in validateBearer doesn't surprise the test.
+ */
+function withAccessRow(userId, token, baseHandlers = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  const accessRow = {
+    sessionId: token,
+    recordType: 'ACCESS',
+    userId,
+    token,
+    issuedAt: now - 60,
+    expiresAt: now + 1800,
+    lastActivityAt: now - 60,
+    mfaVerified: true,
+  };
+  const orig = baseHandlers.GetCommand;
+  return makeDdb({
+    ...baseHandlers,
+    GetCommand: (cmd) => {
+      if (cmd.input.TableName === 'UserSession' && cmd.input.Key.sessionId === token) {
+        return { Item: accessRow };
+      }
+      if (typeof orig === 'function') return orig(cmd);
+      if (orig) return orig;
+      return { Item: undefined };
+    },
+    UpdateCommand: baseHandlers.UpdateCommand || (() => ({})),
+  });
+}
+
+/** Bearer Authorization header value. */
+function bearer(token) {
+  return `Bearer ${token}`;
+}
+
 // ---------------------------------------------------------------------------
 // Module under test - loaded once; seam set per describe block.
 // ---------------------------------------------------------------------------
@@ -285,8 +323,9 @@ describe('GET /user/profile', () => {
       emailVerified: true,
       phoneVerified: true,
     };
+    const token = 'tok-U001';
     handler._setDdb(
-      makeDdb({
+      withAccessRow('U001', token, {
         GetCommand: (cmd) => {
           if (cmd.input.TableName === 'UserProfile') return { Item: fakeProfile };
           return { Item: undefined };
@@ -297,6 +336,7 @@ describe('GET /user/profile', () => {
     const event = makeEvent({
       httpMethod: 'GET',
       path: '/user/profile',
+      headers: { authorization: bearer(token) },
       queryStringParameters: { userId: 'U001' },
     });
     const res = await handler.main(event);
@@ -308,10 +348,12 @@ describe('GET /user/profile', () => {
   });
 
   it('returns 404 when user does not exist', async () => {
-    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: undefined }) }));
+    const token = 'tok-MISSING';
+    handler._setDdb(withAccessRow('MISSING', token));
     const event = makeEvent({
       httpMethod: 'GET',
       path: '/user/profile',
+      headers: { authorization: bearer(token) },
       queryStringParameters: { userId: 'MISSING' },
     });
     const res = await handler.main(event);
@@ -322,11 +364,41 @@ describe('GET /user/profile', () => {
 
   it('returns 400 VALIDATION_ERROR when userId query param is missing', async () => {
     handler._setDdb(makeDdb());
+    // qparam runs before requireBearer, so this still hits VALIDATION_ERROR.
     const event = makeEvent({ httpMethod: 'GET', path: '/user/profile' });
     const res = await handler.main(event);
     assert.equal(res.statusCode, 400);
     const body = JSON.parse(res.body);
     assert.equal(body.error.code, 'VALIDATION_ERROR');
+  });
+
+  it('returns 401 UNAUTHORIZED when no bearer token is presented', async () => {
+    handler._setDdb(makeDdb());
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/user/profile',
+      headers: { 'content-type': 'application/json' },
+      queryStringParameters: { userId: 'U001' },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'UNAUTHORIZED');
+  });
+
+  it('returns 403 FORBIDDEN when bearer userId does not match requested userId', async () => {
+    const token = 'tok-U002';
+    handler._setDdb(withAccessRow('U002', token));
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/user/profile',
+      headers: { authorization: bearer(token) },
+      queryStringParameters: { userId: 'U001' },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 403);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'FORBIDDEN');
   });
 });
 
@@ -378,6 +450,122 @@ describe('POST /auth/login', () => {
     const body = JSON.parse(res.body);
     assert.equal(body.data.status, 'SUCCESS');
     assert.ok(body.data.sessionId, 'sessionId missing from successful login response');
+  });
+
+  it('issues a bearer token and expiresAt on a low-risk SUCCESS login', async () => {
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      passwordHash: 'pass123',
+      tier: 'gold',
+    };
+    const state = {
+      lastLoginLocation: 'New York',
+      lastLoginTime: Math.floor(Date.now() / 1000) - 60,
+    };
+
+    // Capture the access-row PutCommand so we can assert its shape.
+    const sessionPuts = [];
+    const stub = makeDdb({
+      QueryCommand: () => ({ Items: [profile] }),
+      GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserState') return { Item: state };
+        return { Item: undefined };
+      },
+      UpdateCommand: () => ({}),
+      PutCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession') sessionPuts.push(cmd.input.Item);
+        return {};
+      },
+    });
+    handler._setDdb(stub);
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/login',
+      body: JSON.stringify({
+        username: 'alice',
+        password: 'pass123',
+        location: 'New York',
+        deviceId: 'dev-1',
+        ipAddress: '203.0.113.42',
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+
+    // Response shape: token + expiresAt next to the existing sessionId.
+    assert.equal(body.data.status, 'SUCCESS');
+    assert.ok(body.data.token, 'token missing from response');
+    assert.equal(typeof body.data.token, 'string');
+    assert.ok(body.data.token.length >= 32, 'token shorter than expected');
+    assert.equal(typeof body.data.expiresAt, 'number');
+    assert.ok(body.data.expiresAt > Math.floor(Date.now() / 1000), 'expiresAt not in the future');
+
+    // An ACCESS row was written keyed by the token itself.
+    const accessRow = sessionPuts.find((it) => it.recordType === 'ACCESS');
+    assert.ok(accessRow, 'no ACCESS row written to UserSession');
+    assert.equal(accessRow.sessionId, body.data.token, 'access row sessionId must equal token');
+    assert.equal(accessRow.userId, 'U001');
+    assert.equal(accessRow.mfaVerified, false);
+    assert.equal(accessRow.token, body.data.token);
+    assert.equal(typeof accessRow.issuedAt, 'number');
+    assert.equal(typeof accessRow.lastActivityAt, 'number');
+    assert.equal(accessRow.expiresAt, body.data.expiresAt);
+  });
+
+  it('does NOT issue a bearer token on the MFA_REQUIRED branch', async () => {
+    // Force the engine to take the MFA branch: prior login in a different
+    // location, with delta in the (300, 600] window scoreLogin treats as
+    // MEDIUM risk -> action=MFA.
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      passwordHash: 'pass123',
+      tier: 'gold',
+    };
+    const state = {
+      lastLoginLocation: 'New York',
+      lastLoginTime: Math.floor(Date.now() / 1000) - 400,
+    };
+
+    const sessionPuts = [];
+    const stub = makeDdb({
+      QueryCommand: () => ({ Items: [profile] }),
+      GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserState') return { Item: state };
+        return { Item: undefined };
+      },
+      UpdateCommand: () => ({}),
+      PutCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession') sessionPuts.push(cmd.input.Item);
+        return {};
+      },
+    });
+    handler._setDdb(stub);
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/login',
+      body: JSON.stringify({
+        username: 'alice',
+        password: 'pass123',
+        location: 'Tokyo',
+        deviceId: 'dev-1',
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+
+    assert.equal(body.data.status, 'MFA_REQUIRED');
+    assert.equal(body.data.token, undefined, 'token must not be present on MFA challenge');
+    assert.equal(body.data.expiresAt, undefined, 'expiresAt must not be present on MFA challenge');
+
+    // No ACCESS row should be written; only the legacy MFA-challenge row.
+    const accessRows = sessionPuts.filter((it) => it.recordType === 'ACCESS');
+    assert.equal(accessRows.length, 0, 'unexpected ACCESS row on MFA challenge');
   });
 
   it('returns 401 INVALID_CREDENTIALS on wrong password', async () => {
@@ -438,18 +626,177 @@ describe('POST /auth/login', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Happy-path: POST /auth/mfa/verify
+// ---------------------------------------------------------------------------
+
+describe('POST /auth/mfa/verify', () => {
+  const { authenticator } = require('otplib');
+  const { generateMfaSecret } = require('./lib/totp');
+
+  it('issues a bearer token on a valid TOTP code and writes an ACCESS row marked mfaVerified=true', async () => {
+    const challengeRow = {
+      sessionId: 'SESSION#abcd1234',
+      userId: 'U001',
+      location: 'Tokyo',
+      ipAddress: '203.0.113.42',
+      deviceId: 'dev-1',
+      loginTime: Math.floor(Date.now() / 1000) - 30,
+    };
+    const secret = generateMfaSecret();
+    const profile = { userId: 'U001', username: 'alice', mfaSecret: secret, mfaEnabled: true };
+
+    const sessionPuts = [];
+    const stub = makeDdb({
+      GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession') return { Item: challengeRow };
+        if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+        return { Item: undefined };
+      },
+      PutCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession') sessionPuts.push(cmd.input.Item);
+        return {};
+      },
+    });
+    handler._setDdb(stub);
+
+    const code = authenticator.generate(secret);
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/verify',
+      body: JSON.stringify({ sessionId: 'SESSION#abcd1234', otp: code }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200, `body: ${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.status, 'SUCCESS');
+    assert.equal(body.data.mfaPath, 'TOTP');
+    assert.ok(body.data.token, 'token missing from mfa/verify response');
+    assert.equal(typeof body.data.expiresAt, 'number');
+
+    const accessRow = sessionPuts.find((it) => it.recordType === 'ACCESS');
+    assert.ok(accessRow, 'no ACCESS row written after MFA verify');
+    assert.equal(accessRow.sessionId, body.data.token);
+    assert.equal(accessRow.userId, 'U001');
+    assert.equal(accessRow.mfaVerified, true);
+    assert.equal(accessRow.location, 'Tokyo', 'access row should inherit login-challenge location');
+    assert.equal(accessRow.deviceId, 'dev-1');
+  });
+
+  it('accepts the static OTP fallback when MFA_MODE=static (no enrolled secret)', async () => {
+    const origMode = process.env.MFA_MODE;
+    process.env.MFA_MODE = 'static';
+    const handlerPath = require.resolve('./handler');
+    delete require.cache[handlerPath];
+    const freshHandler = require('./handler');
+
+    const challengeRow = { sessionId: 'SESSION#sssss', userId: 'U001' };
+    const profile = { userId: 'U001', username: 'alice' }; // no mfaSecret
+    freshHandler._setDdb(
+      makeDdb({
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserSession') return { Item: challengeRow };
+          if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+          return { Item: undefined };
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/verify',
+      body: JSON.stringify({ sessionId: 'SESSION#sssss', otp: '123456' }),
+    });
+    const res = await freshHandler.main(event);
+
+    if (origMode !== undefined) process.env.MFA_MODE = origMode;
+    else delete process.env.MFA_MODE;
+    delete require.cache[handlerPath];
+
+    assert.equal(res.statusCode, 200, `body: ${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.mfaPath, 'STATIC');
+  });
+
+  it('returns 401 OTP_INVALID on wrong code and does NOT issue a token', async () => {
+    const challengeRow = {
+      sessionId: 'SESSION#abcd1234',
+      userId: 'U001',
+      location: 'Tokyo',
+    };
+
+    const sessionPuts = [];
+    const stub = makeDdb({
+      GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession') return { Item: challengeRow };
+        return { Item: undefined };
+      },
+      PutCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession') sessionPuts.push(cmd.input.Item);
+        return {};
+      },
+    });
+    handler._setDdb(stub);
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/verify',
+      body: JSON.stringify({ sessionId: 'SESSION#abcd1234', otp: '000000' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'OTP_INVALID');
+
+    const accessRows = sessionPuts.filter((it) => it.recordType === 'ACCESS');
+    assert.equal(accessRows.length, 0, 'must not issue a token on invalid OTP');
+  });
+
+  it('returns 404 SESSION_NOT_FOUND when the challenge sessionId is unknown', async () => {
+    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: undefined }) }));
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/verify',
+      body: JSON.stringify({ sessionId: 'SESSION#missing', otp: '123456' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 404);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'SESSION_NOT_FOUND');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Happy-path: POST /transactions/transfer
 // ---------------------------------------------------------------------------
 
 describe('POST /transactions/transfer', () => {
-  function transferDdb(senderItem, receiverItem, stateItem = null) {
-    let getCount = 0;
+  /**
+   * DDB stub for transfer: returns an ACCESS row for `token` keyed on
+   * `senderUserId`, sender/receiver UserProfile rows in two consecutive
+   * GetCommand calls, and a UserState row.
+   */
+  function transferDdb(senderUserId, token, senderItem, receiverItem, stateItem = null) {
+    let userProfileGetCount = 0;
+    const now = Math.floor(Date.now() / 1000);
+    const accessRow = {
+      sessionId: token,
+      recordType: 'ACCESS',
+      userId: senderUserId,
+      token,
+      issuedAt: now - 60,
+      expiresAt: now + 1800,
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
     return makeDdb({
       GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession' && cmd.input.Key.sessionId === token) {
+          return { Item: accessRow };
+        }
         if (cmd.input.TableName === 'UserProfile') {
-          // First call: sender, second call: receiver.
-          getCount++;
-          return { Item: getCount === 1 ? senderItem : receiverItem };
+          userProfileGetCount++;
+          return { Item: userProfileGetCount === 1 ? senderItem : receiverItem };
         }
         if (cmd.input.TableName === 'UserState') return { Item: stateItem };
         return { Item: undefined };
@@ -463,11 +810,13 @@ describe('POST /transactions/transfer', () => {
     const sender = { userId: 'U001', username: 'alice' };
     const receiver = { userId: 'U002', username: 'bob' };
     const state = { transferCount1h: 1, lastTransferTime: Math.floor(Date.now() / 1000) - 10 };
-    handler._setDdb(transferDdb(sender, receiver, state));
+    const token = 'tok-U001';
+    handler._setDdb(transferDdb('U001', token, sender, receiver, state));
 
     const event = makeEvent({
       httpMethod: 'POST',
       path: '/transactions/transfer',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
       body: JSON.stringify({
         userId: 'U001',
         recipientId: 'U002',
@@ -486,10 +835,12 @@ describe('POST /transactions/transfer', () => {
   });
 
   it('returns 404 USER_NOT_FOUND when sender does not exist', async () => {
-    handler._setDdb(transferDdb(null, null));
+    const token = 'tok-MISSING';
+    handler._setDdb(transferDdb('MISSING', token, null, null));
     const event = makeEvent({
       httpMethod: 'POST',
       path: '/transactions/transfer',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
       body: JSON.stringify({ userId: 'MISSING', recipientId: 'U002', amount: 100 }),
     });
     const res = await handler.main(event);
@@ -501,10 +852,12 @@ describe('POST /transactions/transfer', () => {
   it('returns 400 VALIDATION_ERROR when amount is not positive', async () => {
     const sender = { userId: 'U001', username: 'alice' };
     const receiver = { userId: 'U002', username: 'bob' };
-    handler._setDdb(transferDdb(sender, receiver));
+    const token = 'tok-U001';
+    handler._setDdb(transferDdb('U001', token, sender, receiver));
     const event = makeEvent({
       httpMethod: 'POST',
       path: '/transactions/transfer',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
       body: JSON.stringify({ userId: 'U001', recipientId: 'U002', amount: -10 }),
     });
     const res = await handler.main(event);
@@ -526,19 +879,20 @@ describe('GET /offers', () => {
       tier: 'platinum',
       profileCompletion: 1.0,
     };
+    const token = 'tok-U001';
     handler._setDdb(
-      makeDdb({
+      withAccessRow('U001', token, {
         GetCommand: (cmd) => {
           if (cmd.input.TableName === 'UserProfile') return { Item: profile };
           return { Item: undefined };
         },
-        UpdateCommand: () => ({}),
         PutCommand: () => ({}),
       })
     );
     const event = makeEvent({
       httpMethod: 'GET',
       path: '/offers',
+      headers: { authorization: bearer(token) },
       queryStringParameters: { userId: 'U001' },
     });
     const res = await handler.main(event);
@@ -549,10 +903,12 @@ describe('GET /offers', () => {
   });
 
   it('returns 404 when user does not exist', async () => {
-    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: undefined }) }));
+    const token = 'tok-MISSING';
+    handler._setDdb(withAccessRow('MISSING', token));
     const event = makeEvent({
       httpMethod: 'GET',
       path: '/offers',
+      headers: { authorization: bearer(token) },
       queryStringParameters: { userId: 'MISSING' },
     });
     const res = await handler.main(event);
@@ -572,19 +928,20 @@ describe('GET /nudges', () => {
       emailVerified: false,
       phoneVerified: false,
     };
+    const token = 'tok-U003';
     handler._setDdb(
-      makeDdb({
+      withAccessRow('U003', token, {
         GetCommand: (cmd) => {
           if (cmd.input.TableName === 'UserProfile') return { Item: profile };
           return { Item: undefined };
         },
-        UpdateCommand: () => ({}),
         PutCommand: () => ({}),
       })
     );
     const event = makeEvent({
       httpMethod: 'GET',
       path: '/nudges',
+      headers: { authorization: bearer(token) },
       queryStringParameters: { userId: 'U003' },
     });
     const res = await handler.main(event);
@@ -729,5 +1086,520 @@ describe('GET /admin/decisions/export', () => {
     const res = await handler.main(event);
     assert.equal(res.statusCode, 200);
     assert.match(res.headers['Content-Type'], /text\/csv/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateBearer (token validation middleware)
+// ---------------------------------------------------------------------------
+
+describe('validateBearer', () => {
+  /**
+   * Make an event with the given Authorization header. validateBearer only
+   * looks at headers; method/path are irrelevant for these unit tests.
+   */
+  function evt(authHeader) {
+    return { headers: authHeader ? { authorization: authHeader } : {} };
+  }
+
+  it('throws 401 UNAUTHORIZED when Authorization header is missing', async () => {
+    handler._setDdb(makeDdb());
+    await assert.rejects(
+      () => handler._validateBearer(evt(null)),
+      (e) => {
+        assert.equal(e.status, 401);
+        assert.equal(e.code, 'UNAUTHORIZED');
+        return true;
+      }
+    );
+  });
+
+  it('throws 401 UNAUTHORIZED when scheme is not Bearer', async () => {
+    handler._setDdb(makeDdb());
+    await assert.rejects(
+      () => handler._validateBearer(evt('Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0')),
+      (e) => {
+        assert.equal(e.status, 401);
+        assert.equal(e.code, 'UNAUTHORIZED');
+        return true;
+      }
+    );
+  });
+
+  it('throws 401 UNAUTHORIZED when Bearer value is empty', async () => {
+    handler._setDdb(makeDdb());
+    await assert.rejects(
+      () => handler._validateBearer(evt('Bearer   ')),
+      (e) => {
+        assert.equal(e.code, 'UNAUTHORIZED');
+        return true;
+      }
+    );
+  });
+
+  it('throws 401 INVALID_TOKEN when DDB has no row for the token', async () => {
+    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: undefined }) }));
+    await assert.rejects(
+      () => handler._validateBearer(evt('Bearer nope-not-a-token')),
+      (e) => {
+        assert.equal(e.status, 401);
+        assert.equal(e.code, 'INVALID_TOKEN');
+        return true;
+      }
+    );
+  });
+
+  it('throws 401 INVALID_TOKEN when the row is a non-ACCESS record (MFA challenge)', async () => {
+    const challenge = {
+      sessionId: 'SESSION#abcd',
+      userId: 'U001',
+      // No recordType: a legacy MFA-challenge row.
+    };
+    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: challenge }) }));
+    await assert.rejects(
+      () => handler._validateBearer(evt('Bearer SESSION#abcd')),
+      (e) => {
+        assert.equal(e.code, 'INVALID_TOKEN');
+        return true;
+      }
+    );
+  });
+
+  it('throws 401 TOKEN_EXPIRED when expiresAt is in the past', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const row = {
+      sessionId: 'tok-abc',
+      recordType: 'ACCESS',
+      userId: 'U001',
+      token: 'tok-abc',
+      issuedAt: now - 7200,
+      expiresAt: now - 60,
+      lastActivityAt: now - 60,
+      mfaVerified: false,
+    };
+    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: row }) }));
+    await assert.rejects(
+      () => handler._validateBearer(evt('Bearer tok-abc')),
+      (e) => {
+        assert.equal(e.code, 'TOKEN_EXPIRED');
+        return true;
+      }
+    );
+  });
+
+  it('returns the principal and slides expiresAt on a valid token', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const row = {
+      sessionId: 'tok-xyz',
+      recordType: 'ACCESS',
+      userId: 'U001',
+      token: 'tok-xyz',
+      issuedAt: now - 60,
+      expiresAt: now + 60, // about to expire
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
+    const updates = [];
+    handler._setDdb(
+      makeDdb({
+        GetCommand: () => ({ Item: row }),
+        UpdateCommand: (cmd) => {
+          updates.push(cmd.input);
+          return {};
+        },
+      })
+    );
+
+    const out = await handler._validateBearer(evt('Bearer tok-xyz'));
+    assert.equal(out.userId, 'U001');
+    assert.equal(out.sessionId, 'tok-xyz');
+    assert.equal(out.token, 'tok-xyz');
+    assert.equal(out.mfaVerified, true);
+    assert.ok(out.expiresAt > now + 60, 'expiresAt should slide past the old value');
+
+    // The sliding-window UpdateCommand was issued against UserSession.
+    assert.equal(updates.length, 1, 'expected exactly one UpdateCommand');
+    const up = updates[0];
+    assert.equal(up.TableName, 'UserSession');
+    assert.equal(up.Key.sessionId, 'tok-xyz');
+    assert.match(up.UpdateExpression, /lastActivityAt/);
+    assert.match(up.UpdateExpression, /expiresAt/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /auth/logout
+// ---------------------------------------------------------------------------
+
+describe('POST /auth/logout', () => {
+  it('returns 204 and deletes the access row for a valid bearer', async () => {
+    const token = 'tok-logout-U001';
+    const deletes = [];
+    handler._setDdb(
+      withAccessRow('U001', token, {
+        DeleteCommand: (cmd) => {
+          deletes.push(cmd.input);
+          return {};
+        },
+      })
+    );
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/logout',
+      headers: { authorization: bearer(token) },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 204);
+    assert.equal(deletes.length, 1, 'logout must issue exactly one DeleteCommand');
+    assert.equal(deletes[0].TableName, 'UserSession');
+    assert.equal(deletes[0].Key.sessionId, token);
+  });
+
+  it('returns 401 UNAUTHORIZED when no bearer is presented', async () => {
+    handler._setDdb(makeDdb());
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/logout',
+      headers: { 'content-type': 'application/json' },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /auth/session
+// ---------------------------------------------------------------------------
+
+describe('GET /auth/session', () => {
+  it('returns session metadata for a valid bearer', async () => {
+    const token = 'tok-session-U001';
+    handler._setDdb(withAccessRow('U001', token));
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/auth/session',
+      headers: { authorization: bearer(token) },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.userId, 'U001');
+    assert.equal(typeof body.data.issuedAt, 'number');
+    assert.equal(typeof body.data.expiresAt, 'number');
+    assert.equal(typeof body.data.lastActivityAt, 'number');
+    assert.equal(body.data.mfaVerified, true);
+  });
+
+  it('returns 401 INVALID_TOKEN when bearer is unknown', async () => {
+    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: undefined }) }));
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/auth/session',
+      headers: { authorization: bearer('not-a-real-token') },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'INVALID_TOKEN');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /auth/mfa/enroll, /auth/mfa/confirm-enroll, /auth/mfa/recover
+// ---------------------------------------------------------------------------
+
+describe('POST /auth/mfa/enroll', () => {
+  it('returns otpauthUrl, QR PNG base64, and recovery codes and parks a pending secret', async () => {
+    const token = 'tok-enroll-U001';
+    const profile = { userId: 'U001', username: 'alice' };
+    const updates = [];
+    handler._setDdb(
+      withAccessRow('U001', token, {
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+          return { Item: undefined };
+        },
+        UpdateCommand: (cmd) => {
+          updates.push(cmd.input);
+          return {};
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/enroll',
+      headers: { authorization: bearer(token) },
+      body: '',
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200, `body: ${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.match(body.data.otpauthUrl, /^otpauth:\/\/totp\//);
+    assert.ok(body.data.qrCodePngBase64 && body.data.qrCodePngBase64.length > 100);
+    assert.equal(body.data.recoveryCodes.length, 10);
+    assert.equal(body.data.username, 'alice');
+
+    // A SET on pendingMfaSecret + pendingRecoveryHashes happened against
+    // UserProfile, NOT a flip of mfaEnabled.
+    const profileUpdate = updates.find((u) => u.TableName === 'UserProfile');
+    assert.ok(profileUpdate, 'expected a UserProfile UpdateCommand');
+    assert.match(profileUpdate.UpdateExpression, /pendingMfaSecret/);
+    assert.match(profileUpdate.UpdateExpression, /pendingRecoveryHashes/);
+    assert.doesNotMatch(profileUpdate.UpdateExpression, /mfaEnabled/);
+  });
+
+  it('returns 401 UNAUTHORIZED when no bearer is presented', async () => {
+    handler._setDdb(makeDdb());
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/enroll',
+      headers: { 'content-type': 'application/json' },
+      body: '',
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+  });
+});
+
+describe('POST /auth/mfa/confirm-enroll', () => {
+  const { authenticator } = require('otplib');
+  const { generateMfaSecret } = require('./lib/totp');
+
+  it('promotes pending secret to mfaSecret and sets mfaEnabled=true on a correct code', async () => {
+    const token = 'tok-confirm-U001';
+    const pending = generateMfaSecret();
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      pendingMfaSecret: pending,
+      pendingRecoveryHashes: ['h1', 'h2'],
+    };
+    const updates = [];
+    handler._setDdb(
+      withAccessRow('U001', token, {
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+          return { Item: undefined };
+        },
+        UpdateCommand: (cmd) => {
+          updates.push(cmd.input);
+          return {};
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const code = authenticator.generate(pending);
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/confirm-enroll',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200, `body: ${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.status, 'ENROLLED');
+
+    const profileUpdate = updates.find((u) => u.TableName === 'UserProfile');
+    assert.ok(profileUpdate);
+    assert.match(profileUpdate.UpdateExpression, /mfaSecret/);
+    assert.match(profileUpdate.UpdateExpression, /mfaRecoveryHashes/);
+    assert.match(profileUpdate.UpdateExpression, /mfaEnabled/);
+    assert.match(profileUpdate.UpdateExpression, /REMOVE pendingMfaSecret/);
+    assert.equal(profileUpdate.ExpressionAttributeValues[':e'], true);
+  });
+
+  it('returns 401 OTP_INVALID on wrong code and leaves pending in place', async () => {
+    const token = 'tok-confirm-U001';
+    const pending = generateMfaSecret();
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      pendingMfaSecret: pending,
+      pendingRecoveryHashes: [],
+    };
+    const updates = [];
+    handler._setDdb(
+      withAccessRow('U001', token, {
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+          return { Item: undefined };
+        },
+        UpdateCommand: (cmd) => {
+          updates.push(cmd.input);
+          return {};
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/confirm-enroll',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ code: '000000' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'OTP_INVALID');
+
+    // No UserProfile flip happened.
+    const profileUpdate = updates.find((u) => u.TableName === 'UserProfile');
+    assert.equal(profileUpdate, undefined);
+  });
+
+  it('returns 400 NO_PENDING_ENROLLMENT when user has no pending secret', async () => {
+    const token = 'tok-confirm-U001';
+    const profile = { userId: 'U001', username: 'alice' }; // no pendingMfaSecret
+    handler._setDdb(
+      withAccessRow('U001', token, {
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+          return { Item: undefined };
+        },
+        PutCommand: () => ({}),
+      })
+    );
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/confirm-enroll',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ code: '123456' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'NO_PENDING_ENROLLMENT');
+  });
+});
+
+describe('POST /auth/mfa/recover', () => {
+  const { hashRecoveryCodes } = require('./lib/totp');
+
+  it('consumes a valid recovery code, clears mfaSecret, returns a token, leaves other codes', async () => {
+    const codes = ['abcd1234', 'wxyz5678', 'mnop2233'];
+    const hashes = hashRecoveryCodes(codes);
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      passwordHash: 'pw',
+      mfaSecret: 'OLDSECRET',
+      mfaRecoveryHashes: hashes,
+    };
+    const updates = [];
+    handler._setDdb(
+      makeDdb({
+        QueryCommand: () => ({ Items: [profile] }),
+        UpdateCommand: (cmd) => {
+          updates.push(cmd.input);
+          return {};
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/recover',
+      body: JSON.stringify({ username: 'alice', password: 'pw', code: 'wxyz5678' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200, `body: ${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.status, 'RECOVERED');
+    assert.ok(body.data.token);
+    assert.equal(body.data.recoveryCodesRemaining, 2);
+
+    const profileUpdate = updates.find((u) => u.TableName === 'UserProfile');
+    assert.match(profileUpdate.UpdateExpression, /REMOVE mfaSecret/);
+    assert.equal(profileUpdate.ExpressionAttributeValues[':h'].length, 2);
+    assert.ok(!profileUpdate.ExpressionAttributeValues[':h'].includes(hashes[1]));
+  });
+
+  it('returns 401 RECOVERY_CODE_INVALID when the code is not in the stored set', async () => {
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      passwordHash: 'pw',
+      mfaRecoveryHashes: hashRecoveryCodes(['real-code-1']),
+    };
+    handler._setDdb(
+      makeDdb({
+        QueryCommand: () => ({ Items: [profile] }),
+        UpdateCommand: () => ({}),
+        PutCommand: () => ({}),
+      })
+    );
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/recover',
+      body: JSON.stringify({ username: 'alice', password: 'pw', code: 'wrong-code' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'RECOVERY_CODE_INVALID');
+  });
+
+  it('returns 401 INVALID_CREDENTIALS when password is wrong', async () => {
+    const profile = { userId: 'U001', username: 'alice', passwordHash: 'correct' };
+    handler._setDdb(
+      makeDdb({
+        QueryCommand: () => ({ Items: [profile] }),
+      })
+    );
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/recover',
+      body: JSON.stringify({ username: 'alice', password: 'wrong', code: 'anything' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'INVALID_CREDENTIALS');
+  });
+
+  it('rejects re-use of a previously-consumed recovery code', async () => {
+    const codes = ['singleuse'];
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      passwordHash: 'pw',
+      mfaRecoveryHashes: hashRecoveryCodes(codes),
+    };
+    let stored = [...profile.mfaRecoveryHashes];
+    handler._setDdb(
+      makeDdb({
+        QueryCommand: () => ({ Items: [{ ...profile, mfaRecoveryHashes: stored }] }),
+        UpdateCommand: (cmd) => {
+          stored = cmd.input.ExpressionAttributeValues[':h'];
+          return {};
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event1 = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/recover',
+      body: JSON.stringify({ username: 'alice', password: 'pw', code: 'singleuse' }),
+    });
+    const res1 = await handler.main(event1);
+    assert.equal(res1.statusCode, 200);
+
+    // Second use of the same code must now fail because stored is empty.
+    const event2 = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/recover',
+      body: JSON.stringify({ username: 'alice', password: 'pw', code: 'singleuse' }),
+    });
+    const res2 = await handler.main(event2);
+    assert.equal(res2.statusCode, 401);
+    const body = JSON.parse(res2.body);
+    assert.equal(body.error.code, 'RECOVERY_CODE_INVALID');
   });
 });
