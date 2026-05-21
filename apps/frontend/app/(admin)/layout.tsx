@@ -1,4 +1,5 @@
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import AdminErrorBoundary from '@/components/ui/AdminErrorBoundary';
 import AdminProviders from './providers';
 
 const inter = Inter({
@@ -25,7 +26,9 @@ const jetbrains = JetBrains_Mono({
 export default function AdminGroupLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`${inter.variable} ${interDisplay.variable} ${jetbrains.variable} font-sans`}>
-      <AdminProviders>{children}</AdminProviders>
+      <AdminErrorBoundary>
+        <AdminProviders>{children}</AdminProviders>
+      </AdminErrorBoundary>
     </div>
   );
 }

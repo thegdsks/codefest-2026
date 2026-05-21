@@ -97,7 +97,10 @@ export default function LoyaltyStatusCard({ compact = false }: Props) {
   }
 
   const strokeDashoffset = CIRCUMFERENCE * (1 - arcProgress);
-  const recentSlice = data.recentMiles.slice(0, 5);
+  // Guard: backend may omit these arrays on the first load or when the user has no activity.
+  const recentSlice = (data.recentMiles ?? []).slice(0, 5);
+  const tierBenefits = data.tierBenefits ?? [];
+  const nextTierBenefits = data.nextTierBenefits ?? [];
 
   if (compact) {
     return (
@@ -230,7 +233,7 @@ export default function LoyaltyStatusCard({ compact = false }: Props) {
         {showBenefits && (
           <div className="mt-3 animate-fade-in">
             <ul className="space-y-1.5 mb-4">
-              {data.tierBenefits.map((b) => (
+              {tierBenefits.map((b) => (
                 <li key={b} className="flex items-start gap-2 text-xs font-sans text-gray-700">
                   <span className="text-[#775a19] mt-0.5 shrink-0">•</span>
                   {b}
@@ -238,13 +241,13 @@ export default function LoyaltyStatusCard({ compact = false }: Props) {
               ))}
             </ul>
 
-            {data.nextTier && data.nextTierBenefits.length > 0 && (
+            {data.nextTier && nextTierBenefits.length > 0 && (
               <>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
                   {data.nextTier} Benefits
                 </p>
                 <ul className="space-y-1.5">
-                  {data.nextTierBenefits.map((b) => (
+                  {nextTierBenefits.map((b) => (
                     <li key={b} className="flex items-start gap-2 text-xs font-sans text-gray-400">
                       <span className="mt-0.5 shrink-0">•</span>
                       {b}

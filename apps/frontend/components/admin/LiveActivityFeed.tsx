@@ -3,7 +3,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { Activity, Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { type ActivityEvent, type DecisionActivityEvent, getActivityFeed } from '@/lib/admin-api';
+import {
+  type ActivityEvent,
+  type DecisionActivityEvent,
+  getActivityFeed,
+  type SignalActivityEvent,
+} from '@/lib/admin-api';
 import DecisionDrawer from './DecisionDrawer';
 
 // Re-exported for backward compatibility with DecisionDrawer and other consumers.
@@ -22,12 +27,13 @@ export const DECISION_TYPE_LABEL: Record<string, string> = {
   DECISION_RELEASE: 'Manual release',
 };
 
-type FilterKind = 'all' | 'DECISION' | 'SESSION' | 'DEMO_EVENT';
+type FilterKind = 'all' | 'DECISION' | 'SESSION' | 'DEMO_EVENT' | 'SIGNAL';
 
 const FILTER_PILLS: { label: string; value: FilterKind }[] = [
   { label: 'All', value: 'all' },
   { label: 'Decisions', value: 'DECISION' },
   { label: 'Sessions', value: 'SESSION' },
+  { label: 'Signals', value: 'SIGNAL' },
   { label: 'Demo actions', value: 'DEMO_EVENT' },
 ];
 
@@ -36,6 +42,7 @@ const MAX_ACCUMULATED = 200;
 function rowBorderClass(ev: ActivityEvent): string {
   if (ev.kind === 'SESSION') return 'border-l-2 border-l-sky-500/70';
   if (ev.kind === 'DEMO_EVENT') return 'border-l-2 border-l-violet-500/70';
+  if (ev.kind === 'SIGNAL') return 'border-l-2 border-l-teal-400/70';
   const d = ev as DecisionActivityEvent;
   // Guard: raw may be absent on malformed payloads from the feed endpoint.
   if (d.raw?.action === 'BLOCK') return 'border-l-2 border-l-rose-500/70';
@@ -45,12 +52,14 @@ function rowBorderClass(ev: ActivityEvent): string {
 function kindBadgeClass(kind: ActivityEvent['kind']): string {
   if (kind === 'SESSION') return 'bg-sky-500/15 text-sky-300 border-sky-500/30';
   if (kind === 'DEMO_EVENT') return 'bg-violet-500/15 text-violet-300 border-violet-500/30';
+  if (kind === 'SIGNAL') return 'bg-teal-500/15 text-teal-300 border-teal-500/30';
   return 'bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)] border-[color:var(--border-strong)]';
 }
 
 function kindLabel(kind: ActivityEvent['kind']): string {
   if (kind === 'SESSION') return 'Session';
   if (kind === 'DEMO_EVENT') return 'Demo';
+  if (kind === 'SIGNAL') return 'Signal';
   return 'Decision';
 }
 
@@ -67,11 +76,12 @@ function formatRelative(epochMs: number): string {
 function stableEventKey(ev: ActivityEvent): string {
   if (ev.kind === 'DECISION') return `decision-${ev.decisionId}`;
   if (ev.kind === 'SESSION') return `session-${ev.sessionId}`;
+  if (ev.kind === 'SIGNAL') return `signal-${ev.userId}-${ev.timestamp}`;
   return `demo-${ev.timestamp}-${ev.actor}`;
 }
 
 function eventSubject(ev: ActivityEvent): string {
-  if (ev.kind === 'DECISION' || ev.kind === 'SESSION') return ev.userId;
+  if (ev.kind === 'DECISION' || ev.kind === 'SESSION' || ev.kind === 'SIGNAL') return ev.userId;
   return ev.actor;
 }
 
@@ -116,7 +126,15 @@ function EventDetail({ ev, onOpenDecision, onClose }: EventDetailProps) {
         </div>
       </div>
       <pre className="max-h-40 overflow-y-auto rounded bg-[color:var(--bg-surface)] p-2 font-mono text-[10px] text-[color:var(--text-muted)] leading-relaxed">
-        {JSON.stringify(ev.kind === 'DEMO_EVENT' ? ev.payload : ev.raw, null, 2)}
+        {JSON.stringify(
+          ev.kind === 'DEMO_EVENT'
+            ? ev.payload
+            : ev.kind === 'SIGNAL'
+              ? (ev as SignalActivityEvent).raw
+              : ev.raw,
+          null,
+          2
+        )}
       </pre>
     </div>
   );
