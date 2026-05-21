@@ -1,16 +1,25 @@
 'use client';
 
 import { ArrowClockwise, Cpu, CurrencyCircleDollar, Pulse, Stack } from '@phosphor-icons/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
+import {
+  bucketDecisions,
+  DecisionsOverTimeChart,
+  EngineGuardRadial,
+  Sparkline,
+  sparklineSeries,
+  TypeDonutChart,
+  windowToMs,
+} from '@/components/admin/charts';
 import LiveActivityFeed from '@/components/admin/LiveActivityFeed';
 import ProgressBar from '@/components/admin/ProgressBar';
 import Tile from '@/components/admin/Tile';
-import { getMetrics, type MetricsResponse, type Window } from '@/lib/admin-api';
-import type { ApiResult } from '@/lib/types';
+import { getDecisions, getMetrics, type Window } from '@/lib/admin-api';
 
 const WINDOWS: Window[] = ['1h', '24h', '7d'];
-const POLL_MS = 5_000;
+const SPARKLINE_BUCKETS = 12;
 
 function formatPct(part: number, total: number): string {
   if (total === 0) return '0%';
@@ -25,31 +34,39 @@ function formatUsd(n: number): string {
 const SKELETON_BARS = ['a', 'b', 'c'];
 
 export default function AdminDashboardPage() {
-  const [window, setWindow] = useState<Window>('24h');
-  const [result, setResult] = useState<ApiResult<MetricsResponse> | null>(null);
+  const [activeWindow, setActiveWindow] = useState<Window>('24h');
 
-  const load = useCallback(async () => {
-    const res = await getMetrics(window);
-    setResult(res);
-  }, [window]);
+  const metricsQuery = useQuery({
+    queryKey: ['metrics', activeWindow],
+    queryFn: () => getMetrics(activeWindow),
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      const res = await getMetrics(window);
-      if (!cancelled) setResult(res);
-    };
-    run();
-    const id = setInterval(run, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [window]);
+  const decisionsQuery = useQuery({
+    queryKey: ['decisions', activeWindow, 500],
+    queryFn: () => getDecisions({ window: activeWindow, limit: 500 }),
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+  });
 
-  const data = result?.data ?? null;
-  const err = result?.error ?? null;
-  const loading = result === null;
+  const data = metricsQuery.data?.data ?? null;
+  const err = metricsQuery.data?.error ?? null;
+  const loading = metricsQuery.isLoading;
+
+  const { windowMs, bucketMs } = windowToMs(activeWindow);
+
+  const buckets = useMemo(() => {
+    const decisions = decisionsQuery.data?.data?.decisions ?? [];
+    return bucketDecisions(decisions, windowMs, bucketMs);
+  }, [decisionsQuery.data, windowMs, bucketMs]);
+
+  const sparkTotal = useMemo(() => sparklineSeries(buckets, 'TOTAL', SPARKLINE_BUCKETS), [buckets]);
+  const sparkL1 = useMemo(() => sparklineSeries(buckets, 'ALLOW', SPARKLINE_BUCKETS), [buckets]);
+  const sparkL2Block = useMemo(
+    () => sparklineSeries(buckets, 'BLOCK', SPARKLINE_BUCKETS),
+    [buckets]
+  );
 
   const actionRows = useMemo(() => {
     if (!data) return [];
@@ -62,7 +79,15 @@ export default function AdminDashboardPage() {
   }, [data]);
 
   if (err && !data) {
-    return <AuthGate error={err} onRetry={load} />;
+    return (
+      <AuthGate
+        error={err}
+        onRetry={() => {
+          metricsQuery.refetch();
+          decisionsQuery.refetch();
+        }}
+      />
+    );
   }
 
   const total = data?.totals.total ?? 0;
@@ -84,9 +109,11 @@ export default function AdminDashboardPage() {
               <button
                 key={w}
                 type="button"
-                onClick={() => setWindow(w)}
+                onClick={() => setActiveWindow(w)}
                 className={`rounded px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
-                  window === w ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-100'
+                  activeWindow === w
+                    ? 'bg-zinc-100 text-zinc-900'
+                    : 'text-zinc-400 hover:text-zinc-100'
                 }`}
               >
                 {w}
@@ -95,7 +122,10 @@ export default function AdminDashboardPage() {
           </div>
           <button
             type="button"
-            onClick={load}
+            onClick={() => {
+              metricsQuery.refetch();
+              decisionsQuery.refetch();
+            }}
             className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           >
             <ArrowClockwise size={12} />
@@ -105,43 +135,81 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="flex gap-6">
-        {/* Left rail: KPI tiles and breakdown charts */}
-        <div className="min-w-0 flex-1">
+        {/* Left rail: KPI tiles, charts, and breakdown */}
+        <div className="min-w-0 flex-1 space-y-6">
+          {/* KPI tiles with sparklines */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Tile
-              label="Total decisions"
-              value={total}
-              hint={`In the last ${window}`}
-              icon={Pulse}
-              loading={loading}
-            />
-            <Tile
-              label="L1 only"
-              value={l1}
-              hint={`${formatPct(l1, total)} of total`}
-              icon={Cpu}
-              accent="green"
-              loading={loading}
-            />
-            <Tile
-              label="L1 + L2"
-              value={l2}
-              hint={`${formatPct(l2, total)} escalated to LLM`}
-              icon={Stack}
-              accent="indigo"
-              loading={loading}
-            />
-            <Tile
-              label="LLM spend"
-              value={formatUsd(data?.costEstimateUsd ?? 0)}
-              hint={`At ${l2} calls`}
-              icon={CurrencyCircleDollar}
-              accent="amber"
-              loading={loading}
-            />
+            <div className="flex flex-col">
+              <Tile
+                label="Total decisions"
+                value={total}
+                hint={`In the last ${activeWindow}`}
+                icon={Pulse}
+                loading={loading}
+              />
+              <div className="flex justify-end pr-4 pt-1">
+                <Sparkline data={sparkTotal} color="#6366F1" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <Tile
+                label="L1 only"
+                value={l1}
+                hint={`${formatPct(l1, total)} of total`}
+                icon={Cpu}
+                accent="green"
+                loading={loading}
+              />
+              <div className="flex justify-end pr-4 pt-1">
+                <Sparkline data={sparkL1} color="#34D399" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <Tile
+                label="L1 + L2"
+                value={l2}
+                hint={`${formatPct(l2, total)} escalated to LLM`}
+                icon={Stack}
+                accent="indigo"
+                loading={loading}
+              />
+              <div className="flex justify-end pr-4 pt-1">
+                <Sparkline data={sparkL2Block} color="#F43F5E" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <Tile
+                label="LLM spend"
+                value={formatUsd(data?.costEstimateUsd ?? 0)}
+                hint={`At ${l2} calls`}
+                icon={CurrencyCircleDollar}
+                accent="amber"
+                loading={loading}
+              />
+              <div className="flex justify-end pr-4 pt-1">
+                <Sparkline data={sparkTotal} color="#FBBF24" />
+              </div>
+            </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* Chart row: decisions over time (2/3) + donut (1/3) */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <section className="lg:col-span-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+                Decisions over time
+              </h2>
+              <DecisionsOverTimeChart window={activeWindow} height={260} />
+            </section>
+            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+                By type
+              </h2>
+              <TypeDonutChart window={activeWindow} height={240} />
+            </section>
+          </div>
+
+          {/* Flat action and type breakdown bars */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
               <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
                 Actions
@@ -217,8 +285,32 @@ export default function AdminDashboardPage() {
             </section>
           </div>
 
+          {/* Engine guard — visible on xl alongside the right rail live feed */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:hidden">
+            <section className="lg:col-span-2 rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-hidden">
+              <div className="h-96">
+                <LiveActivityFeed />
+              </div>
+            </section>
+            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+                Engine guard
+              </h2>
+              <EngineGuardRadial window={activeWindow} height={200} />
+            </section>
+          </div>
+
+          <div className="hidden xl:block">
+            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+                Engine guard
+              </h2>
+              <EngineGuardRadial window={activeWindow} height={200} />
+            </section>
+          </div>
+
           {data?.asOf ? (
-            <div aria-live="polite" className="mt-6 text-xs text-zinc-600">
+            <div aria-live="polite" className="text-xs text-zinc-600">
               Snapshot taken {new Date(data.asOf * 1000).toLocaleString()}
             </div>
           ) : null}
