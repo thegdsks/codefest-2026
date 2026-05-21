@@ -122,13 +122,51 @@ export interface HealthResponse {
 export interface SessionRow {
   sessionId: string;
   userId: string;
+  type?: 'CHALLENGE' | 'ACCESS';
   issuedAt?: number;
+  createdAt?: number;
   expiresAt?: number;
   lastActivityAt?: number;
+  mfaVerified?: boolean;
+  mfaPath?: 'TOTP' | 'STATIC';
+  source?: string;
+  location?: string;
+  ipAddress?: string;
+  deviceId?: string;
+  active?: boolean;
+  revokedAt?: number;
+  recordType?: string;
 }
 
 export interface SessionsListResponse {
   sessions: SessionRow[];
+}
+
+export interface RiskRecentDecision {
+  decisionId: string;
+  decisionType: string;
+  action: string;
+  score: number;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  timestamp: number;
+}
+
+export interface UserRiskResponse {
+  userId: string;
+  riskScore: number;
+  storedRiskScore?: number;
+  isBlocked?: boolean;
+  riskUpdatedAt?: number;
+  asOf?: number;
+  recentDecisions?: RiskRecentDecision[];
+}
+
+export interface MfaStatusResponse {
+  total: number;
+  enrolled: number;
+  pending: number;
+  notEnrolled: number;
+  enrolledPercent: number;
 }
 
 function authHeader(): string {
@@ -327,6 +365,14 @@ export function getUser(id: string): Promise<ApiResult<AdminUser>> {
 
 export function getSessions(): Promise<ApiResult<SessionsListResponse>> {
   return adminFetch<SessionsListResponse>('/admin/sessions');
+}
+
+export function getUserRisk(userId: string): Promise<ApiResult<UserRiskResponse>> {
+  return adminFetch<UserRiskResponse>(`/admin/users/${encodeURIComponent(userId)}/risk`);
+}
+
+export function getMfaStatus(): Promise<ApiResult<MfaStatusResponse>> {
+  return adminFetch<MfaStatusResponse>('/admin/mfa-status');
 }
 
 export function revokeSession(sessionId: string): Promise<ApiResult<{ revoked: true }>> {

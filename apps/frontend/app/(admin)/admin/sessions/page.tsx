@@ -1,212 +1,273 @@
 'use client';
 
-import { Clock, ShieldCheck, ShieldSlash } from '@phosphor-icons/react';
-import { useCallback, useEffect, useState } from 'react';
+import { MagnifyingGlass, Shield, ShieldCheck, ShieldSlash, Users } from '@phosphor-icons/react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
-import Skeleton from '@/components/admin/Skeleton';
+import { SessionDetailDrawer } from '@/components/admin/sessions/SessionDetailDrawer';
 import {
-  getSessions,
-  revokeSession,
-  type SessionRow,
-  type SessionsListResponse,
-} from '@/lib/admin-api';
-import type { ApiErrorDetail, ApiResult } from '@/lib/types';
+  type SessionFilter,
+  SessionsTable,
+  type TimeRange,
+} from '@/components/admin/sessions/SessionsTable';
+import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
+import { getMfaStatus, getSessions, revokeSession, type SessionRow } from '@/lib/admin-api';
 
-const POLL_MS = 5_000;
+const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
+  { value: '15m', label: '15m' },
+  { value: '1h', label: '1h' },
+  { value: '24h', label: '24h' },
+  { value: '7d', label: '7d' },
+];
 
-const SKELETON_ROWS = ['s0', 's1', 's2', 's3'];
+const STATUS_FILTERS: { value: SessionFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'revoked', label: 'Revoked' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'mfa-pending', label: 'MFA pending' },
+];
 
-function isMissingEndpoint(code: string): boolean {
+function isSessionActive(row: SessionRow): boolean {
+  if (row.revokedAt) return false;
+  if (row.expiresAt && row.expiresAt * 1000 < Date.now()) return false;
+  return true;
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+}) {
   return (
-    code === '404' ||
-    code === 'NOT_FOUND' ||
-    code === '405' ||
-    code === 'METHOD_NOT_ALLOWED' ||
-    code === '501' ||
-    code === 'NOT_IMPLEMENTED'
+    <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
+        {icon}
+      </div>
+      <div>
+        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
+        <p className="text-lg font-semibold tabular-nums text-zinc-100">{value}</p>
+      </div>
+    </div>
   );
 }
 
-function formatEpochSec(s?: number): string {
-  if (!s) return '-';
-  return new Date(s * 1000).toLocaleString();
-}
-
-function timeUntil(s?: number): string {
-  if (!s) return '';
-  const diffMs = s * 1000 - Date.now();
-  if (diffMs <= 0) return 'expired';
-  const m = Math.round(diffMs / 60000);
-  if (m < 60) return `expires in ${m}m`;
-  const h = Math.round(m / 60);
-  return `expires in ${h}h`;
-}
-
-interface RowsState {
-  rows: SessionRow[];
-  endpointMissing: boolean;
-  fatal: ApiErrorDetail | null;
-}
-
 export default function SessionsPage() {
-  const [state, setState] = useState<RowsState | null>(null);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
-  const [revokeErr, setRevokeErr] = useState<ApiErrorDetail | null>(null);
+  const [timeRange, setTimeRange] = useState<TimeRange>('1h');
+  const [filter, setFilter] = useState<SessionFilter>('all');
+  const [search, setSearch] = useState('');
+  const [selectedSession, setSelectedSession] = useState<SessionRow | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<{ sessionId: string; userId: string } | null>(
+    null
+  );
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
-  const load = useCallback(async () => {
-    const res: ApiResult<SessionsListResponse> = await getSessions();
+  const queryClient = useQueryClient();
+
+  const {
+    data: sessionsData,
+    isLoading: sessionsLoading,
+    error: sessionsError,
+  } = useQuery({
+    queryKey: ['admin-sessions'],
+    queryFn: async () => {
+      const res = await getSessions();
+      if (res.error) throw new Error(res.error.message);
+      return res.data;
+    },
+    refetchInterval: 15_000,
+    staleTime: 10_000,
+  });
+
+  const { data: mfaData } = useQuery({
+    queryKey: ['admin-mfa-status'],
+    queryFn: async () => {
+      const res = await getMfaStatus();
+      return res.data ?? null;
+    },
+    staleTime: 60_000,
+  });
+
+  const sessions = sessionsData?.sessions ?? [];
+  const activeCount = sessions.filter(isSessionActive).length;
+  const mfaVerifiedCount = sessions.filter((s) => s.mfaVerified).length;
+  const mfaPercent =
+    sessions.length > 0 ? Math.round((mfaVerifiedCount / sessions.length) * 100) : 0;
+
+  const handleRevokeRequest = useCallback((sessionId: string, userId: string) => {
+    setRevokeTarget({ sessionId, userId });
+    setRevokeError(null);
+  }, []);
+
+  const handleRevokeConfirm = useCallback(async () => {
+    if (!revokeTarget) return;
+    setRevoking(true);
+    setRevokeError(null);
+
+    if (selectedSession?.sessionId === revokeTarget.sessionId) {
+      setSelectedSession((prev) =>
+        prev ? { ...prev, revokedAt: Math.floor(Date.now() / 1000) } : prev
+      );
+    }
+
+    const res = await revokeSession(revokeTarget.sessionId);
+    setRevoking(false);
+
     if (res.error) {
-      const code = (res.error.code || '').toUpperCase();
-      if (isMissingEndpoint(code)) {
-        setState({ rows: [], endpointMissing: true, fatal: null });
-        return;
+      setRevokeError(`${res.error.code}: ${res.error.message}`);
+      if (selectedSession?.sessionId === revokeTarget.sessionId) {
+        setSelectedSession((prev) => (prev ? { ...prev, revokedAt: undefined } : prev));
       }
-      setState({ rows: [], endpointMissing: false, fatal: res.error });
       return;
     }
-    setState({ rows: res.data?.sessions ?? [], endpointMissing: false, fatal: null });
-  }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      const res = await getSessions();
-      if (cancelled) return;
-      if (res.error) {
-        const code = (res.error.code || '').toUpperCase();
-        if (isMissingEndpoint(code)) {
-          setState({ rows: [], endpointMissing: true, fatal: null });
-          return;
-        }
-        setState({ rows: [], endpointMissing: false, fatal: res.error });
-        return;
-      }
-      setState({ rows: res.data?.sessions ?? [], endpointMissing: false, fatal: null });
-    };
-    run();
-    const id = setInterval(run, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
+    setRevokeTarget(null);
+    await queryClient.invalidateQueries({ queryKey: ['admin-sessions'] });
+  }, [revokeTarget, selectedSession, queryClient]);
 
-  if (state?.fatal) {
-    return <AuthGate error={state.fatal} onRetry={load} />;
+  if (sessionsError) {
+    return (
+      <AuthGate
+        error={{ code: 'FETCH_ERROR', message: (sessionsError as Error).message }}
+        onRetry={() => queryClient.invalidateQueries({ queryKey: ['admin-sessions'] })}
+      />
+    );
   }
 
-  const loading = state === null;
-  const endpointMissing = state?.endpointMissing ?? false;
-  const rows = state?.rows ?? [];
-
-  const onRevoke = async (sessionId: string) => {
-    setRevokingId(sessionId);
-    setRevokeErr(null);
-    const res = await revokeSession(sessionId);
-    setRevokingId(null);
-    if (res.error) {
-      setRevokeErr(res.error);
-      return;
-    }
-    load();
-  };
-
   return (
-    <div className="mx-auto max-w-5xl">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--text)]">Auth sessions</h1>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Active session tokens. Force logout from here.
-          </p>
+    <div className="mx-auto max-w-[1200px]">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-zinc-100">Sessions</h1>
+        <p className="mt-1 text-sm text-zinc-400">
+          Session lifecycle, MFA status, and risk context. Click a row to inspect.
+        </p>
+      </div>
+
+      <div className="mb-6 grid grid-cols-3 gap-3">
+        <StatCard icon={<Users size={16} />} label="Total sessions" value={sessions.length} />
+        <StatCard icon={<Shield size={16} />} label="Active now" value={activeCount} />
+        <StatCard icon={<ShieldCheck size={16} />} label="MFA verified" value={`${mfaPercent}%`} />
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+            Time range
+          </span>
+          <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-900/40 p-0.5">
+            {TIME_RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setTimeRange(opt.value)}
+                className={
+                  timeRange === opt.value
+                    ? 'rounded-md bg-indigo-500 px-3 py-1 text-xs font-semibold text-white'
+                    : 'rounded-md px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200'
+                }
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative">
+          <MagnifyingGlass
+            size={13}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"
+          />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search user or session ID..."
+            className="h-8 w-64 rounded-lg border border-zinc-800 bg-zinc-900/40 pl-7 pr-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/40"
+          />
         </div>
       </div>
 
-      {endpointMissing ? (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-6 text-sm">
-          <div className="mb-1 font-semibold text-amber-700 dark:text-amber-200">
-            Endpoint not deployed yet
-          </div>
-          <p className="text-amber-800/80 dark:text-amber-100/80">
-            The backend has not shipped <code className="font-mono">GET /admin/sessions</code> yet.
-            This page polls every 5 seconds and will populate as soon as the endpoint is live.
-          </p>
-        </div>
-      ) : null}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {STATUS_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            aria-pressed={filter === f.value}
+            onClick={() => setFilter(f.value)}
+            className={
+              filter === f.value
+                ? 'inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950'
+                : 'inline-flex items-center rounded-full border border-zinc-800 bg-zinc-900/40 px-3 py-1 text-xs text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950'
+            }
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-      {revokeErr ? (
+      {revokeError && (
         <div
           aria-live="polite"
-          className="mb-3 rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-700 dark:text-rose-200"
+          className="mb-3 rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-300"
         >
-          {revokeErr.code}: {revokeErr.message}
+          {revokeError}
         </div>
-      ) : null}
+      )}
 
-      <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
-        <div className="grid grid-cols-12 gap-3 border-b border-[var(--border)] px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          <div className="col-span-4">Session</div>
-          <div className="col-span-2">User</div>
-          <div className="col-span-3">Issued</div>
-          <div className="col-span-2">Expires</div>
-          <div className="col-span-1 text-right">Actions</div>
+      <SessionsTable
+        rows={sessions}
+        loading={sessionsLoading}
+        filter={filter}
+        timeRange={timeRange}
+        search={search}
+        revokingId={revoking && revokeTarget ? revokeTarget.sessionId : null}
+        onRowClick={setSelectedSession}
+        onRevoke={handleRevokeRequest}
+      />
+
+      <SessionDetailDrawer
+        session={selectedSession}
+        onClose={() => setSelectedSession(null)}
+        revoking={revoking && revokeTarget?.sessionId === selectedSession?.sessionId}
+        onRevoke={handleRevokeRequest}
+      />
+
+      <Modal
+        open={revokeTarget !== null && !revoking}
+        onOpenChange={(open) => {
+          if (!open) setRevokeTarget(null);
+        }}
+        variant="destructive"
+        title="Revoke session?"
+        description={
+          revokeTarget
+            ? `Revoke session for ${revokeTarget.userId}? They will be signed out on their next request.`
+            : undefined
+        }
+        confirmLabel="Revoke"
+        cancelLabel="Cancel"
+        onConfirm={handleRevokeConfirm}
+        confirmLoading={revoking}
+      />
+
+      {mfaData && (
+        <div className="mt-4 flex items-center gap-2 text-[11px] text-zinc-600">
+          <ShieldSlash size={11} />
+          Platform MFA: {mfaData.enrolled} enrolled, {mfaData.notEnrolled} not enrolled out of{' '}
+          {mfaData.total} users
+          {mfaData.enrolledPercent !== undefined && (
+            <Badge variant="neutral" size="sm">
+              {mfaData.enrolledPercent}% enrolled
+            </Badge>
+          )}
         </div>
-        {loading && !endpointMissing ? (
-          <div className="divide-y divide-[var(--border)]">
-            {SKELETON_ROWS.map((k) => (
-              <div key={k} className="grid grid-cols-12 gap-3 px-4 py-3">
-                <Skeleton className="col-span-4 h-4" />
-                <Skeleton className="col-span-2 h-4" />
-                <Skeleton className="col-span-3 h-4" />
-                <Skeleton className="col-span-2 h-4" />
-                <Skeleton className="col-span-1 h-4" />
-              </div>
-            ))}
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-[var(--text-dim)]">
-            <ShieldCheck size={14} />
-            No active sessions.
-          </div>
-        ) : (
-          <ul aria-live="polite" className="divide-y divide-[var(--border)]">
-            {rows.map((row) => (
-              <li
-                key={row.sessionId}
-                className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm"
-              >
-                <div className="col-span-4 truncate font-mono text-xs text-[var(--text)]">
-                  {row.sessionId}
-                </div>
-                <div className="col-span-2 truncate font-mono text-xs text-[var(--text-muted)]">
-                  {row.userId}
-                </div>
-                <div className="col-span-3 tabular-nums text-xs text-[var(--text-muted)]">
-                  {formatEpochSec(row.issuedAt)}
-                </div>
-                <div className="col-span-2 tabular-nums text-xs text-[var(--text-muted)]">
-                  <div>{formatEpochSec(row.expiresAt)}</div>
-                  <div className="inline-flex items-center gap-1 text-xs text-[var(--text-dim)]">
-                    <Clock size={10} />
-                    {timeUntil(row.expiresAt)}
-                  </div>
-                </div>
-                <div className="col-span-1 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => onRevoke(row.sessionId)}
-                    disabled={revokingId === row.sessionId}
-                    className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-xs text-rose-700 dark:text-rose-200 hover:bg-rose-500/20 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
-                  >
-                    <ShieldSlash size={11} />
-                    {revokingId === row.sessionId ? 'Revoking' : 'Force logout'}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      )}
     </div>
   );
 }
