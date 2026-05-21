@@ -143,7 +143,7 @@ export default function DemoPanel() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400 uppercase tracking-wider text-[10px]">Points</span>
-                  <span className="font-semibold">{user.points.toLocaleString()} SFC</span>
+                  <span className="font-semibold">{(user.points ?? 0).toLocaleString()} SFC</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400 uppercase tracking-wider text-[10px]">Token</span>
