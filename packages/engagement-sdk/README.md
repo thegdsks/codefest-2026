@@ -4,8 +4,21 @@ Captures behavioural signals and renders contextual interventions (banners, moda
 
 ## Install
 
+This package is not published to npm. It ships as a workspace package inside the `signal-force` monorepo.
+
+**Inside this repo** (default for the team):
+
 ```bash
-npm install @signal-force/engagement-sdk
+# from repo root
+npm install
+```
+
+`apps/frontend` already declares `"@signal-force/engagement-sdk": "*"`. The root `npm install` symlinks the workspace and runs the SDK's `prepare` script (`tsup`), so `dist/` is built automatically. If you ever see `ERR_MODULE_NOT_FOUND` for `@signal-force/engagement-sdk/react`, run `npm install` at the repo root again, or `npm run build` inside `packages/engagement-sdk`.
+
+**Outside this repo** (rare, e.g. a separate prototype):
+
+```bash
+npm install github:thegdsks/signal-force#main --workspace-root packages/engagement-sdk
 ```
 
 React is a peer dependency (`^18 || ^19`).
