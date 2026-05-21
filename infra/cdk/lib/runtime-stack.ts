@@ -112,6 +112,17 @@ export class RuntimeStack extends cdk.Stack {
         // Demo env: static OTP accepted, forceMfa shortcut enabled
         MFA_MODE: 'static',
         DEMO_MODE: '1',
+        // LiteLLM proxy creds: read from synth-time env so values are never
+        // committed. Keys are omitted from the Lambda env block entirely when
+        // unset so engine/llm.js short-circuits cleanly instead of trying to
+        // call an empty URL.
+        ...(process.env['LITELLM_BASE_URL']
+          ? { LITELLM_BASE_URL: process.env['LITELLM_BASE_URL'] }
+          : {}),
+        ...(process.env['LITELLM_API_KEY']
+          ? { LITELLM_API_KEY: process.env['LITELLM_API_KEY'] }
+          : {}),
+        ...(process.env['LITELLM_MODEL'] ? { LITELLM_MODEL: process.env['LITELLM_MODEL'] } : {}),
       },
     });
 
