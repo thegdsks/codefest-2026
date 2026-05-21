@@ -6,7 +6,7 @@ const {
   UpdateCommand,
   QueryCommand,
 } = require('@aws-sdk/lib-dynamodb');
-const { randomUUID } = require('node:crypto');
+const { randomBytes, randomUUID } = require('node:crypto');
 
 const { scoreLogin } = require('./rules/login');
 const { scoreTransfer } = require('./rules/transfer');
@@ -31,6 +31,7 @@ const CFG = {
   clientId: process.env.CLIENT_ID || 'demoClient',
   clientSecret: process.env.CLIENT_SECRET || 'demoSecret',
   mfaOtp: process.env.MFA_OTP || '123456',
+  sessionTtlSec: Number(process.env.SESSION_TTL_SEC || 1800),
 
   tUserProfile: process.env.TABLE_USER_PROFILE || 'UserProfile',
   tUserSession: process.env.TABLE_USER_SESSION || 'UserSession',
@@ -223,6 +224,98 @@ async function putSession(item) {
 async function getSession(sessionId) {
   const r = await ddb.send(new GetCommand({ TableName: CFG.tUserSession, Key: { sessionId } }));
   return r.Item || null;
+}
+
+/**
+ * Generate an opaque bearer token (32 random bytes, base64url-encoded) and
+ * persist a UserSession "access" row keyed by the token itself. The token
+ * IS the row's sessionId, which gives O(1) lookup during bearer validation
+ * without needing a token-index GSI.
+ *
+ * Access rows carry recordType=ACCESS to keep them distinct from the
+ * existing MFA-challenge rows written during /auth/login.
+ */
+async function issueAccessToken({
+  userId,
+  mfaVerified,
+  correlationId,
+  location,
+  ipAddress,
+  deviceId,
+}) {
+  const token = randomBytes(32).toString('base64url');
+  const now = nowSec();
+  const expiresAt = now + CFG.sessionTtlSec;
+  const item = {
+    sessionId: token,
+    recordType: 'ACCESS',
+    userId,
+    token,
+    issuedAt: now,
+    expiresAt,
+    lastActivityAt: now,
+    mfaVerified: !!mfaVerified,
+    location: location || '',
+    ipAddress: ipAddress || '',
+    deviceId: deviceId || '',
+    correlationId: correlationId || '',
+  };
+  await putSession(item);
+  return { token, issuedAt: now, expiresAt };
+}
+
+/**
+ * Validate an `Authorization: Bearer <token>` header against UserSession.
+ *
+ * On success, slides the row's expiresAt forward by SESSION_TTL_SEC from
+ * now and bumps lastActivityAt. Returns the resolved principal so callers
+ * can compare the request's userId against the token's userId.
+ *
+ * Throws a status-bearing error object that exports.main translates to a
+ * JSON error response. Codes:
+ *   UNAUTHORIZED    - missing / non-Bearer Authorization header
+ *   INVALID_TOKEN   - token not present in UserSession (or wrong row type)
+ *   TOKEN_EXPIRED   - row found but expiresAt <= now
+ */
+async function validateBearer(event) {
+  const auth = getHeader(event.headers, 'authorization');
+  if (!auth || !auth.startsWith('Bearer ')) {
+    throw { status: 401, code: 'UNAUTHORIZED', message: 'Missing bearer token' };
+  }
+  const token = auth.substring('Bearer '.length).trim();
+  if (!token) {
+    throw { status: 401, code: 'UNAUTHORIZED', message: 'Empty bearer token' };
+  }
+
+  const row = await getSession(token);
+  if (!row || row.recordType !== 'ACCESS' || row.token !== token) {
+    throw { status: 401, code: 'INVALID_TOKEN', message: 'Token not recognized' };
+  }
+
+  const now = nowSec();
+  if (typeof row.expiresAt !== 'number' || row.expiresAt <= now) {
+    throw { status: 401, code: 'TOKEN_EXPIRED', message: 'Token expired' };
+  }
+
+  const newExpiresAt = now + CFG.sessionTtlSec;
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserSession,
+      Key: { sessionId: token },
+      UpdateExpression: 'SET lastActivityAt = :now, expiresAt = :exp',
+      ExpressionAttributeValues: { ':now': now, ':exp': newExpiresAt },
+    })
+  );
+
+  return {
+    userId: row.userId,
+    sessionId: token,
+    token,
+    mfaVerified: !!row.mfaVerified,
+    issuedAt: row.issuedAt,
+    expiresAt: newExpiresAt,
+    lastActivityAt: now,
+  };
 }
 
 async function putActivity(item) {
@@ -537,7 +630,25 @@ async function login(event, correlationId) {
     )
   );
   await upsertLoginState(userId, now, location, true);
-  return json(200, correlationId, { data: { status: 'SUCCESS', userId, sessionId } });
+
+  // Auth fully complete (no MFA required). Issue a bearer access token.
+  const access = await issueAccessToken({
+    userId,
+    mfaVerified: false,
+    correlationId,
+    location,
+    ipAddress: ip,
+    deviceId,
+  });
+  return json(200, correlationId, {
+    data: {
+      status: 'SUCCESS',
+      userId,
+      sessionId,
+      token: access.token,
+      expiresAt: access.expiresAt,
+    },
+  });
 }
 
 async function mfaVerify(event, correlationId) {
@@ -579,7 +690,26 @@ async function mfaVerify(event, correlationId) {
       correlationId
     )
   );
-  return json(200, correlationId, { data: { status: 'SUCCESS', message: 'MFA verified' } });
+
+  // MFA gate passed. Issue a bearer access token. The location / device
+  // fields come from the prior login-challenge row so the access row
+  // carries the same demo context.
+  const access = await issueAccessToken({
+    userId,
+    mfaVerified: true,
+    correlationId,
+    location: session.location || '',
+    ipAddress: session.ipAddress || '',
+    deviceId: session.deviceId || '',
+  });
+  return json(200, correlationId, {
+    data: {
+      status: 'SUCCESS',
+      message: 'MFA verified',
+      token: access.token,
+      expiresAt: access.expiresAt,
+    },
+  });
 }
 
 async function transfer(event, correlationId) {
@@ -951,6 +1081,8 @@ async function profileCompletenessEndpoint(event, correlationId) {
 }
 
 exports._setDdb = _setDdb;
+// Exported for unit tests; not part of the HTTP-facing public API.
+exports._validateBearer = validateBearer;
 
 exports.main = async (event) => {
   const correlationId = getHeader(event.headers, 'x-correlation-id') || '';
