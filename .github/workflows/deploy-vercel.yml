@@ -1,0 +1,39 @@
+name: Deploy Vercel
+
+on:
+  # Manual button in GitHub UI only. Auto-deploy on main push is handled by
+  # Vercel's native GitHub integration, so this workflow is the manual
+  # redeploy / "kick the build" lever. Anyone with write access can use it.
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why are you triggering this deploy? (optional, shown in run summary)'
+        required: false
+        default: 'Manual trigger'
+
+permissions:
+  contents: read
+
+jobs:
+  trigger-vercel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fire Vercel deploy hook
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "::error::VERCEL_DEPLOY_HOOK_URL secret is not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "Triggering Vercel deploy for branch main..."
+          RESPONSE=$(curl --silent --show-error --fail --request POST "$DEPLOY_HOOK_URL")
+          echo "$RESPONSE"
+          DEPLOY_ID=$(echo "$RESPONSE" | jq -r '.job.id // .deployment.id // "unknown"')
+          echo "Vercel job id: $DEPLOY_ID"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Vercel deploy triggered" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Job id: \`$DEPLOY_ID\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Reason: ${{ github.event.inputs.reason || 'push to main' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Track progress: https://vercel.com/dashboard" >> "$GITHUB_STEP_SUMMARY"

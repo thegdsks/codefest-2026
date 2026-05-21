@@ -39,7 +39,14 @@ function matchesFeedFilter(row: DecisionRow, f: FeedFilter): boolean {
   return !FRAUD_TYPES_SET.has(row.decisionType) && !ENGAGEMENT_TYPES_SET.has(row.decisionType);
 }
 
-const WINDOWS: Window[] = ['1h', '24h', '7d'];
+const WINDOWS: Window[] = ['5m', '1h', '6h', '24h', '7d', '30d'];
+
+function pollIntervalMs(w: Window): number {
+  if (w === '5m') return 2_000;
+  if (w === '1h') return 5_000;
+  if (w === '6h' || w === '24h') return 15_000;
+  return 60_000;
+}
 
 const TYPE_OPTIONS: Array<{ value: '' | DecisionType; label: string }> = [
   { value: '', label: 'All types' },
@@ -54,8 +61,6 @@ const TYPE_OPTIONS: Array<{ value: '' | DecisionType; label: string }> = [
   { value: 'TRANSFER', label: DECISION_TYPE_LABEL.TRANSFER },
   { value: 'OFFER', label: DECISION_TYPE_LABEL.OFFER },
 ];
-
-const POLL_MS = 5_000;
 
 const SKELETON_ROWS = ['r0', 'r1', 'r2', 'r3', 'r4', 'r5'];
 
@@ -122,12 +127,12 @@ export default function DecisionsListPage() {
     };
     setResult(null);
     run();
-    const id = setInterval(run, POLL_MS);
+    const id = setInterval(run, pollIntervalMs(activeWindow));
     return () => {
       cancelled = true;
       clearInterval(id);
     };
-  }, [query]);
+  }, [query, activeWindow]);
 
   const data = result?.data ?? null;
   const err = result?.error ?? null;

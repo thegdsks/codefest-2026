@@ -69,7 +69,7 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
 
   return (
     <aside className="lg:col-span-4 sticky top-28">
-      {propertyId === 'bastide-gordes' && prestigeSurface?.eligible && (
+      {propertyId === 'bastide-gordes' && prestigeSurface?.state === 'SHOWN' && (
         <div className="mb-6 p-5 bg-[#775a19]/5 border border-[#775a19]/30 rounded-none relative overflow-hidden text-left animate-fade-in shadow-sm">
           <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-[#775a19]/10 rounded-full blur-xl pointer-events-none" />
 

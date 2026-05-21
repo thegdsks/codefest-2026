@@ -2,6 +2,7 @@
 
 import { ArrowRight, Globe, Share2 } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
+import Logo from '@/components/Logo';
 
 export default function Footer() {
   const [email, setEmail] = useState('');
@@ -21,8 +22,11 @@ export default function Footer() {
       <div className="max-w-[1440px] mx-auto px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-12 mb-16">
           <div className="lg:col-span-2">
-            <div className="font-serif text-2xl font-bold tracking-tight text-black mb-6">
-              Signal Force
+            <div className="flex items-center gap-2.5 mb-6">
+              <Logo size={28} tone="light" />
+              <span className="font-serif text-2xl font-bold tracking-tight text-black">
+                Signal Force
+              </span>
             </div>
             <p className="text-gray-500 font-sans text-sm leading-relaxed max-w-xs">
               Crafting unforgettable memories through timeless architecture and unparalleled service

@@ -124,6 +124,10 @@ function decision(
   if (engineMeta && typeof engineMeta.latencyMs === 'number') {
     base.latencyMs = engineMeta.latencyMs;
   }
+  // AI explanation from ai-fraud-explainer (stored when action is BLOCK/REVIEW/MFA)
+  if (engineMeta && engineMeta.aiExplanation && typeof engineMeta.aiExplanation === 'object') {
+    base.aiExplanation = engineMeta.aiExplanation;
+  }
   return base;
 }
 

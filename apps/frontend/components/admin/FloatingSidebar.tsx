@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { getHealth, getMetrics } from '@/lib/admin-api';
+import Logo from '../Logo';
 import UserMenu from './UserMenu';
 import WorkspaceMenu from './WorkspaceMenu';
 
@@ -199,7 +200,7 @@ export default function FloatingSidebar({
       aria-label="Primary navigation"
       className="surface-float hidden md:flex w-[244px] shrink-0 flex-col rounded-xl"
     >
-      <div className="px-2 pt-2 pb-2 border-b border-white/[0.04]">
+      <div className="px-3 pt-3 pb-2 border-b border-white/[0.04]">
         <WorkspaceMenu />
       </div>
 

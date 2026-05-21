@@ -193,7 +193,7 @@ export default function ProfileScreen() {
                 )}
               </div>
 
-              {catalystSurface?.eligible && (
+              {catalystSurface?.state === 'SHOWN' && (
                 <div className="mb-6 p-4 bg-[#775a19]/5 border-l-4 border-[#775a19] text-left relative overflow-hidden animate-fade-in shadow-sm">
                   <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-[#775a19]/10 rounded-full blur-xl pointer-events-none" />
 

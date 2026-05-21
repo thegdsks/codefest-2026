@@ -2,6 +2,7 @@
 
 import { CaretUpDown, Check, Gear, MagnifyingGlass, Plus } from '@phosphor-icons/react';
 import { useRef, useState } from 'react';
+import Logo from '@/components/Logo';
 import { useClickOutside } from '@/lib/use-click-outside';
 
 interface Workspace {
@@ -56,9 +57,9 @@ export default function WorkspaceMenu() {
       >
         <span
           aria-hidden="true"
-          className="inline-grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[color:var(--accent)] text-[11px] font-bold text-[color:var(--accent-fg)] shadow-[0_4px_12px_-2px_rgba(0,0,0,0.35)]"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center"
         >
-          {active.initials}
+          <Logo size={28} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate text-[13px] font-semibold leading-none text-[color:var(--text)]">
@@ -114,9 +115,9 @@ export default function WorkspaceMenu() {
               >
                 <span
                   aria-hidden="true"
-                  className="inline-grid h-5 w-5 shrink-0 place-items-center rounded bg-gradient-to-br from-violet-500 to-indigo-600 text-[9px] font-bold text-white"
+                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center"
                 >
-                  {w.initials}
+                  <Logo size={20} />
                 </span>
                 <span className="min-w-0 flex-1 truncate">{w.name}</span>
                 <EnvBadge env={w.env} />

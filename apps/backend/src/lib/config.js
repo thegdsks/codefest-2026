@@ -66,7 +66,7 @@ const CFG = {
     return Number(process.env.ADMIN_DECISIONS_DEFAULT_LIMIT || 50);
   },
   get adminDecisionsMaxLimit() {
-    return Number(process.env.ADMIN_DECISIONS_MAX_LIMIT || 200);
+    return Number(process.env.ADMIN_DECISIONS_MAX_LIMIT || 500);
   },
   get adminDecisionsExportMaxItems() {
     return Number(process.env.ADMIN_DECISIONS_EXPORT_MAX_ITEMS || 10000);

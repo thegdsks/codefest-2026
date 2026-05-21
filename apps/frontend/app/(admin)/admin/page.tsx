@@ -26,8 +26,15 @@ import Tile from '@/components/admin/Tile';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { getDecisions, getMetrics, type Window } from '@/lib/admin-api';
 
-const WINDOWS: Window[] = ['1h', '24h', '7d'];
+const WINDOWS: Window[] = ['5m', '1h', '6h', '24h', '7d', '30d'];
 const SPARKLINE_BUCKETS = 12;
+
+function pollIntervalMs(w: Window): number {
+  if (w === '5m') return 2_000;
+  if (w === '1h') return 5_000;
+  if (w === '6h' || w === '24h') return 15_000;
+  return 60_000;
+}
 
 function formatPct(part: number, total: number): string {
   if (total === 0) return '0%';
@@ -48,18 +55,20 @@ function budgetBarColor(pct: number): string {
 export default function AdminDashboardPage() {
   const [activeWindow, setActiveWindow] = useState<Window>('24h');
 
+  const pollMs = pollIntervalMs(activeWindow);
+
   const metricsQuery = useQuery({
     queryKey: ['metrics', activeWindow],
     queryFn: () => getMetrics(activeWindow),
-    refetchInterval: 5_000,
-    staleTime: 4_000,
+    refetchInterval: pollMs,
+    staleTime: pollMs - 1_000,
   });
 
   const decisionsQuery = useQuery({
     queryKey: ['decisions', activeWindow, 500],
     queryFn: () => getDecisions({ window: activeWindow, limit: 500 }),
-    refetchInterval: 5_000,
-    staleTime: 4_000,
+    refetchInterval: pollMs,
+    staleTime: pollMs - 1_000,
   });
 
   const data = metricsQuery.data?.data ?? null;
@@ -112,7 +121,7 @@ export default function AdminDashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold text-[color:var(--text)]">Overview</h1>
           <p className="mt-1 text-sm text-[color:var(--text-dim)]">
-            Live decision metrics from the engine. Polls every 5 seconds.
+            Live decision metrics from the engine. Polls every {pollMs / 1000}s.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -272,29 +281,29 @@ export default function AdminDashboardPage() {
             </section>
           </div>
 
-          {/* Live activity + engine guard side by side (no right rail) */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <section className="lg:col-span-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 overflow-hidden">
-              <div className="h-96">
-                <LiveActivityFeed />
-              </div>
-            </section>
-            <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 p-5">
-              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
-                Engine guard
-                <Tooltip content="Live state of the LLM cost guardrail. Radial fill shows how much of the spend cap has been consumed in the rolling window. The breaker trips and stops L2 calls when it hits 100 percent.">
-                  <button
-                    type="button"
-                    aria-label="What is the engine guard?"
-                    className="text-[color:var(--text-dim)] hover:text-[color:var(--text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
-                  >
-                    <Info size={12} weight="bold" />
-                  </button>
-                </Tooltip>
-              </h2>
-              <EngineGuardRadial window={activeWindow} height={200} />
-            </section>
-          </div>
+          {/* Live activity feed: full-width hero */}
+          <section className="h-[520px] overflow-hidden rounded-xl">
+            <LiveActivityFeed />
+          </section>
+
+          {/* Engine guard: compact dark accent tile (not full width). Sits at
+              the left edge so the rest of the row can host future widgets
+              without pushing the breaker dial off into oblivion. */}
+          <section className="w-full max-w-xs rounded-xl border border-zinc-800 bg-zinc-950 p-4 shadow-lg">
+            <h2 className="mb-3 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+              Engine guard
+              <Tooltip content="Live state of the LLM cost guardrail. Radial fill shows how much of the spend cap has been consumed in the rolling window. The breaker trips and stops L2 calls when it hits 100 percent.">
+                <button
+                  type="button"
+                  aria-label="What is the engine guard?"
+                  className="text-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
+                >
+                  <Info size={11} weight="bold" />
+                </button>
+              </Tooltip>
+            </h2>
+            <EngineGuardRadial window={activeWindow} height={150} />
+          </section>
 
           {data?.asOf ? (
             <div aria-live="polite" className="text-xs text-[color:var(--text-dim)]">

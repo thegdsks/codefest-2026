@@ -326,37 +326,40 @@ function ResultsInner() {
                         {item.description}
                       </p>
 
-                      {item.id === 'bastide-gordes' && resultsPrestigeSurface?.eligible && (
-                        <div className="mb-6 p-4 bg-[#775a19]/5 border border-[#775a19]/30 rounded-none relative overflow-hidden text-left animate-fade-in shadow-sm">
-                          <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-[#775a19]/10 rounded-full blur-xl pointer-events-none" />
+                      {item.id === 'bastide-gordes' &&
+                        resultsPrestigeSurface?.state === 'SHOWN' && (
+                          <div className="mb-6 p-4 bg-[#775a19]/5 border border-[#775a19]/30 rounded-none relative overflow-hidden text-left animate-fade-in shadow-sm">
+                            <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-[#775a19]/10 rounded-full blur-xl pointer-events-none" />
 
-                          <div className="flex items-center justify-between mb-2.5 border-b border-[#775a19]/15 pb-1.5">
-                            <div className="flex items-center gap-1.5 text-[#775a19]">
-                              <Award size={13} className="animate-bounce shrink-0" />
-                              <span className="text-[9px] font-bold tracking-widest uppercase font-sans">
-                                {resultsPrestigeHeadline}
-                              </span>
+                            <div className="flex items-center justify-between mb-2.5 border-b border-[#775a19]/15 pb-1.5">
+                              <div className="flex items-center gap-1.5 text-[#775a19]">
+                                <Award size={13} className="animate-bounce shrink-0" />
+                                <span className="text-[9px] font-bold tracking-widest uppercase font-sans">
+                                  {resultsPrestigeHeadline}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 bg-[#775a19] text-white px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold font-mono">
+                                <Clock size={10} className="mr-0.5" />
+                                <span>{formatTime(timeLeft)}</span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 bg-[#775a19] text-white px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold font-mono">
-                              <Clock size={10} className="mr-0.5" />
-                              <span>{formatTime(timeLeft)}</span>
-                            </div>
+
+                            <p className="text-[11px] text-gray-900 font-sans leading-relaxed font-semibold">
+                              You're only{' '}
+                              <span className="text-[#775a19] font-bold">
+                                {pointsAway.toLocaleString()}
+                              </span>{' '}
+                              points away from the next level. Book{' '}
+                              <span className="border-b border-black">4 nights</span> in the next{' '}
+                              <span className="border-b border-black">3 hours</span> to get{' '}
+                              <span className="text-[#775a19] font-bold text-xs">
+                                double points
+                              </span>{' '}
+                              and reach{' '}
+                              <span className="text-[#775a19] font-bold">{nextTierName}</span> tier.
+                            </p>
                           </div>
-
-                          <p className="text-[11px] text-gray-900 font-sans leading-relaxed font-semibold">
-                            You're only{' '}
-                            <span className="text-[#775a19] font-bold">
-                              {pointsAway.toLocaleString()}
-                            </span>{' '}
-                            points away from the next level. Book{' '}
-                            <span className="border-b border-black">4 nights</span> in the next{' '}
-                            <span className="border-b border-black">3 hours</span> to get{' '}
-                            <span className="text-[#775a19] font-bold text-xs">double points</span>{' '}
-                            and reach{' '}
-                            <span className="text-[#775a19] font-bold">{nextTierName}</span> tier.
-                          </p>
-                        </div>
-                      )}
+                        )}
 
                       <div className="flex flex-wrap gap-4 mb-6">
                         {item.amenities.map((amenity) => (

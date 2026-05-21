@@ -29,6 +29,9 @@ const { scoreOffer } = require('../rules/offers');
 const { scoreNudge } = require('../rules/nudges');
 const { profileCompleteness } = require('../rules/profile');
 const { route: engineRoute } = require('../engine/router');
+const { evaluateSurfaces } = require('../engine/surfaces');
+const { prioritize: aiPrioritize } = require('../engine/ai-surface-prioritizer');
+const { explain: aiExplain } = require('../engine/ai-fraud-explainer');
 const { evaluateMfaCode } = require('./auth');
 
 /**
@@ -85,6 +88,17 @@ async function transfer(event, correlationId) {
   await putActivity(activityTransfer(userId, now, amount, recipientId, channel, correlationId));
 
   if (final.action === 'BLOCK') {
+    // Generate AI explanation inline (2s timeout; decision proceeds if LLM is slow)
+    const blockExplanation = await aiExplain({
+      decisionType: 'FRAUD_TRANSFER',
+      action: 'BLOCK',
+      score: final.score,
+      reasonCode: final.reasonCode,
+      reasonText: final.reasonText,
+      context: { amount, recipientId, deviceFingerprint, channel },
+      priorDecisions: [],
+    });
+
     await putDecision(
       decision(
         userId,
@@ -96,13 +110,24 @@ async function transfer(event, correlationId) {
         final.reasonText,
         'EARN_REDEEM',
         correlationId,
-        final
+        { ...final, aiExplanation: blockExplanation || undefined }
       )
     );
     return err(403, correlationId, 'TRANSFER_BLOCKED', 'Transfer blocked due to high fraud risk');
   }
 
   if (final.action === 'MFA') {
+    // Generate AI explanation inline (2s timeout)
+    const mfaExplanation = await aiExplain({
+      decisionType: 'FRAUD_TRANSFER',
+      action: 'MFA',
+      score: final.score,
+      reasonCode: final.reasonCode,
+      reasonText: final.reasonText,
+      context: { amount, recipientId, deviceFingerprint, channel },
+      priorDecisions: [],
+    });
+
     const decRow = decision(
       userId,
       'FRAUD_TRANSFER',
@@ -113,7 +138,7 @@ async function transfer(event, correlationId) {
       final.reasonText,
       'EARN_REDEEM',
       correlationId,
-      final
+      { ...final, aiExplanation: mfaExplanation || undefined }
     );
     await putDecision(decRow);
 
@@ -143,6 +168,17 @@ async function transfer(event, correlationId) {
   }
 
   if (final.action === 'REVIEW') {
+    // Generate AI explanation inline (2s timeout)
+    const reviewExplanation = await aiExplain({
+      decisionType: 'FRAUD_TRANSFER',
+      action: 'REVIEW',
+      score: final.score,
+      reasonCode: final.reasonCode,
+      reasonText: final.reasonText,
+      context: { amount, recipientId, deviceFingerprint, channel },
+      priorDecisions: [],
+    });
+
     await putDecision(
       decision(
         userId,
@@ -154,7 +190,7 @@ async function transfer(event, correlationId) {
         final.reasonText,
         'EARN_REDEEM',
         correlationId,
-        final
+        { ...final, aiExplanation: reviewExplanation || undefined }
       )
     );
     return json(200, correlationId, {
@@ -560,122 +596,73 @@ async function transferMfaVerify(event, correlationId) {
 /**
  * GET /customer/surface-eligibility
  *
- * Returns eligibility for each benefit card surface, evaluated deterministically
- * from the user's current profile and tier data. The frontend uses these
- * results to conditionally render (or suppress) the three static benefit cards.
+ * Returns state-aware surface evaluation for all known surfaces. Each surface
+ * carries state (SHOWN | HIDDEN | PENDING | COMPLETED), the triggering ruleId,
+ * a human-readable reason, raw context inputs, copy (null when not SHOWN), and
+ * a nextAction the DemoPanel can use to flip state live.
  *
- * All three surfaces are always returned, with eligible=true/false and a
- * human-readable reason for each. The DemoPanel uses these to show "why is
- * this card showing right now?"
+ * Query params:
+ *   userId  - required
+ *   aiMode  - "on" (default) or "off". When "on", each surface gets AI verdict
+ *             fields (aiAction, aiPriority, aiRationale) from L2 LLM. When "off"
+ *             returns deterministic output only.
  *
  * Surface IDs:
  *   PROPERTY_PRESTIGE_ADVANCE  - booking card on property detail page
  *   RESULTS_PRESTIGE_ADVANCE   - inline card on results listing
  *   PROFILE_CATALYST_ELEVATE   - profile completeness card on profile page
+ *   MFA_ENROLLMENT_NUDGE       - MFA onboarding nudge for Gold/Platinum users
+ *   TRANSFER_ABANDON_OFFER     - 2x points offer on abandoned transfer
+ *   BOOKING_CONFIRMATION_OFFER - post-booking upsell
  */
 async function surfaceEligibility(event, correlationId) {
   const userId = qparam(event, 'userId');
   await requireBearer(event, userId);
+
+  // ?aiMode=on|off  (default on)
+  const aiModeParam = qparam(event, 'aiMode');
+  const aiMode = aiModeParam !== 'off';
+
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
-  const tier = String(profile.tier || '');
-  const isPlat = tier.toLowerCase() === 'platinum';
-  const loyaltyScore = Number(profile.loyaltyScore || 0);
+  const state = (await getState(userId)) || {};
+  const now = nowSec();
 
-  // Points to next tier: stored as a demo field or derived from loyaltyScore.
-  // The seed data does not store pointsToNextTier explicitly, so we derive it
-  // from loyaltyScore: treat 1000 as the Platinum threshold.
-  const PLATINUM_THRESHOLD = 1000;
-  const pointsToNextTier = isPlat ? 0 : Math.max(PLATINUM_THRESHOLD - loyaltyScore, 0);
+  const surfaces = evaluateSurfaces({ profile, state, nowSec: now });
 
-  // Profile completeness uses the same backend rule as the nudge endpoint.
-  const { percent: profileCompletion } = profileCompleteness({ profile });
+  if (!aiMode) {
+    return json(200, correlationId, { data: { userId, surfaces } });
+  }
 
-  // --- PROPERTY_PRESTIGE_ADVANCE ---
-  const propPrestigeEligible = !isPlat && pointsToNextTier < 15000;
-  const propPrestigeRuleId = propPrestigeEligible ? 'RULE#TIER_GAP_NUDGE' : null;
-  const propPrestigeReason = propPrestigeEligible
-    ? `Within ${pointsToNextTier.toLocaleString()} pts of next tier`
-    : isPlat
-      ? 'Already Platinum - card hidden'
-      : 'More than 15000 pts from next tier - card hidden';
+  // Fetch recent signals for LLM context (last 10 activity rows)
+  const signals = await recentActivity(userId, 10);
 
-  // --- RESULTS_PRESTIGE_ADVANCE ---
-  const resultsPrestigeEligible = !isPlat && pointsToNextTier < 15000;
-  const resultsPrestigeRuleId = resultsPrestigeEligible ? 'RULE#TIER_GAP_NUDGE' : null;
-  const resultsPrestigeReason = resultsPrestigeEligible
-    ? `Within ${pointsToNextTier.toLocaleString()} pts of next tier`
-    : isPlat
-      ? 'Already Platinum - card hidden'
-      : 'More than 15000 pts from next tier - card hidden';
+  const verdicts = await aiPrioritize(surfaces, profile, signals, now, userId);
 
-  // --- PROFILE_CATALYST_ELEVATE ---
-  const catalystEligible = profileCompletion < 90 && !isPlat;
-  const catalystRuleId = catalystEligible ? 'RULE#PROFILE_INCOMPLETE_TIER_GAP' : null;
-  const catalystReason = catalystEligible
-    ? `Profile ${profileCompletion}% complete and user is below Platinum`
-    : isPlat
-      ? 'Already Platinum - card hidden'
-      : `Profile already ${profileCompletion}% complete - card hidden`;
+  if (!verdicts) {
+    // LLM unavailable or timed out - return deterministic result with flag
+    return json(200, correlationId, {
+      data: { userId, surfaces, aiUnavailable: true },
+    });
+  }
 
-  const nextTier = isPlat ? 'Diamond' : 'Platinum';
+  // Merge AI verdict fields onto each surface (original state fields untouched)
+  const verdictMap = new Map(verdicts.map((v) => [v.surfaceId, v]));
+  const surfacesWithAi = surfaces.map((s) => {
+    const v = verdictMap.get(s.surfaceId);
+    if (!v) return s;
+    return {
+      ...s,
+      aiAction: v.aiAction,
+      aiPriority: v.aiPriority,
+      aiRationale: v.aiRationale,
+    };
+  });
 
-  const surfaces = [
-    {
-      surfaceId: 'PROPERTY_PRESTIGE_ADVANCE',
-      eligible: propPrestigeEligible,
-      ruleId: propPrestigeRuleId,
-      context: {
-        pointsToNextTier,
-        currentTier: tier,
-        nextTier,
-      },
-      copy: propPrestigeEligible
-        ? {
-            headline: 'Prestige Advance Benefit',
-            body: `You're only ${pointsToNextTier.toLocaleString()} points away from ${nextTier}. Book 4 nights in the next 3 hours to get double points and reach ${nextTier} tier.`,
-          }
-        : null,
-      reason: propPrestigeReason,
-    },
-    {
-      surfaceId: 'RESULTS_PRESTIGE_ADVANCE',
-      eligible: resultsPrestigeEligible,
-      ruleId: resultsPrestigeRuleId,
-      context: {
-        pointsToNextTier,
-        currentTier: tier,
-        nextTier,
-      },
-      copy: resultsPrestigeEligible
-        ? {
-            headline: 'Prestige Advance Benefit',
-            body: `You're only ${pointsToNextTier.toLocaleString()} points away from ${nextTier}. Book 4 nights in the next 3 hours to get double points and reach ${nextTier} tier.`,
-          }
-        : null,
-      reason: resultsPrestigeReason,
-    },
-    {
-      surfaceId: 'PROFILE_CATALYST_ELEVATE',
-      eligible: catalystEligible,
-      ruleId: catalystRuleId,
-      context: {
-        profileCompletion,
-        currentTier: tier,
-        nextTier,
-      },
-      copy: catalystEligible
-        ? {
-            headline: 'Catalyst Elevate Benefit',
-            body: `As a valued ${tier} Status member, you are only ${pointsToNextTier.toLocaleString()} SFC points away from ${nextTier}. Update your details to increase your ${profileCompletion}% Registry Completeness.`,
-          }
-        : null,
-      reason: catalystReason,
-    },
-  ];
-
-  return json(200, correlationId, { data: { userId, surfaces } });
+  return json(200, correlationId, {
+    data: { userId, surfaces: surfacesWithAi, aiMode: true },
+  });
 }
 
 module.exports = {

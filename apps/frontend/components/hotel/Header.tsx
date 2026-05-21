@@ -3,6 +3,7 @@
 import { Info, LogOut, MapPin, Menu, Sparkles, Tag, User, X } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import Logo from '@/components/Logo';
 import { useCustomer } from './CustomerProvider';
 
 const PROPERTY_HOME = '/property/paris';
@@ -36,9 +37,12 @@ export default function Header() {
           <button
             type="button"
             onClick={() => go('/')}
-            className="font-serif text-2xl font-semibold tracking-tight text-black hover:opacity-80 transition-opacity focus:outline-none cursor-pointer bg-transparent border-none"
+            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity focus:outline-none cursor-pointer bg-transparent border-none"
           >
-            Signal Force
+            <Logo size={28} tone="light" />
+            <span className="font-serif text-2xl font-semibold tracking-tight text-black">
+              Signal Force
+            </span>
           </button>
 
           <div className="flex items-center space-x-10">
@@ -142,9 +146,12 @@ export default function Header() {
           <button
             type="button"
             onClick={() => go('/')}
-            className="font-serif text-2xl font-semibold tracking-tight text-black select-none cursor-pointer border-none bg-transparent"
+            className="flex items-center gap-2 select-none cursor-pointer border-none bg-transparent"
           >
-            Signal Force
+            <Logo size={24} tone="light" />
+            <span className="font-serif text-2xl font-semibold tracking-tight text-black">
+              Signal Force
+            </span>
           </button>
         </div>
 
@@ -179,9 +186,12 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => go('/')}
-                className="font-serif text-2xl font-semibold tracking-tight text-black select-none cursor-pointer border-none bg-transparent focus:outline-none"
+                className="flex items-center gap-2 select-none cursor-pointer border-none bg-transparent focus:outline-none"
               >
-                Signal Force
+                <Logo size={24} tone="light" />
+                <span className="font-serif text-2xl font-semibold tracking-tight text-black">
+                  Signal Force
+                </span>
               </button>
             </div>
 
