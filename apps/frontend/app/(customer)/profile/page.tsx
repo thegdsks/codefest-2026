@@ -3,7 +3,6 @@
 import { attachPointsBalanceStareDetector } from '@signal-force/engagement-sdk';
 import {
   ArrowRight,
-  Award,
   Download,
   Mail,
   RefreshCw,
@@ -17,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import DynamicOfferCard from '@/components/hotel/DynamicOfferCard';
+import LoyaltyStatusCard from '@/components/hotel/LoyaltyStatusCard';
 import { PARTNERS } from '@/lib/hotel/data';
 import type { CatalystElevateContext } from '@/lib/hotel/surface-types';
 import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
@@ -126,40 +126,7 @@ export default function ProfileScreen() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column */}
           <aside className="lg:col-span-4 space-y-8">
-            <div className="bg-white p-8 border border-gray-250/20 silk-shadow">
-              <div className="flex justify-between items-start mb-8">
-                <span className="bg-[#ffdea5] text-[#261900] px-3.5 py-1 text-[10px] font-sans font-bold uppercase tracking-wider">
-                  {user.status} Status
-                </span>
-                <Award className="text-[#775a19] w-6 h-6 animate-pulse" />
-              </div>
-              <div className="space-y-6 text-left">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 font-sans">
-                    Available Balance
-                  </span>
-                  <p
-                    data-signal="points_balance"
-                    data-stare-target="points"
-                    className="font-serif text-3xl font-semibold text-black mt-1"
-                  >
-                    {user.points?.toLocaleString()} SFC
-                  </p>
-                </div>
-
-                <div className="pt-4 border-t border-gray-100">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#775a19] font-sans block mb-2">
-                    Next Tier: {nextTierName} Status ({pointsAway.toLocaleString()} pts to go)
-                  </span>
-                  <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#775a19] rounded-full transition-all duration-1000"
-                      style={{ width: '80%' }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <LoyaltyStatusCard />
 
             <div className="bg-[#efeded]/40 p-8 border border-gray-200/50">
               <h3 className="text-xs text-black font-sans font-semibold uppercase tracking-widest mb-6 border-b border-gray-300 pb-2 flex items-center gap-2">
