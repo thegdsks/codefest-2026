@@ -114,6 +114,7 @@ components:
         - FRAUD_LOGIN
         - FRAUD_TRANSFER
         - ENGAGEMENT_OFFER
+        - ENGAGEMENT
         - NUDGE
         - PROFILE_COMPLETENESS
         - MFA_VERIFY
@@ -438,6 +439,101 @@ components:
           example: 1716214800
         guard:
           $ref: '#/components/schemas/BudgetGuard'
+
+    # ------------------------------------------------------------------
+    # Engagement
+    # ------------------------------------------------------------------
+    EngagementSignal:
+      type: string
+      enum:
+        - rage_click
+        - dwell_no_action
+        - abandoned_flow_step
+        - repeated_query
+        - points_balance_stare
+      description: Behavioral signal emitted by the frontend autocapture hook.
+
+    EngagementSurface:
+      type: string
+      enum:
+        - nudge_banner
+        - offer_modal
+        - inline_help_tooltip
+      nullable: true
+      description: UI surface where the intervention should be rendered. Null when action is ALLOW.
+
+    EngagementRuleDefinition:
+      type: object
+      description: >
+        json-rules-engine rule body. `conditions` follows the library's condition
+        grammar (all/any arrays of fact+operator+value predicates). `event.params`
+        carries the action, surface, and score that the engagement route uses when
+        the rule fires.
+      required: [conditions, event]
+      properties:
+        conditions:
+          type: object
+          description: >
+            Top-level condition group. Must contain `all`, `any`, or both.
+            Fact names map to flattened event params (e.g. `dwellMs`, `clickCount`).
+          example:
+            all:
+              - fact: dwellMs
+                operator: greaterThanInclusive
+                value: 8000
+        event:
+          type: object
+          required: [params]
+          properties:
+            params:
+              type: object
+              required: [action, surface, score]
+              properties:
+                action:
+                  type: string
+                  enum: [ALLOW, NUDGE, OFFER, HINT]
+                surface:
+                  $ref: '#/components/schemas/EngagementSurface'
+                score:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  description: Engagement score this rule contributes when it fires.
+
+    EngagementRule:
+      type: object
+      required: [ruleId, version, name, status, definition]
+      properties:
+        ruleId:
+          type: string
+          description: Partition key. Auto-generated (RULE#<uuid-prefix>) on create.
+          example: 'RULE#a1b2c3d4'
+        version:
+          type: string
+          description: >
+            Sort key. Always 'latest' for the current live row.
+            ISO-8601 timestamp string for immutable history entries.
+          example: 'latest'
+        name:
+          type: string
+          description: Human-readable rule name shown in the admin UI.
+          example: 'Points balance stare - 8s offer'
+        status:
+          type: string
+          enum: [ACTIVE, DRAFT, ARCHIVED]
+          description: >
+            Only ACTIVE rules are evaluated per event. DRAFT rules are visible
+            in the admin UI but do not fire. ARCHIVED rules are hidden by default.
+        definition:
+          $ref: '#/components/schemas/EngagementRuleDefinition'
+        createdAt:
+          type: integer
+          description: Unix epoch seconds when the rule was first written.
+          example: 1716211200
+        updatedAt:
+          type: integer
+          description: Unix epoch seconds of the most recent write.
+          example: 1716214800
 
 # ==============================================================================
 # Paths
@@ -2025,3 +2121,324 @@ paths:
                         type: integer
                   asOf:
                     type: integer
+
+  # ----------------------------------------------------------------------------
+  # Engagement
+  # ----------------------------------------------------------------------------
+
+  /engagement/event:
+    post:
+      operationId: trackEngagementEvent
+      summary: Ingest a behavioral signal and evaluate engagement rules
+      description: >
+        Accepts one of the five signals from the frontend autocapture hook,
+        runs the L1 scorer, evaluates active DDB rules, routes through the
+        L1+L2 engine (LLM called only for grey-zone scores 40-70), writes a
+        DecisionStore row with decisionType=ENGAGEMENT (skipped for ALLOW),
+        and returns the surface, copy, and metadata.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signal, userId, sessionId]
+              properties:
+                signal:
+                  $ref: '#/components/schemas/EngagementSignal'
+                userId:
+                  type: string
+                  example: 'USER#001'
+                sessionId:
+                  type: string
+                  example: 'SESSION#a1b2c3d4'
+                params:
+                  type: object
+                  additionalProperties: true
+                  example:
+                    dwellMs: 9000
+                    pointsBalance: 12400
+      responses:
+        '200':
+          description: Event evaluated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [surface, copy, reasonCode, engineLayer, score, action]
+                    properties:
+                      surface:
+                        $ref: '#/components/schemas/EngagementSurface'
+                      copy:
+                        type: string
+                        example: 'Your 12,400 points can book two nights in Lisbon.'
+                      reasonCode:
+                        type: string
+                        example: POINTS_STARE_HIGH
+                      engineLayer:
+                        $ref: '#/components/schemas/EngineLayer'
+                      score:
+                        type: integer
+                        minimum: 0
+                        maximum: 100
+                        example: 82
+                      action:
+                        type: string
+                        enum: [ALLOW, NUDGE, OFFER, HINT]
+                      decisionId:
+                        type: string
+                        nullable: true
+                        example: 'DEC#ENG#a1b2c3d4'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Admin - Engagement Rules
+  # ----------------------------------------------------------------------------
+
+  /admin/rules:
+    get:
+      operationId: adminListRules
+      summary: List engagement rules
+      x-internal-only: true
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, DRAFT, ARCHIVED]
+      responses:
+        '200':
+          description: Rule list returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [rules, count]
+                    properties:
+                      rules:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EngagementRule'
+                      count:
+                        type: integer
+        '400':
+          description: Invalid status parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      operationId: adminCreateRule
+      summary: Create a new engagement rule
+      x-internal-only: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, status, definition]
+              properties:
+                name:
+                  type: string
+                status:
+                  type: string
+                  enum: [ACTIVE, DRAFT, ARCHIVED]
+                definition:
+                  $ref: '#/components/schemas/EngagementRuleDefinition'
+      responses:
+        '201':
+          description: Rule created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [rule]
+                    properties:
+                      rule:
+                        $ref: '#/components/schemas/EngagementRule'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/rules/{id}:
+    get:
+      operationId: adminGetRule
+      summary: Fetch a single engagement rule by ruleId
+      x-internal-only: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: RULE%23a1b2c3d4
+      responses:
+        '200':
+          description: Rule found.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [rule]
+                    properties:
+                      rule:
+                        $ref: '#/components/schemas/EngagementRule'
+        '400':
+          description: Missing path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Rule not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      operationId: adminUpdateRule
+      summary: Update an existing engagement rule
+      x-internal-only: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: RULE%23a1b2c3d4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, status, definition]
+              properties:
+                name:
+                  type: string
+                status:
+                  type: string
+                  enum: [ACTIVE, DRAFT, ARCHIVED]
+                definition:
+                  $ref: '#/components/schemas/EngagementRuleDefinition'
+      responses:
+        '200':
+          description: Rule updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [rule]
+                    properties:
+                      rule:
+                        $ref: '#/components/schemas/EngagementRule'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
