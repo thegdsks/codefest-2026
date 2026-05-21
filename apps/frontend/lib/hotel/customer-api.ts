@@ -5,6 +5,7 @@ import {
   getForceHighRiskTransfer,
   setForceHighRiskTransfer,
 } from '@/lib/hotel/demo-context';
+import type { SurfaceEligibilityResponse } from '@/lib/hotel/surface-types';
 import type { ApiResult, DashboardResponse } from '@/lib/types';
 
 export interface LoginSuccessData {
@@ -240,6 +241,22 @@ export interface EngagementEventResponse {
   score: number;
   action: string;
   decisionId: string | null;
+}
+
+/**
+ * fetchSurfaceEligibility
+ *
+ * Calls GET /customer/surface-eligibility and returns the full response.
+ * The hook wraps this with caching and per-session invalidation.
+ */
+export function fetchSurfaceEligibility(
+  token: string,
+  userId: string
+): Promise<ApiResult<SurfaceEligibilityResponse>> {
+  return apiFetch<SurfaceEligibilityResponse>(
+    `/customer/surface-eligibility?userId=${encodeURIComponent(userId)}`,
+    { headers: bearer(token) }
+  );
 }
 
 /**

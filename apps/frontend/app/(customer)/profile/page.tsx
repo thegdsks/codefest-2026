@@ -18,6 +18,8 @@ import { useEffect } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import DynamicOfferCard from '@/components/hotel/DynamicOfferCard';
 import { PARTNERS } from '@/lib/hotel/data';
+import type { CatalystElevateContext } from '@/lib/hotel/surface-types';
+import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 function formatPhone(code?: string, number?: string) {
@@ -36,6 +38,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, pastStays, isLoggedIn } = useCustomer();
   const { trackEvent } = useTrackedEngagement();
+  const { surfaces } = useSurfaceEligibility();
+  const catalystSurface = surfaces['PROFILE_CATALYST_ELEVATE'];
 
   useEffect(() => {
     if (!isLoggedIn) router.replace('/login');
@@ -97,11 +101,12 @@ export default function ProfileScreen() {
   }).length;
   const completenessPercentage = Math.round((filledCount / allCompletenessFields.length) * 100);
 
-  const nextTierName =
-    user.status === 'Gold' ? 'Platinum' : user.status === 'Platinum' ? 'Diamond' : 'Prestige Elite';
-  const pointsAway = user.nextTierPoints || 8000;
+  const catalystCtx = catalystSurface?.context as CatalystElevateContext | undefined;
+  const nextTierName = catalystCtx?.nextTier ?? (user.status === 'Gold' ? 'Platinum' : 'Diamond');
+  const pointsAway = user.nextTierPoints ?? 8000;
   const isMobileMissing = !user.mobilePhone || user.mobilePhone.trim() === '';
   const isBusinessPhoneMissing = !user.businessPhone || user.businessPhone.trim() === '';
+  const catalystHeadline = catalystSurface?.copy?.headline ?? 'Catalyst Elevate Benefit';
 
   return (
     <div className="bg-[#fbf9f8] min-h-screen pb-24 font-sans text-black">
@@ -188,14 +193,14 @@ export default function ProfileScreen() {
                 )}
               </div>
 
-              {completenessPercentage < 100 && (
+              {catalystSurface?.eligible && (
                 <div className="mb-6 p-4 bg-[#775a19]/5 border-l-4 border-[#775a19] text-left relative overflow-hidden animate-fade-in shadow-sm">
                   <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-[#775a19]/10 rounded-full blur-xl pointer-events-none" />
 
                   <div className="flex items-center gap-1.5 text-[#775a19] mb-2">
                     <Sparkles size={13} className="shrink-0 animate-pulse" />
                     <span className="text-[9px] font-bold tracking-widest uppercase font-sans">
-                      Catalyst Elevate Benefit
+                      {catalystHeadline}
                     </span>
                   </div>
 

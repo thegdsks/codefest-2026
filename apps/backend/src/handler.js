@@ -22,6 +22,7 @@ const {
   getProfile,
   dashboard,
   profileCompletenessEndpoint,
+  surfaceEligibility,
 } = require('./routes/customer');
 const admin = require('./admin');
 const { reseed, devConfig } = require('./routes/dev');
@@ -62,6 +63,7 @@ const BEARER_ROUTES = [
   ['POST', '/auth/mfa/enroll'],
   ['POST', '/auth/mfa/confirm-enroll'],
   ['POST', '/engagement/event'],
+  ['GET', '/customer/surface-eligibility'],
 ];
 
 function isBearerRoute(method, path) {
@@ -101,6 +103,8 @@ async function route(event, correlationId) {
   if (method === 'GET' && p === '/user/profile-completeness')
     return profileCompletenessEndpoint(event, correlationId);
   if (method === 'GET' && p === '/dashboard') return dashboard(event, correlationId);
+  if (method === 'GET' && p === '/customer/surface-eligibility')
+    return surfaceEligibility(event, correlationId);
   // Demo-only routes. reseed is gated by DEMO_MODE=1 inside the handler.
   if (method === 'GET' && p === '/admin/dev/config') return devConfig(event, correlationId);
   if (method === 'POST' && p === '/admin/dev/reseed') return reseed(event, correlationId);
