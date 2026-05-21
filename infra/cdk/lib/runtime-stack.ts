@@ -88,11 +88,10 @@ export class RuntimeStack extends cdk.Stack {
         target: 'node18',
         externalModules: ['@aws-sdk/*'],
       },
-      // Caps the thundering-herd multiplier so a load spike cannot multiplicatively
-      // call the LLM across many concurrent instances. Each instance has its own
-      // in-process sliding-window cap (LLM_GUARD_MAX_CALLS), so worst-case LLM
-      // burst = reservedConcurrentExecutions * LLM_GUARD_MAX_CALLS per window.
-      reservedConcurrentExecutions: 5,
+      // No reservedConcurrentExecutions: this account's total concurrency quota
+      // is 10 with a 10-reserved floor, so reserving any amount is rejected.
+      // API Gateway throttlingRateLimit (20 rps) is the load bound instead, and
+      // each Lambda instance still has its own LLM_GUARD_MAX_CALLS sliding window.
       tracing: lambda.Tracing.ACTIVE,
       logGroup,
       environment: {
@@ -209,11 +208,11 @@ export class RuntimeStack extends cdk.Stack {
     }
 
     // -------------------------------------------------------------------------
-    // CloudWatch dashboard - signal-force-demo
+    // CloudWatch dashboard - signal-force-runtime
     // Four tiles arranged 2x2 (12 wide x 6 tall each).
     // -------------------------------------------------------------------------
     const dashboard = new cloudwatch.Dashboard(this, 'SignalForceDemoDashboard', {
-      dashboardName: 'signal-force-demo',
+      dashboardName: 'signal-force-runtime',
       defaultInterval: cdk.Duration.hours(1),
     });
 
@@ -489,7 +488,7 @@ export class RuntimeStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, 'DashboardUrl', {
-      value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=signal-force-demo`,
+      value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=signal-force-runtime`,
       exportName: `${this.stackName}:DashboardUrl`,
     });
   }
