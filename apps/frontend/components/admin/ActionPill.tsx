@@ -31,7 +31,7 @@ export default function ActionPill({ action }: ActionPillProps) {
   const label = ACTION_LABEL[action] ?? action;
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${tone}`}
+      className={`flex flex-col items-center justify-center text-center rounded-full border px-2 py-0.5 text-xs font-medium ${tone}`}
     >
       {label}
     </span>
