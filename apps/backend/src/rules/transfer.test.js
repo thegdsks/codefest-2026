@@ -140,3 +140,50 @@ test('scoreTransfer with no amount or deviceFingerprintSeenDays fields behaves a
   assert.equal(result.action, 'ALLOW');
   assert.equal(result.score, 10);
 });
+
+// --- forceHighRisk override ---
+test('scoreTransfer returns MFA when forceHighRisk=true regardless of small amount', () => {
+  const result = scoreTransfer({
+    tc1h: 0,
+    amount: 50,
+    deviceFingerprintSeenDays: 1,
+    forceHighRisk: true,
+  });
+  assert.equal(result.action, 'MFA');
+  assert.equal(result.ruleId, 'DEMO_HIGH_VALUE_UNSEEN_DEVICE');
+  assert.ok(Array.isArray(result.matched) && result.matched.length > 0);
+  assert.equal(result.matched[0].field, 'forceHighRisk');
+});
+
+test('scoreTransfer forceHighRisk wins over known device (no amount threshold met)', () => {
+  const result = scoreTransfer({
+    tc1h: 0,
+    amount: 100,
+    deviceFingerprintSeenDays: 7,
+    forceHighRisk: true,
+  });
+  assert.equal(result.action, 'MFA');
+  assert.equal(result.ruleId, 'DEMO_HIGH_VALUE_UNSEEN_DEVICE');
+});
+
+test('scoreTransfer forceHighRisk=false does not trigger MFA on low amount', () => {
+  const result = scoreTransfer({
+    tc1h: 0,
+    amount: 50,
+    deviceFingerprintSeenDays: 90,
+    forceHighRisk: false,
+  });
+  assert.notEqual(result.action, 'MFA');
+  assert.equal(result.action, 'ALLOW');
+});
+
+test('scoreTransfer forceHighRisk=true with high tc1h still returns MFA (not BLOCK)', () => {
+  // forceHighRisk is highest precedence so it wins over the velocity block
+  const result = scoreTransfer({
+    tc1h: 5,
+    amount: 50,
+    deviceFingerprintSeenDays: 7,
+    forceHighRisk: true,
+  });
+  assert.equal(result.action, 'MFA');
+});
