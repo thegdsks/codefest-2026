@@ -30,6 +30,8 @@ const { scoreNudge } = require('../rules/nudges');
 const { profileCompleteness } = require('../rules/profile');
 const { route: engineRoute } = require('../engine/router');
 const { evaluateSurfaces } = require('../engine/surfaces');
+const { prioritize: aiPrioritize } = require('../engine/ai-surface-prioritizer');
+const { explain: aiExplain } = require('../engine/ai-fraud-explainer');
 const { evaluateMfaCode } = require('./auth');
 
 /**
@@ -86,6 +88,17 @@ async function transfer(event, correlationId) {
   await putActivity(activityTransfer(userId, now, amount, recipientId, channel, correlationId));
 
   if (final.action === 'BLOCK') {
+    // Generate AI explanation inline (2s timeout; decision proceeds if LLM is slow)
+    const blockExplanation = await aiExplain({
+      decisionType: 'FRAUD_TRANSFER',
+      action: 'BLOCK',
+      score: final.score,
+      reasonCode: final.reasonCode,
+      reasonText: final.reasonText,
+      context: { amount, recipientId, deviceFingerprint, channel },
+      priorDecisions: [],
+    });
+
     await putDecision(
       decision(
         userId,
@@ -97,13 +110,24 @@ async function transfer(event, correlationId) {
         final.reasonText,
         'EARN_REDEEM',
         correlationId,
-        final
+        { ...final, aiExplanation: blockExplanation || undefined }
       )
     );
     return err(403, correlationId, 'TRANSFER_BLOCKED', 'Transfer blocked due to high fraud risk');
   }
 
   if (final.action === 'MFA') {
+    // Generate AI explanation inline (2s timeout)
+    const mfaExplanation = await aiExplain({
+      decisionType: 'FRAUD_TRANSFER',
+      action: 'MFA',
+      score: final.score,
+      reasonCode: final.reasonCode,
+      reasonText: final.reasonText,
+      context: { amount, recipientId, deviceFingerprint, channel },
+      priorDecisions: [],
+    });
+
     const decRow = decision(
       userId,
       'FRAUD_TRANSFER',
@@ -114,7 +138,7 @@ async function transfer(event, correlationId) {
       final.reasonText,
       'EARN_REDEEM',
       correlationId,
-      final
+      { ...final, aiExplanation: mfaExplanation || undefined }
     );
     await putDecision(decRow);
 
@@ -144,6 +168,17 @@ async function transfer(event, correlationId) {
   }
 
   if (final.action === 'REVIEW') {
+    // Generate AI explanation inline (2s timeout)
+    const reviewExplanation = await aiExplain({
+      decisionType: 'FRAUD_TRANSFER',
+      action: 'REVIEW',
+      score: final.score,
+      reasonCode: final.reasonCode,
+      reasonText: final.reasonText,
+      context: { amount, recipientId, deviceFingerprint, channel },
+      priorDecisions: [],
+    });
+
     await putDecision(
       decision(
         userId,
@@ -155,7 +190,7 @@ async function transfer(event, correlationId) {
         final.reasonText,
         'EARN_REDEEM',
         correlationId,
-        final
+        { ...final, aiExplanation: reviewExplanation || undefined }
       )
     );
     return json(200, correlationId, {
@@ -566,6 +601,12 @@ async function transferMfaVerify(event, correlationId) {
  * a human-readable reason, raw context inputs, copy (null when not SHOWN), and
  * a nextAction the DemoPanel can use to flip state live.
  *
+ * Query params:
+ *   userId  - required
+ *   aiMode  - "on" (default) or "off". When "on", each surface gets AI verdict
+ *             fields (aiAction, aiPriority, aiRationale) from L2 LLM. When "off"
+ *             returns deterministic output only.
+ *
  * Surface IDs:
  *   PROPERTY_PRESTIGE_ADVANCE  - booking card on property detail page
  *   RESULTS_PRESTIGE_ADVANCE   - inline card on results listing
@@ -577,6 +618,11 @@ async function transferMfaVerify(event, correlationId) {
 async function surfaceEligibility(event, correlationId) {
   const userId = qparam(event, 'userId');
   await requireBearer(event, userId);
+
+  // ?aiMode=on|off  (default on)
+  const aiModeParam = qparam(event, 'aiMode');
+  const aiMode = aiModeParam !== 'off';
+
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -585,7 +631,38 @@ async function surfaceEligibility(event, correlationId) {
 
   const surfaces = evaluateSurfaces({ profile, state, nowSec: now });
 
-  return json(200, correlationId, { data: { userId, surfaces } });
+  if (!aiMode) {
+    return json(200, correlationId, { data: { userId, surfaces } });
+  }
+
+  // Fetch recent signals for LLM context (last 10 activity rows)
+  const signals = await recentActivity(userId, 10);
+
+  const verdicts = await aiPrioritize(surfaces, profile, signals, now, userId);
+
+  if (!verdicts) {
+    // LLM unavailable or timed out - return deterministic result with flag
+    return json(200, correlationId, {
+      data: { userId, surfaces, aiUnavailable: true },
+    });
+  }
+
+  // Merge AI verdict fields onto each surface (original state fields untouched)
+  const verdictMap = new Map(verdicts.map((v) => [v.surfaceId, v]));
+  const surfacesWithAi = surfaces.map((s) => {
+    const v = verdictMap.get(s.surfaceId);
+    if (!v) return s;
+    return {
+      ...s,
+      aiAction: v.aiAction,
+      aiPriority: v.aiPriority,
+      aiRationale: v.aiRationale,
+    };
+  });
+
+  return json(200, correlationId, {
+    data: { userId, surfaces: surfacesWithAi, aiMode: true },
+  });
 }
 
 module.exports = {

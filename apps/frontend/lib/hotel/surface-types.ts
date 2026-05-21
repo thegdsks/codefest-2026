@@ -52,6 +52,8 @@ export type SurfaceContext =
   | TransferAbandonContext
   | BookingContext;
 
+export type AiAction = 'KEEP' | 'PROMOTE' | 'DEMOTE' | 'HIDE' | 'SWAP';
+
 export interface SurfaceEvaluation {
   surfaceId: string;
   state: SurfaceState;
@@ -60,11 +62,21 @@ export interface SurfaceEvaluation {
   copy: SurfaceCopy | null;
   reason: string;
   nextAction: NextAction | null;
+  /** Present when aiMode=on and L2 prioritizer ran */
+  aiAction?: AiAction;
+  /** 1 = show first, 5 = least priority */
+  aiPriority?: 1 | 2 | 3 | 4 | 5;
+  /** Plain-English rationale from the LLM */
+  aiRationale?: string;
 }
 
 export interface SurfaceEligibilityResponse {
   userId: string;
   surfaces: SurfaceEvaluation[];
+  /** True when aiMode=on but LLM was unavailable */
+  aiUnavailable?: boolean;
+  /** True when aiMode=on and LLM ran successfully */
+  aiMode?: boolean;
 }
 
 /** Keyed lookup returned by useSurfaceEligibility */

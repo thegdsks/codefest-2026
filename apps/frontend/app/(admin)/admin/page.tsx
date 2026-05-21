@@ -287,8 +287,8 @@ export default function AdminDashboardPage() {
           </section>
 
           {/* Engine guard: compact dark accent tile (not full width). Sits at
-              the left edge so the rest of the row stays open for future
-              widgets without pushing the breaker dial off into oblivion. */}
+              the left edge so the rest of the row can host future widgets
+              without pushing the breaker dial off into oblivion. */}
           <section className="w-full max-w-xs rounded-xl border border-zinc-800 bg-zinc-950 p-4 shadow-lg">
             <h2 className="mb-3 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
               Engine guard

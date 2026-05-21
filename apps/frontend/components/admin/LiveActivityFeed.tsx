@@ -79,6 +79,7 @@ function recentCount(events: ActivityEvent[], windowSec: number): number {
   return events.filter((e) => e.timestamp >= cutoff).length;
 }
 
+// Subcomponent: expanded detail panel for a single event row.
 interface EventDetailProps {
   ev: ActivityEvent;
   onOpenDecision: (id: string) => void;
@@ -120,6 +121,7 @@ function EventDetail({ ev, onOpenDecision, onClose }: EventDetailProps) {
   );
 }
 
+// Subcomponent: a single row in the feed.
 interface FeedRowProps {
   ev: ActivityEvent;
   isExpanded: boolean;
@@ -195,6 +197,7 @@ export default function LiveActivityFeed() {
     staleTime: 0,
   });
 
+  // Auto-scroll to top when near the top.
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -203,6 +206,7 @@ export default function LiveActivityFeed() {
     }
   });
 
+  // Relative time ticker.
   useEffect(() => {
     setRelativeLabel(formatRelative(lastUpdateAt));
     const id = setInterval(() => {
@@ -219,6 +223,7 @@ export default function LiveActivityFeed() {
   return (
     <>
       <section className="flex h-full flex-col overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60">
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-[color:var(--border)] px-4 py-3">
           <div className="flex items-center gap-2">
             <Activity className="h-3.5 w-3.5 text-[color:var(--text-muted)]" aria-hidden="true" />
@@ -256,9 +261,11 @@ export default function LiveActivityFeed() {
           </div>
         </div>
 
+        {/* Filter pills */}
+        {/* biome-ignore lint/a11y/useSemanticElements: fieldset injects UA padding that breaks the tab-bar layout. */}
         <div
           className="flex gap-1.5 border-b border-[color:var(--border)] px-4 py-2"
-          role="toolbar"
+          role="group"
           aria-label="Filter by event kind"
         >
           {FILTER_PILLS.map(({ label, value }) => (
@@ -278,6 +285,7 @@ export default function LiveActivityFeed() {
           ))}
         </div>
 
+        {/* Event list */}
         <section
           aria-label="Unified activity feed"
           aria-live="polite"
@@ -310,6 +318,7 @@ export default function LiveActivityFeed() {
           )}
         </section>
 
+        {/* Footer */}
         <div className="flex items-center justify-between border-t border-[color:var(--border)] px-4 py-2">
           <span className="text-[11px] text-[color:var(--text-dim)]">
             {filtered.length > 0 ? `${filtered.length} events` : 'No events yet'}
