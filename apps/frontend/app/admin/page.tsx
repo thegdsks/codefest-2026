@@ -285,8 +285,8 @@ export default function AdminDashboardPage() {
             </section>
           </div>
 
-          {/* Engine guard — visible on xl alongside the right rail live feed */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:hidden">
+          {/* Live activity + engine guard side by side (no right rail) */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <section className="lg:col-span-2 rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-hidden">
               <div className="h-96">
                 <LiveActivityFeed />
@@ -300,27 +300,11 @@ export default function AdminDashboardPage() {
             </section>
           </div>
 
-          <div className="hidden xl:block">
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-                Engine guard
-              </h2>
-              <EngineGuardRadial window={activeWindow} height={200} />
-            </section>
-          </div>
-
           {data?.asOf ? (
             <div aria-live="polite" className="text-xs text-zinc-600">
               Snapshot taken {new Date(data.asOf * 1000).toLocaleString()}
             </div>
           ) : null}
-        </div>
-
-        {/* Right rail: live feed (2xl breakpoint and up so we don't cramp at 1280) */}
-        <div className="hidden w-80 shrink-0 2xl:block">
-          <div className="sticky top-4 h-[calc(100vh-8rem)]">
-            <LiveActivityFeed />
-          </div>
         </div>
       </div>
     </div>
