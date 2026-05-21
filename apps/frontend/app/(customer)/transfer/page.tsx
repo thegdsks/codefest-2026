@@ -8,7 +8,6 @@ import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { transferPoints } from '@/lib/hotel/customer-api';
 import { PARTNERS } from '@/lib/hotel/data';
-import { getForceHighRiskTransfer, setForceHighRiskTransfer } from '@/lib/hotel/demo-context';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 function newClientRef() {
@@ -80,20 +79,6 @@ export default function TransferScreen() {
       year: 'numeric',
     });
 
-    // Client-side simulation: force the step-up review screen without a real call.
-    const shouldForceReview = triggerSecurityDemo || getForceHighRiskTransfer();
-    setForceHighRiskTransfer(false);
-    if (shouldForceReview) {
-      setTransferDetails({
-        id: newClientRef(),
-        partner: partnerName,
-        amount: cost,
-        date,
-      });
-      router.push('/transfer/review');
-      return;
-    }
-
     setProcessing(true);
     const res = await transferPoints(session.token, session.userId, cost);
 
@@ -107,14 +92,33 @@ export default function TransferScreen() {
       return;
     }
 
+    const data = res.data;
+
+    // Engine returned MFA_REQUIRED: store challenge id and navigate.
+    if ('action' in data && data.action === 'MFA') {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(
+          'sf_transfer_challenge',
+          JSON.stringify({
+            challengeId: data.challengeId,
+            partnerName,
+            amount: cost,
+            date,
+          })
+        );
+      }
+      router.push('/transfer/mfa');
+      return;
+    }
+
     setTransferDetails({
-      id: res.data.transferId,
+      id: 'transferId' in data ? data.transferId : newClientRef(),
       partner: partnerName,
       amount: cost,
       date,
     });
 
-    if (res.data.status === 'SUCCESS') {
+    if ('status' in data && data.status === 'SUCCESS') {
       deductPoints(cost);
       router.push('/transfer/success');
     } else {
