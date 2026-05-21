@@ -9,7 +9,7 @@
     "packages/*"
   ],
   "scripts": {
-    "prepare": "lefthook install",
+    "prepare": "node -e \"if(!process.env.CI && !process.env.VERCEL) try{require('child_process').execSync('lefthook install',{stdio:'inherit'})}catch(e){}\"",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "biome lint .",
