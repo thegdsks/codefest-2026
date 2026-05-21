@@ -28,9 +28,11 @@ interface RowProps {
 
 function Row({ label, value, mono = false }: RowProps) {
   return (
-    <div className="grid grid-cols-3 gap-3 border-b border-zinc-800 px-4 py-2.5 text-sm last:border-0">
-      <dt className="text-xs uppercase tracking-wider text-zinc-500">{label}</dt>
-      <dd className={`col-span-2 text-zinc-200 ${mono ? 'font-mono text-xs' : ''}`}>{value}</dd>
+    <div className="grid grid-cols-3 gap-3 border-b border-[var(--border)] px-4 py-2.5 text-sm last:border-0">
+      <dt className="text-xs uppercase tracking-wider text-[var(--text-muted)]">{label}</dt>
+      <dd className={`col-span-2 text-[var(--text)] ${mono ? 'font-mono text-xs' : ''}`}>
+        {value}
+      </dd>
     </div>
   );
 }
@@ -95,7 +97,7 @@ export default function DecisionDetailPage() {
       <div className="mb-4">
         <Link
           href="/admin/decisions"
-          className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
         >
           <ArrowLeft size={14} />
           Back to decisions
@@ -104,8 +106,8 @@ export default function DecisionDetailPage() {
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-mono text-xl text-zinc-100">{decisionId || '...'}</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h1 className="font-mono text-xl text-[var(--text)]">{decisionId || '...'}</h1>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
             Single decision row plus a synthesized audit trail.
           </p>
         </div>
@@ -115,19 +117,19 @@ export default function DecisionDetailPage() {
               type="button"
               onClick={onRelease}
               disabled={releasing}
-              className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+              className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
             >
               <ShieldSlash size={12} />
               {releasing ? 'Releasing' : 'Release this block'}
             </button>
             {releaseOk ? (
-              <span className="inline-flex items-center gap-1 text-xs text-emerald-300">
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-300">
                 <CheckCircle size={12} />
                 Released. Refreshing.
               </span>
             ) : null}
             {releaseError ? (
-              <span className="text-xs text-rose-300">
+              <span className="text-xs text-rose-600 dark:text-rose-300">
                 {releaseError.code}: {releaseError.message}
               </span>
             ) : null}
@@ -136,8 +138,8 @@ export default function DecisionDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 lg:col-span-2">
-          <div className="border-b border-zinc-800 px-4 py-3 text-sm font-semibold text-zinc-100">
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] lg:col-span-2">
+          <div className="border-b border-[var(--border)] px-4 py-3 text-base font-semibold text-[var(--text)]">
             Decision row
           </div>
           {loading ? (
@@ -154,11 +156,13 @@ export default function DecisionDetailPage() {
                 value={
                   <span className="inline-flex items-center gap-2">
                     <ActionPill action={decision.action} />
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-[var(--text-dim)]">
                       score {Math.round(decision.score)}
                     </span>
                     {decision.riskLevel ? (
-                      <span className="text-xs text-zinc-500">risk {decision.riskLevel}</span>
+                      <span className="text-xs text-[var(--text-dim)]">
+                        risk {decision.riskLevel}
+                      </span>
                     ) : null}
                   </span>
                 }
@@ -189,8 +193,8 @@ export default function DecisionDetailPage() {
           ) : null}
         </section>
 
-        <aside className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-          <div className="border-b border-zinc-800 px-4 py-3 text-sm font-semibold text-zinc-100">
+        <aside className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
+          <div className="border-b border-[var(--border)] px-4 py-3 text-base font-semibold text-[var(--text)]">
             Audit trail
           </div>
           {loading ? (
@@ -198,53 +202,55 @@ export default function DecisionDetailPage() {
               <Skeleton className="h-12 w-full" rows={2} />
             </div>
           ) : trail.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-zinc-500">No audit steps.</div>
+            <div className="px-4 py-6 text-sm text-[var(--text-dim)]">No audit steps.</div>
           ) : (
             <ol className="relative px-4 py-4">
               {trail.map((step, idx) => (
                 <li key={step.step} className="relative pb-4 pl-6 last:pb-0">
-                  <span className="absolute left-0 top-1 inline-flex h-3 w-3 items-center justify-center rounded-full border border-indigo-400/60 bg-zinc-950">
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                  <span className="absolute left-0 top-1 inline-flex h-3 w-3 items-center justify-center rounded-full border border-indigo-400/60 bg-[var(--bg)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400" />
                   </span>
                   {idx < trail.length - 1 ? (
-                    <span className="absolute left-[5px] top-4 h-full w-px bg-zinc-800" />
+                    <span className="absolute left-[5px] top-4 h-full w-px bg-[var(--border)]" />
                   ) : null}
-                  <div className="text-sm font-medium text-zinc-100">{step.step}</div>
-                  <dl className="mt-1 space-y-0.5 text-xs text-zinc-400">
+                  <div className="text-sm font-medium text-[var(--text)]">{step.step}</div>
+                  <dl className="mt-1 space-y-0.5 text-xs text-[var(--text-muted)]">
                     {step.action ? (
                       <div>
-                        action: <span className="text-zinc-200">{step.action}</span>
+                        action: <span className="text-[var(--text)]">{step.action}</span>
                       </div>
                     ) : null}
                     {typeof step.score === 'number' ? (
                       <div>
-                        score: <span className="text-zinc-200">{Math.round(step.score)}</span>
+                        score: <span className="text-[var(--text)]">{Math.round(step.score)}</span>
                       </div>
                     ) : null}
                     {step.riskLevel ? (
                       <div>
-                        risk: <span className="text-zinc-200">{step.riskLevel}</span>
+                        risk: <span className="text-[var(--text)]">{step.riskLevel}</span>
                       </div>
                     ) : null}
                     {step.reasonCode ? (
                       <div>
-                        reason: <span className="text-zinc-200">{step.reasonCode}</span>
+                        reason: <span className="text-[var(--text)]">{step.reasonCode}</span>
                       </div>
                     ) : null}
                     {step.llmModel ? (
                       <div>
-                        model: <span className="text-zinc-200">{step.llmModel}</span>
+                        model: <span className="text-[var(--text)]">{step.llmModel}</span>
                       </div>
                     ) : null}
                     {typeof step.llmLatencyMs === 'number' ? (
                       <div>
                         latency:{' '}
-                        <span className="text-zinc-200 tabular-nums">{step.llmLatencyMs} ms</span>
+                        <span className="tabular-nums text-[var(--text)]">
+                          {step.llmLatencyMs} ms
+                        </span>
                       </div>
                     ) : null}
                     {step.label && step.label !== step.action ? (
                       <div>
-                        label: <span className="text-zinc-200">{step.label}</span>
+                        label: <span className="text-[var(--text)]">{step.label}</span>
                       </div>
                     ) : null}
                   </dl>

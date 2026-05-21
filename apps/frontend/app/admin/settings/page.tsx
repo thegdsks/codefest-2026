@@ -20,11 +20,13 @@ interface SettingsState {
 
 function StatusDot({ ok }: { ok: boolean | null }) {
   if (ok === null)
-    return <Circle size={10} className="text-zinc-500 fill-zinc-500" strokeWidth={0} />;
+    return (
+      <Circle size={10} className="fill-[var(--text-dim)] text-[var(--text-dim)]" strokeWidth={0} />
+    );
   return ok ? (
-    <Check size={12} className="text-emerald-400" />
+    <Check size={12} className="text-emerald-500 dark:text-emerald-400" />
   ) : (
-    <X size={12} className="text-rose-400" />
+    <X size={12} className="text-rose-500 dark:text-rose-400" />
   );
 }
 
@@ -38,12 +40,12 @@ function KV({
   ok?: boolean | null;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-3 border-b border-zinc-800 px-4 py-2.5 text-sm last:border-0">
-      <dt className="flex items-center gap-2 text-xs uppercase tracking-wider text-zinc-500">
+    <div className="grid grid-cols-3 gap-3 border-b border-[var(--border)] px-4 py-2.5 text-sm last:border-0">
+      <dt className="flex items-center gap-2 text-xs uppercase tracking-wider text-[var(--text-muted)]">
         <StatusDot ok={ok} />
         {label}
       </dt>
-      <dd className="col-span-2 font-mono text-xs text-zinc-300 break-all">{value}</dd>
+      <dd className="col-span-2 break-all font-mono text-xs text-[var(--text-muted)]">{value}</dd>
     </div>
   );
 }
@@ -90,15 +92,15 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-100">Configuration</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="text-2xl font-semibold text-[var(--text)]">Configuration</h1>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">
           Read only. Confirms the SPA is wired to a live API and shows engine guard state.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <section className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
-          <div className="border-b border-zinc-800 px-4 py-3 text-sm font-semibold text-zinc-100">
+        <section className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
+          <div className="border-b border-[var(--border)] px-4 py-3 text-base font-semibold text-[var(--text)]">
             Frontend env
           </div>
           <dl>
@@ -107,14 +109,16 @@ export default function SettingsPage() {
                 key={row.key}
                 label={row.key}
                 ok={row.ok}
-                value={row.value || <span className="text-rose-400">missing</span>}
+                value={
+                  row.value || <span className="text-rose-600 dark:text-rose-400">missing</span>
+                }
               />
             ))}
           </dl>
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
-          <div className="border-b border-zinc-800 px-4 py-3 text-sm font-semibold text-zinc-100">
+        <section className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
+          <div className="border-b border-[var(--border)] px-4 py-3 text-base font-semibold text-[var(--text)]">
             API health
           </div>
           {!state.health ? (
@@ -137,8 +141,8 @@ export default function SettingsPage() {
           )}
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
-          <div className="border-b border-zinc-800 px-4 py-3 text-sm font-semibold text-zinc-100">
+        <section className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
+          <div className="border-b border-[var(--border)] px-4 py-3 text-base font-semibold text-[var(--text)]">
             Engine guard snapshot
           </div>
           {!state.metrics ? (

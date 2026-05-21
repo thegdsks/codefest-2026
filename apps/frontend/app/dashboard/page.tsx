@@ -18,9 +18,9 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <h1 className="text-xl font-semibold text-gray-900 mb-6">Dashboard</h1>
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+    <div className="mx-auto max-w-3xl">
+      <h1 className="mb-6 text-2xl font-semibold text-gray-900">Dashboard</h1>
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
         {loading && <p className="text-sm text-gray-500">Loading...</p>}
 
         {!loading && result !== null && result.error !== null && (
@@ -37,7 +37,7 @@ export default function DashboardPage() {
                 {result.data.user.pointsBalance.toLocaleString()} pts
               </span>
             </div>
-            <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-words">
+            <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-gray-800">
               {JSON.stringify(result.data, null, 2)}
             </pre>
           </>
