@@ -18,7 +18,7 @@ const statusConfig: Record<RuleStatus, { label: string; className: string }> = {
   ARCHIVED: {
     label: 'Archived',
     className:
-      'bg-zinc-700/40 text-[color:var(--text-dim)] border border-[color:var(--border-strong)]',
+      'bg-[color:var(--bg-elevated)] text-[color:var(--text-dim)] border border-[color:var(--border-strong)]',
   },
 };
 

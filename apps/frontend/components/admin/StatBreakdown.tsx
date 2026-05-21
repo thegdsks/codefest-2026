@@ -49,15 +49,15 @@ export default function StatBreakdown({
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-2 w-full motion-safe:animate-pulse rounded-full bg-zinc-800" />
+        <div className="h-2 w-full motion-safe:animate-pulse rounded-full bg-[color:var(--bg-elevated)]" />
         <ul className="space-y-3">
           {SKELETON_ROWS.map((k) => (
             <li key={k} className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <div className="h-3 w-24 motion-safe:animate-pulse rounded bg-zinc-800" />
-                <div className="h-3 w-16 motion-safe:animate-pulse rounded bg-zinc-800" />
+                <div className="h-3 w-24 motion-safe:animate-pulse rounded bg-[color:var(--bg-elevated)]" />
+                <div className="h-3 w-16 motion-safe:animate-pulse rounded bg-[color:var(--bg-elevated)]" />
               </div>
-              <div className="h-1.5 w-full rounded-full bg-zinc-800/60" />
+              <div className="h-1.5 w-full rounded-full bg-[color:var(--bg-elevated)]/60" />
             </li>
           ))}
         </ul>
@@ -66,7 +66,7 @@ export default function StatBreakdown({
   }
 
   if (rows.length === 0) {
-    return <p className="text-sm text-zinc-500">{emptyLabel}</p>;
+    return <p className="text-sm text-[color:var(--text-muted)]">{emptyLabel}</p>;
   }
 
   const segments = rows
@@ -76,7 +76,7 @@ export default function StatBreakdown({
   return (
     <div className="space-y-4">
       <div
-        className="flex h-2 w-full overflow-hidden rounded-full bg-zinc-800/70"
+        className="flex h-2 w-full overflow-hidden rounded-full bg-[color:var(--bg-elevated)]/70"
         role="img"
         aria-label="Distribution summary"
       >
@@ -88,8 +88,8 @@ export default function StatBreakdown({
             <div
               key={s.label}
               className={`h-full transition-[width] duration-500 ease-out ${
-                !isFirst && !isLast ? 'border-l border-zinc-950/40' : ''
-              } ${!isFirst && isLast ? 'border-l border-zinc-950/40' : ''}`}
+                !isFirst && !isLast ? 'border-l border-[color:var(--border-strong)]' : ''
+              } ${!isFirst && isLast ? 'border-l border-[color:var(--border-strong)]' : ''}`}
               style={{
                 width: `${pct}%`,
                 background: `linear-gradient(180deg, ${s.color}F2 0%, ${s.color}CC 100%)`,
@@ -110,22 +110,24 @@ export default function StatBreakdown({
                 <span className="inline-flex min-w-0 items-center gap-2">
                   <span
                     aria-hidden="true"
-                    className="inline-block h-2 w-2 shrink-0 rounded-full ring-1 ring-inset ring-white/10"
+                    className="inline-block h-2 w-2 shrink-0 rounded-full ring-1 ring-inset ring-[color:var(--border-strong)]"
                     style={{
                       backgroundColor: color,
                       boxShadow: `0 0 10px ${color}55`,
                     }}
                   />
-                  <span className="truncate text-xs font-medium tracking-wide text-zinc-200">
+                  <span className="truncate text-xs font-medium tracking-wide text-[color:var(--text)]">
                     {label}
                   </span>
                 </span>
                 <span className="shrink-0 tabular-nums text-xs">
-                  <span className="font-semibold text-zinc-100">{count.toLocaleString()}</span>
-                  <span className="ml-1.5 text-zinc-500">{pct.toFixed(0)}%</span>
+                  <span className="font-semibold text-[color:var(--text)]">
+                    {count.toLocaleString()}
+                  </span>
+                  <span className="ml-1.5 text-[color:var(--text-muted)]">{pct.toFixed(0)}%</span>
                 </span>
               </div>
-              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800/60">
+              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--bg-elevated)]/60">
                 <div
                   role="progressbar"
                   aria-valuenow={Math.round(pct)}

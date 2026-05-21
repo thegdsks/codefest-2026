@@ -64,7 +64,7 @@ function ModelRow({ m, onSelect }: { m: AiModel; onSelect: () => void }) {
           className={`inline-grid h-5 w-5 place-items-center rounded-full ring-1 ring-inset ${
             m.active
               ? 'bg-indigo-500/20 text-indigo-300 ring-indigo-400/40'
-              : 'bg-white/[0.04] text-zinc-600 ring-white/[0.08] group-hover:ring-white/[0.14]'
+              : 'bg-[color:var(--hover)] text-[color:var(--text-dim)] ring-[color:var(--border)] group-hover:ring-[color:var(--border-strong)]'
           }`}
         >
           {m.active && <Check size={11} weight="bold" aria-hidden="true" />}
@@ -72,7 +72,9 @@ function ModelRow({ m, onSelect }: { m: AiModel; onSelect: () => void }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate text-[13px] font-semibold text-zinc-100">{m.displayName}</span>
+          <span className="truncate text-[13px] font-semibold text-[color:var(--text)]">
+            {m.displayName}
+          </span>
           <TierChip tier={m.tier} />
           {m.recommended && (
             <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-amber-300 bg-amber-400/10 ring-1 ring-inset ring-amber-400/20">
@@ -85,24 +87,30 @@ function ModelRow({ m, onSelect }: { m: AiModel; onSelect: () => void }) {
             </span>
           )}
         </div>
-        <p className="mt-1 text-[11.5px] text-zinc-500">{m.notes}</p>
+        <p className="mt-1 text-[11.5px] text-[color:var(--text-muted)]">{m.notes}</p>
         <div className="mt-2 grid grid-cols-3 gap-2 text-[10.5px]">
-          <span className="text-zinc-500">
-            <span className="text-zinc-600 uppercase tracking-wider mr-1">In</span>
-            <span className="text-zinc-300 tabular-nums">{fmtUsd(m.inputUsdPerM)}</span>
-            <span className="text-zinc-700">/M</span>
+          <span className="text-[color:var(--text-muted)]">
+            <span className="text-[color:var(--text-dim)] uppercase tracking-wider mr-1">In</span>
+            <span className="text-[color:var(--text)] tabular-nums font-mono">
+              {fmtUsd(m.inputUsdPerM)}
+            </span>
+            <span className="text-[color:var(--text-dim)]">/M</span>
           </span>
-          <span className="text-zinc-500">
-            <span className="text-zinc-600 uppercase tracking-wider mr-1">Out</span>
-            <span className="text-zinc-300 tabular-nums">{fmtUsd(m.outputUsdPerM)}</span>
-            <span className="text-zinc-700">/M</span>
+          <span className="text-[color:var(--text-muted)]">
+            <span className="text-[color:var(--text-dim)] uppercase tracking-wider mr-1">Out</span>
+            <span className="text-[color:var(--text)] tabular-nums font-mono">
+              {fmtUsd(m.outputUsdPerM)}
+            </span>
+            <span className="text-[color:var(--text-dim)]">/M</span>
           </span>
-          <span className="text-zinc-500">
-            <span className="text-zinc-600 uppercase tracking-wider mr-1">Call</span>
-            <span className="text-zinc-300 tabular-nums">{fmtClassify(m.classifyCostUsd)}</span>
+          <span className="text-[color:var(--text-muted)]">
+            <span className="text-[color:var(--text-dim)] uppercase tracking-wider mr-1">Call</span>
+            <span className="text-[color:var(--text)] tabular-nums font-mono">
+              {fmtClassify(m.classifyCostUsd)}
+            </span>
           </span>
         </div>
-        <span className="mt-1 inline-block text-[10px] text-zinc-600">
+        <span className="mt-1 inline-block text-[10px] text-[color:var(--text-dim)] font-mono">
           {FAMILY_LABEL[m.family]} · {m.id}
         </span>
       </div>
@@ -208,7 +216,7 @@ export default function AiModelCatalog() {
                 <div key={tier} className="mb-4 last:mb-0">
                   <div className="mb-2 flex items-center gap-2">
                     <TierChip tier={tier} />
-                    <span className="text-[11px] text-zinc-500">
+                    <span className="text-[11px] text-[color:var(--text-muted)]">
                       {tier === 'budget' && 'cheap enough for high-volume scoring'}
                       {tier === 'standard' && 'safe default quality and cost'}
                       {tier === 'premium' && 'reserve for last-resort accuracy'}
