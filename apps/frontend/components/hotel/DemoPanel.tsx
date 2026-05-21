@@ -31,6 +31,7 @@ import {
 import {
   getDemoLoginContext,
   setDemoLoginContext,
+  setForceBlockTransfer,
   setForceHighRiskTransfer,
 } from '@/lib/hotel/demo-context';
 import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
@@ -79,6 +80,7 @@ export default function DemoPanel() {
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);
   const [forcedHighRisk, setForcedHighRisk] = useState(false);
+  const [forcedBlock, setForcedBlock] = useState(false);
   const [eligibilityOpen, setEligibilityOpen] = useState(false);
   const [mutating, setMutating] = useState<string | null>(null);
   const [signalStatus, setSignalStatus] = useState<SignalStatus>({
@@ -189,6 +191,13 @@ export default function DemoPanel() {
     setForcedHighRisk(true);
     setTimeout(() => setForcedHighRisk(false), 3000);
     publishDemoEvent('FORCE_HIGH_RISK', { enabled: true });
+  }
+
+  function handleForceBlock() {
+    setForceBlockTransfer(true);
+    setForcedBlock(true);
+    setTimeout(() => setForcedBlock(false), 3000);
+    publishDemoEvent('FORCE_HIGH_RISK', { enabled: true, signal: 'BLOCK' });
   }
 
   function handleResetAll() {
@@ -417,6 +426,21 @@ export default function DemoPanel() {
                 {forcedHighRisk && (
                   <p className="mt-1 text-[9px] text-[#775a19] font-sans font-semibold text-center">
                     Go to Transfer page and submit any transfer to trigger MFA.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleForceBlock}
+                  className="w-full mt-2 text-[10px] font-bold uppercase tracking-widest border border-rose-700 text-rose-700 py-2.5 hover:bg-rose-700 hover:text-white transition-colors font-sans"
+                >
+                  {forcedBlock ? 'Flag set - submit transfer' : 'Force next transfer BLOCK'}
+                </button>
+                <p className="mt-1.5 text-[9px] text-gray-500 font-sans">
+                  Forces an unconditional BLOCK decision on the next transfer.
+                </p>
+                {forcedBlock && (
+                  <p className="mt-1 text-[9px] text-rose-700 font-sans font-semibold text-center">
+                    Go to Transfer page and submit to trigger the block screen.
                   </p>
                 )}
               </section>
