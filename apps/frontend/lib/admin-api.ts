@@ -71,9 +71,26 @@ export interface AuditTrailStep {
   label?: string;
 }
 
+export interface TraceCondition {
+  field: string;
+  operator: string;
+  value: unknown;
+  satisfied: boolean;
+}
+
+export interface DecisionTrace {
+  ruleId: string | null;
+  ruleName: string | null;
+  engineLayer: 'L1' | 'L1+L2';
+  latencyMs: number | null;
+  matched: TraceCondition[];
+  llmRationale: string | null;
+}
+
 export interface DecisionDetailResponse {
   decision: DecisionRow;
   auditTrail: AuditTrailStep[];
+  trace: DecisionTrace | null;
 }
 
 export interface MetricsResponse {
