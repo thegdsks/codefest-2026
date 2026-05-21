@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { login as loginRequest } from '@/lib/hotel/customer-api';
+import { getDemoLoginContext } from '@/lib/hotel/demo-context';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function LoginScreen() {
     setSubmitting(true);
     setError(null);
 
-    const res = await loginRequest(username, password);
+    const res = await loginRequest(username, password, getDemoLoginContext());
 
     if (res.error) {
       setError(
