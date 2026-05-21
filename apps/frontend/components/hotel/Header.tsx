@@ -252,7 +252,7 @@ export default function Header() {
                       Profile Summary
                     </span>
                     <span className="text-[10px] text-gray-500 font-mono font-bold mt-0.5">
-                      {user.points.toLocaleString()} SFC Points
+                      {user.points?.toLocaleString()} SFC Points
                     </span>
                   </div>
                 </button>

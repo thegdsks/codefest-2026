@@ -68,7 +68,10 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deductPoints = useCallback((amount: number) => {
-    setUser((prev) => ({ ...prev, points: Math.max(prev.points - amount, 0) }));
+    setUser((prev) => ({
+      ...prev,
+      points: Math.max(prev.points || 0 - amount, 0),
+    }));
   }, []);
 
   const updateProfile = useCallback((updates: Partial<UserProfile>) => {
