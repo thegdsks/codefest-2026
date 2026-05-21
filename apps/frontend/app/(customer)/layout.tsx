@@ -1,6 +1,7 @@
 import { JetBrains_Mono, Montserrat, Playfair_Display } from 'next/font/google';
 import EngagementWrapper from '@/components/engagement-wrapper';
 import { CustomerProvider } from '@/components/hotel/CustomerProvider';
+import DemoPanel from '@/components/hotel/DemoPanel';
 import Footer from '@/components/hotel/Footer';
 import Header from '@/components/hotel/Header';
 
@@ -46,6 +47,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             <Footer />
           </div>
         </EngagementWrapper>
+        <DemoPanel />
       </CustomerProvider>
     </div>
   );
