@@ -125,45 +125,41 @@ export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedPro
           {!isLoading && !isError && rows.length > 0 && (
             <ul className="divide-y divide-zinc-800/60">
               {rows.map((row) => {
-                const reason = (
-                  row.reasonText ||
-                  row.reasonCode ||
-                  row.explanation ||
-                  row.reason ||
-                  ''
-                ).slice(0, 60);
+                const reason =
+                  row.reasonText || row.reasonCode || row.explanation || row.reason || '';
                 return (
                   <li key={row.decisionId} className="motion-safe:animate-fade-in">
                     <button
                       type="button"
                       onClick={() => setSelectedId(row.decisionId)}
-                      className="w-full px-4 py-2.5 text-left transition-colors hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400/70"
+                      className="w-full px-4 py-2 text-left transition-colors hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400/70"
                     >
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="shrink-0 tabular-nums text-[11px] text-zinc-500">
-                          {formatHMS(row.timestamp)}
-                        </span>
-                        <span
-                          className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${typeTone(row.decisionType)}`}
-                        >
-                          {row.decisionType}
-                        </span>
-                        <ActionPill action={row.action} />
-                        <span className="max-w-[100px] shrink-0 truncate font-mono text-[11px] text-zinc-400">
-                          {row.userId}
-                        </span>
-                        <span
-                          className={`ml-auto shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${scoreTone(row.score)}`}
-                        >
-                          {Math.round(row.score)}
-                        </span>
-                        <span className="shrink-0 rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] text-zinc-400">
-                          {row.engineLayer}
-                        </span>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="shrink-0 tabular-nums text-[11px] text-zinc-500">
+                            {formatHMS(row.timestamp)}
+                          </span>
+                          <span
+                            className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${typeTone(row.decisionType)}`}
+                          >
+                            {row.decisionType}
+                          </span>
+                          <ActionPill action={row.action} />
+                          <span className="flex-1" />
+                          <span className="truncate max-w-[80px] font-mono text-[11px] text-zinc-400">
+                            {row.userId}
+                          </span>
+                          <span
+                            className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${scoreTone(row.score)}`}
+                          >
+                            {Math.round(row.score)}
+                          </span>
+                          <span className="shrink-0 rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] text-zinc-400">
+                            {row.engineLayer}
+                          </span>
+                        </div>
+                        {reason && <p className="line-clamp-1 text-xs text-zinc-500">{reason}</p>}
                       </div>
-                      {reason && (
-                        <p className="mt-1 truncate text-[11px] text-zinc-600">{reason}</p>
-                      )}
                     </button>
                   </li>
                 );

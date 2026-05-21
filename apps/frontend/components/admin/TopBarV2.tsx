@@ -119,7 +119,7 @@ export default function TopBarV2({ onCmdK, onMenuOpen }: TopBarV2Props) {
   }, [onCmdK]);
 
   return (
-    <header className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4 py-3 gap-4">
+    <header className="flex items-center gap-4 border-b border-zinc-800 bg-zinc-950 px-4 py-3">
       {/* Hamburger: visible only under md */}
       <button
         type="button"
@@ -139,7 +139,7 @@ export default function TopBarV2({ onCmdK, onMenuOpen }: TopBarV2Props) {
       <button
         type="button"
         onClick={handleClick}
-        className="md:flex hidden flex-1 max-w-sm items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+        className="md:flex hidden flex-1 max-w-md w-full min-w-0 items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
         aria-label="Open command palette"
       >
         <MagnifyingGlass size={13} aria-hidden="true" />
@@ -150,19 +150,23 @@ export default function TopBarV2({ onCmdK, onMenuOpen }: TopBarV2Props) {
       </button>
 
       {/* Mobile page title (visible under md) */}
-      <div className="md:hidden flex-1 text-sm font-medium text-zinc-300 truncate">{title}</div>
+      <div className="md:hidden flex-1 min-w-0 text-sm font-medium text-zinc-300 truncate">
+        {title}
+      </div>
 
       {/* Right: dec/s meter — sparkline hidden under sm */}
       <div
         role="status"
-        className="flex items-center gap-2 shrink-0 text-xs text-zinc-400"
+        className="flex items-center gap-3 shrink-0 text-xs text-zinc-400"
         aria-label="Decisions per second"
       >
-        <span className="hidden sm:inline-block">
+        <span className="hidden sm:inline-block w-16">
           <MiniSparkline values={sparkline} />
         </span>
-        <span className="tabular-nums text-zinc-300 font-medium">{rate.toFixed(2)}</span>
-        <span className="text-zinc-600 hidden sm:inline">dec/s</span>
+        <span className="tabular-nums whitespace-nowrap text-zinc-300 font-medium">
+          {rate.toFixed(2)}
+        </span>
+        <span className="text-zinc-600 hidden sm:inline whitespace-nowrap">dec/s</span>
       </div>
     </header>
   );
