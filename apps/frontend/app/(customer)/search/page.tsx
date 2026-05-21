@@ -1,14 +1,24 @@
 'use client';
 
-import { useEngagement } from '@signal-force/engagement-sdk/react';
+import { createRepeatedQueryTracker } from '@signal-force/engagement-sdk';
 import { BadgePercent, Calendar, Gift, MapPin, Search, ShieldCheck, Users } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useCallback, useRef, useState } from 'react';
+import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { trackSearch } = useEngagement();
+  const { trackEvent } = useTrackedEngagement();
+
+  // Wire a repeated query tracker that injects userId via useTrackedEngagement.
+  // createRepeatedQueryTracker is stateful (counts queries internally), so we
+  // keep a single instance in a ref tied to the trackEvent identity.
+  const trackerRef = useRef<((query: string) => void) | null>(null);
+  if (trackerRef.current === null) {
+    trackerRef.current = createRepeatedQueryTracker((signal) => trackEvent(signal));
+  }
+  const trackSearch = useCallback((query: string) => trackerRef.current?.(query), []);
   const [destinationInput, setDestinationInput] = useState('');
   const [dates, setDates] = useState('Oct 14 — Oct 21');
   const [isFocused, setIsFocused] = useState<string | null>(null);

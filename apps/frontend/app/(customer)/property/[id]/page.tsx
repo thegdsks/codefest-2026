@@ -1,16 +1,51 @@
 'use client';
 
+import {
+  attachAbandonedFlowStepDetector,
+  attachRageClickDetector,
+} from '@signal-force/engagement-sdk';
 import Image from 'next/image';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 import DynamicOfferCard from '@/components/hotel/DynamicOfferCard';
 import PropertyBookingCard from '@/components/hotel/property/PropertyBookingCard';
 import PropertyReviews from '@/components/hotel/property/PropertyReviews';
 import { getPropertyConfig } from '@/lib/hotel/property-data';
+import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 export default function PropertyScreen() {
   const params = useParams<{ id: string }>();
   const propertyId = params.id ?? 'paris';
   const config = getPropertyConfig(propertyId);
+  const { trackEvent } = useTrackedEngagement();
+  const pathname = usePathname();
+  const routeListenersRef = useRef<Set<(path: string) => void>>(new Set());
+
+  // Notify abandoned-flow listeners when the pathname changes.
+  useEffect(() => {
+    for (const listener of routeListenersRef.current) {
+      listener(pathname);
+    }
+  }, [pathname]);
+
+  // Rage click: user clicking the booking widget repeatedly in frustration
+  useEffect(() => {
+    const detach = attachRageClickDetector((signal) => trackEvent(signal));
+    return detach;
+  }, [trackEvent]);
+
+  // Abandoned flow step: user leaves the property page without booking/transferring
+  useEffect(() => {
+    const detach = attachAbandonedFlowStepDetector((signal) => trackEvent(signal), {
+      onRouteChange: (callback) => {
+        routeListenersRef.current.add(callback);
+        return () => {
+          routeListenersRef.current.delete(callback);
+        };
+      },
+    });
+    return detach;
+  }, [trackEvent]);
 
   return (
     <div className="bg-[#fbf9f8] min-h-screen pb-24 font-sans text-black">
