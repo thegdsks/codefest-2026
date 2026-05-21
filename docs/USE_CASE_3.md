@@ -158,14 +158,42 @@ Click "Pause" to freeze the view for comparison.
 
 ---
 
+## AI Mode (L2 surface prioritization)
+
+In addition to the rule-driven engagement signals above, the surface eligibility endpoint
+supports an `?aiMode=on` query parameter that activates the L2 AI surface prioritizer
+(`engine/ai-surface-prioritizer.js`).
+
+When `aiMode=on`, each surface in the response gains three additional fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `aiAction` | `PROMOTE` / `KEEP` / `DEMOTE` / `HIDE` / `SWAP` | LLM verdict on whether to surface this card |
+| `aiPriority` | 1-5 | Ranking within the active surfaces (1 = show first) |
+| `aiRationale` | string | One to two sentences a product manager can read |
+
+The deterministic `state` from the surface evaluator is never modified by AI. AI fields are
+additive. When the LLM is unavailable (budget exhausted, timeout, missing env vars) the
+response includes `"aiUnavailable": true` and the deterministic surfaces are returned
+unchanged.
+
+Example request:
+
+```bash
+curl -H 'Authorization: Bearer tok_xxxxxxxx' \
+  'https://signal.glinr.com/api/customer/surface-eligibility?userId=USER%23001&aiMode=on'
+```
+
+The customer DemoPanel exposes an AI Mode toggle that sets this parameter on each poll.
+
 ## Curl smoke test
 
 Replace `<BASE_URL>`, `<B64_CREDS>`, `<USER_ID>` before running.
 
 ```bash
-BASE_URL="https://your-api-id.execute-api.us-east-1.amazonaws.com/prod"
-CREDS="$(echo -n 'client_id:client_secret' | base64)"
-USER_ID="user_loyalty_001"
+BASE_URL="https://signal.glinr.com/api"
+CREDS="$(echo -n 'demoClient:demoSecret' | base64)"
+USER_ID="USER%23001"
 
 # fire a dwell signal
 curl -s -X POST "$BASE_URL/engagement/event" \
@@ -173,15 +201,9 @@ curl -s -X POST "$BASE_URL/engagement/event" \
   -H "Content-Type: application/json" \
   -d "{\"signal\":\"dwell_no_action\",\"userId\":\"$USER_ID\",\"sessionId\":\"\",\"params\":{}}" \
   | jq '{action,surface,reasonCode,score,engineLayer,decisionId}'
-
-# check pending intervention
-curl -s "$BASE_URL/engagement/pending" \
-  -H "Authorization: Basic $CREDS" \
-  | jq .
 ```
 
-Expected: the first call returns a decision with `action: "OFFER"` or `"NUDGE"`. The second
-call returns the pending intervention (or `null` if already consumed).
+Expected: the call returns a decision with `action: "OFFER"` or `"NUDGE"`.
 
 ---
 

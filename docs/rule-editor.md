@@ -4,6 +4,23 @@
 
 The rule editor at `/admin/rules/new` lets ops staff add and update engagement rules without a redeploy. An EngagementRule is a json-rules-engine document with a `conditions` block and an `event.params` block carrying `action`, `surface`, and `score`. Rules live in the DynamoDB `EngagementRules` table (PK `ruleId`, SK `version`, where `version='latest'` is the live row and ISO timestamps are immutable history entries). Only rules with `status: ACTIVE` are evaluated at L1 inside `routes/engagement.js` during `POST /engagement/event`; their highest-scoring match wins when it beats the static L1 scorer.
 
+## Active rules in DynamoDB (as of 2026-05-21)
+
+All eight rules below are seeded via `seed_data/EngagementRules_batch_1.json` and are `status: ACTIVE` in the deployed table.
+
+| Rule ID | Name | Trigger condition | Surface |
+|---|---|---|---|
+| `RULE#TIER_GAP_NUDGE` | Tier gap nudge | `signal=tier_gap` AND `pointsToNextTier <= 10000` | `inline_card` (Prestige Advance benefit card) |
+| `RULE#PROFILE_INCOMPLETE_TIER_GAP` | Incomplete profile with tier gap | `signal=profile_incomplete_tier_gap` AND `profileCompletion < 90` | `inline_card` (Catalyst Elevate benefit card) |
+| `RULE#MFA_ENROLLMENT_GAP` | MFA not enrolled for high-tier member | `signal=mfa_gap` AND `mfaSecret=null` AND `tier in [Gold, Platinum]` | `inline_card` (MFA enrollment nudge) |
+| `RULE#TRANSFER_ABANDON_OFFER` | Abandoned transfer flow | `signal=abandoned_flow_step` AND `flow=transfer` AND `step >= 2` | `offer_modal` (2x bonus points offer) |
+| `RULE#POST_BOOKING_UPSELL` | Post-booking upsell | `signal=booking_confirmed` | `offer_modal` (500 bonus points for breakfast add-on) |
+| `RULE#POINTS_BALANCE_STARE` | Points balance stare | `signal=dwell_no_action` AND `target=points_balance` AND `dwellMs > 8000` | `nudge_banner` (help nudge) |
+| `RULE#RAGE_CLICK_GLOBAL` | Rage click help | `signal=rage_click` AND `clickCount >= 5` | `help_tooltip` (inline help tooltip) |
+| `DEMO_HIGH_VALUE_UNSEEN_DEVICE` | High-value transfer from unseen device | `amount >= 5000` AND `deviceFingerprintSeenDays > 30` | `mfa_challenge` (demo story rule) |
+
+The surface evaluator in `engine/surfaces.js` also uses `RULE#TIER_GAP_NUDGE`, `RULE#PROFILE_INCOMPLETE_TIER_GAP`, `RULE#MFA_ENROLLMENT_GAP`, `RULE#TRANSFER_ABANDON_OFFER`, and `RULE#POST_BOOKING_UPSELL` by reference when evaluating `GET /customer/surface-eligibility`. Those surfaces carry the stateful lifecycle (SHOWN, HIDDEN, PENDING, COMPLETED) and are independent of the `POST /engagement/event` rule engine path.
+
 ## Modes
 
 The editor has two modes, both writing the same `definition` JSON:

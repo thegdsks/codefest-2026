@@ -36,7 +36,7 @@ loaded by CDK automatically).
 | `LITELLM_MODEL` | Model ID for fraud classification | Optional (defaults absent, falls back to Bedrock) |
 | `CLIENT_ID` | Basic Auth client ID | Optional (defaults to `demoClient`) |
 | `CLIENT_SECRET` | Basic Auth client secret | Optional (defaults to `demoSecret`) |
-| `MFA_OTP` | Static demo OTP value | Optional (defaults to `123456`) |
+| `MFA_OTP` | Static demo OTP value (deprecated - use `MFA_MODE=static` instead) | Optional |
 | `SF_STAGE` | Deploy stage (`dev`/`prod`) | Optional (defaults to `dev`) |
 | `FRAUD_ALERT_EMAIL` | Email to subscribe to fraud SNS topic | Optional |
 | `BUDGET_ALERT_EMAIL` | Email to subscribe to budget SNS topic | Optional |
@@ -45,24 +45,36 @@ Variables hardcoded in the stack (not configurable via env):
 
 | Var | Value | Notes |
 |---|---|---|
-| `MFA_MODE` | `static` | Accepts static OTP for the demo - not configurable at synth time |
-| `DEMO_MODE` | `1` | Enables reseed endpoint and Demo controls UI |
-| `BEDROCK_MODEL_ID` | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | Native Bedrock inference |
+| `MFA_MODE` | `static` | Accepts static OTP `123456` for the demo. Set to `totp` for production. |
+| `DEMO_MODE` | `1` | Enables reseed endpoint, DemoPanel controls, and `forceMfa` on login. |
+| `BEDROCK_MODEL_ID` | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | Native Bedrock inference (unused on LiteLLM path) |
 | `FRAUD_SCORE_THRESHOLD` | `60` | Defined in `infra/cdk/lib/config.ts` |
 
-## Missing vars - action required before first deploy
+## Lambda alias and immutable env vars
 
-The following vars from the original design are NOT wired into the Lambda environment
-in the current CDK stack. The Lambda either uses hardcoded defaults or ignores them.
-Add them to `runtime-stack.ts` in the `environment` block and redeploy if needed:
+Lambda Versions snapshot environment variables at publish time. Updating `$LATEST`
+via `aws lambda update-function-configuration` does NOT propagate to a published alias.
+Always go through CDK to make env var changes reach the alias-served version:
 
-| Var | Demo value | Status |
+```bash
+set -a && source ../codefest/.env.local && set +a \
+  && eval "$(aws configure export-credentials --format env)" \
+  && npx cdk deploy signal-force-runtime --require-approval broadening
+```
+
+The deploy script (`scripts/deploy-backend.sh`) does this automatically. Use the
+command above only when you want to deploy a single stack without the full script.
+
+## Optional vars with Lambda-internal defaults
+
+The following vars are not required at synth time but can be set to override defaults:
+
+| Var | Demo value | Notes |
 |---|---|---|
-| `SESSION_TTL_SEC` | `1800` | Not in stack - Lambda likely has an internal default |
-| `LARGE_TRANSFER_AMOUNT_USD` | `5000` | Not in stack - Lambda likely has an internal default |
-| `UNSEEN_DEVICE_DAYS_THRESHOLD` | `30` | Not in stack - Lambda likely has an internal default |
-| `LITELLM_FALLBACK_MODELS` | `gemini-3.5-flash,nova-lite` | Not in stack |
-| `LLM_DAILY_BUDGET_USD` | `250` | Not in stack - Lambda uses `LLM_GUARD_MAX_CALLS` instead |
+| `SESSION_TTL_SEC` | `1800` | Sliding window TTL for bearer tokens |
+| `LARGE_TRANSFER_AMOUNT_USD` | `5000` | Threshold for the high-value transfer rule |
+| `UNSEEN_DEVICE_DAYS_THRESHOLD` | `30` | Days before a device is considered unseen |
+| `LLM_GUARD_MAX_CALLS` | (internal) | Hard call count cap before `engine/budget.js` blocks LLM |
 
 ## CORS
 

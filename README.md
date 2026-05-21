@@ -1,5 +1,7 @@
 # Signal Force
 
+> Demo-ready as of 2026-05-21. Backend: 356 tests passing. Frontend: deployed to [signal.glinr.com](https://signal.glinr.com).
+
 [![Node](https://img.shields.io/badge/Node-18-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![AWS CDK](https://img.shields.io/badge/AWS_CDK-v2-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com/cdk)
@@ -14,7 +16,7 @@ A real-time **decision intelligence platform**. One engine that turns customer s
 
 ## For judges and reviewers
 
-Live URL: &lt;PLACEHOLDER_PROD_URL&gt; (populated once deployed)
+Live URL: [signal.glinr.com](https://signal.glinr.com)
 
 ### Test accounts
 
@@ -56,6 +58,16 @@ Every interaction on a loyalty platform is a decision. Show a promotion or not. 
 ## What we are building
 
 Three apps, one repo. The customer surface and the admin console share one SPA for the demo. The decision engine is a single Lambda behind API Gateway. In production the engine splits into hot / warm / cold lanes by decision complexity (rules, LLM, batch). See [`docs/architecture.md`](./docs/architecture.md) for the scaled architecture and cost model.
+
+Key engine capabilities shipped as of 2026-05-21:
+
+- **AI surface prioritizer** - `GET /customer/surface-eligibility?aiMode=on` passes the six deterministic surface candidates to the LLM (Claude Haiku 4.5 via LiteLLM proxy), which returns per-surface `aiAction` (PROMOTE / KEEP / DEMOTE / HIDE / SWAP), `aiPriority` (P1-P5), and `aiRationale`. The deterministic state is never overridden. Results are cached 30 s per Lambda container.
+- **AI fraud explainer** - every `BLOCK` / `REVIEW` / `MFA` fraud decision triggers a post-decision LLM call producing a `{ paragraph, riskFactors[], recommendation }` rationale stored on the decision row as `aiExplanation`. The DecisionDrawer "AI Analysis" panel in `/admin` renders it.
+- **Stateful surface evaluator** - `engine/surfaces.js` tracks SHOWN / HIDDEN / PENDING / COMPLETED lifecycle for six named surfaces (PROPERTY_PRESTIGE_ADVANCE, RESULTS_PRESTIGE_ADVANCE, PROFILE_CATALYST_ELEVATE, MFA_ENROLLMENT_NUDGE, TRANSFER_ABANDON_OFFER, BOOKING_CONFIRMATION_OFFER) derived from UserProfile and UserState.
+- **Live activity feed** - `GET /admin/activity-feed` merges decisions, sessions, and operator demo events into one chronological stream. The `LiveActivityFeed` hero widget on the admin overview polls this endpoint.
+- **Demo operator endpoints** - `POST /admin/demo-actions/mutate-user` flips user fields live (tier, loyalty score, profile completion, MFA status, transfer draft state, booking state) and publishes a `DEMO_EVENT` to the activity feed.
+
+For the full runbook used during the live demo see [`docs/DEMO_RUNBOOK.md`](./docs/DEMO_RUNBOOK.md).
 
 ### System architecture
 
@@ -203,22 +215,30 @@ Activity stream context (Akamai logs, web hits, page events) is the longer-term 
 
 ## API surface
 
-- `POST /auth/login` - customer login, returns sessionId and risk decision
-- `POST /auth/mfa/verify` - verify static OTP to complete login
-- `POST /transactions/transfer` - points transfer with fraud scoring
-- `GET /user/profile` - fetch loyalty profile for a user
-- `GET /user/profile-completeness?userId=` - completeness percent, missing fields, nudge text
-- `GET /offers?userId=` - personalized offers for a user
-- `POST /offers/action` - track offer interaction (IMPRESSION, CLICK, BOOK)
-- `GET /nudges?userId=` - active nudges for a user
-- `POST /nudges/action` - track nudge interaction (SHOWN, DISMISSED, COMPLETED)
-- `GET /dashboard?userId=` - customer dashboard: profile, fraud status, offers, nudges, activity
-- `GET /admin/decisions?window=&type=&userId=&limit=` - decision feed, admin only
-- `GET /admin/metrics?window=` - aggregate counts and L1 vs L1+L2 split, admin only
-- `POST /admin/decisions/{id}/release` - override a HOLD or BLOCK decision, admin only
-- `GET /admin/users?limit=&cursor=` - paginated user list, admin only
+Customer routes (Bearer auth after login):
 
-Full request/response shapes and curl examples are in `docs/api-quickstart.md` -> Endpoint index.
+- `POST /auth/login` - login with fraud scoring, returns sessionId and risk decision
+- `POST /auth/mfa/verify` - verify OTP (or static `123456` when `MFA_MODE=static`) to complete login
+- `POST /auth/mfa/enroll` / `POST /auth/mfa/confirm-enroll` - TOTP enrollment flow
+- `POST /transactions/transfer` - points transfer with fraud scoring; MFA gate on high-risk
+- `GET /customer/surface-eligibility?userId=&aiMode=on|off` - stateful evaluation of 6 surfaces; AI re-ranking when `aiMode=on`
+- `POST /engagement/event` - report a behavioral signal, returns surface and copy for the UI
+- `GET /user/profile` / `GET /user/profile-completeness?userId=` - profile data and completeness
+- `GET /offers?userId=` / `GET /nudges?userId=` - personalized offers and nudges
+- `GET /dashboard?userId=` - aggregate: profile, fraud status, offers, nudges, activity
+
+Admin routes (Basic Auth `demoClient:demoSecret`):
+
+- `GET /admin/decisions?window=&type=&userId=&limit=` - decision feed with AI explanation fields
+- `GET /admin/metrics?window=` - aggregate counts and L1 vs L1+L2 split
+- `POST /admin/decisions/{id}/release` - override a HOLD or BLOCK decision
+- `GET /admin/sessions` / `POST /admin/sessions/{id}/revoke` - session management
+- `GET /admin/activity-feed?since=&limit=` - merged feed of decisions, sessions, and demo events
+- `POST /admin/demo-actions/mutate-user` - flip user fields live for demo scripting
+- `POST /admin/demo-events` / `GET /admin/demo-events` - operator event log
+- `GET /admin/users` / `GET /admin/rules` / `POST /admin/rules` - user list and rule CRUD
+
+Full request/response shapes and curl examples are in [`docs/api-quickstart.md`](./docs/api-quickstart.md). OpenAPI 3.1 spec: [`docs/openapi.yaml`](./docs/openapi.yaml) (Postman import source).
 
 ## Quick start
 
@@ -292,14 +312,19 @@ Outputs include the API URL and CloudWatch dashboard URL.
 
 ## Demo scenarios
 
-The hackathon demo walks through three scenarios that show the engine across all three surfaces:
+The hackathon demo walks through four scenarios that show the engine across all three surfaces:
 
-1. **UC1 - geo-clean login (personalization)**: high-tier member logs in from a known location. L1 rules score the event below 40 (no gray zone). The engine returns a personalized credit-card promotion. L2 is not called. Customer surface renders the offer as a nudge popup.
-2. **UC2 - transfer velocity anomaly (fraud hold)**: same user attempts a 10x normal points transfer. L1 rules score the event in the 40-70 gray zone, so the router calls L2. The LiteLLM proxy generates the adaptive nudge ("we paused this transfer, here is what to do"). Fraud alert SNS publishes. Admin console shows the hold in real time.
-3. **UC3 - profile completeness nudge (engagement)**: user with an incomplete loyalty profile triggers `/decisions/evaluate`. L1 rules detect low profile completeness and surface a targeted fill-in prompt. The decision is written with `engineLayer=L1` and `profileScore` in the telemetry field.
+1. **UC1 - geo-clean login (personalization)**: high-tier member logs in from a known location. L1 rules score the event below the gray zone. The engine returns a personalized offer. L2 is not called. Customer surface renders the offer card via the stateful surface evaluator.
+2. **UC2 - transfer velocity anomaly (fraud hold + MFA)**: same user attempts a high-value transfer from an unseen device. The `DEMO_HIGH_VALUE_UNSEEN_DEVICE` rule fires, the engine issues an MFA challenge. Judge enters `123456` (static OTP). Admin console shows the FRAUD_TRANSFER decision with an AI fraud explanation in the drawer.
+3. **UC3 - profile completeness nudge (engagement)**: user with an incomplete profile triggers the engagement detectors on `/profile`. L1 rules match the `RULE#PROFILE_INCOMPLETE_TIER_GAP` rule, surface a Catalyst Elevate benefit card. The DemoPanel Quick Mutations row can flip this state live.
+4. **UC4 - AI surface prioritization**: with the AI Mode toggle ON, `GET /customer/surface-eligibility?aiMode=on` returns LLM-ranked surfaces alongside the deterministic output. The DecisionDrawer in `/admin` shows the `aiExplanation` field on any fraud decision.
+
+See [`docs/DEMO_RUNBOOK.md`](./docs/DEMO_RUNBOOK.md) for the step-by-step 90-second judge walkthrough.
 
 ## See also
 
-- [`docs/architecture.md`](./docs/architecture.md): the engine in detail, scale model, cost, decision log.
+- [`docs/architecture.md`](./docs/architecture.md): the engine in detail, AI brain, DDB tables, scale model, cost, decision log.
+- [`docs/api-quickstart.md`](./docs/api-quickstart.md): curl examples for every endpoint including new AI mode and demo controls.
+- [`docs/DEMO_RUNBOOK.md`](./docs/DEMO_RUNBOOK.md): step-by-step judge walkthrough (on `docs/demo-runbook` branch, merging soon).
 - [`AGENTS.md`](./AGENTS.md): code conventions, commit signing setup, hook behavior, rules for AI tools.
 - [`infra/cdk/README.md`](./infra/cdk/README.md): per-stack deploy notes.

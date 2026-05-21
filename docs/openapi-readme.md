@@ -71,3 +71,16 @@ Suggested local workflow:
 Admin endpoints are marked `x-internal-only: true` in the spec. If you add a
 doc-generation step later, filter on that extension to produce a customer-facing
 spec that excludes `/admin/*` paths.
+
+## Postman import
+
+The OpenAPI spec at `docs/openapi.yaml` is the canonical Postman source for this
+project. There is no separate `*.postman_collection.json` file in the repo.
+
+To import: open Postman, click "Import", choose "File" or paste the raw
+`docs/openapi.yaml` content. Postman will generate a collection with one request
+per operation, pre-populated with example values from the spec.
+
+Gateway auth (`demoClient:demoSecret`) should be set as a Basic Auth collection
+variable so it applies to all requests. Bearer tokens must be set manually on
+customer-route requests after a `POST /auth/login` + `POST /auth/mfa/verify` flow.
