@@ -47,6 +47,59 @@ const CFG = {
   get demoMode() {
     return process.env.DEMO_MODE === '1';
   },
+  // LLM fallback chain config
+  get litellmFallbackModels() {
+    const raw = process.env.LITELLM_FALLBACK_MODELS || '';
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  },
+  get litellmTimeoutMs() {
+    return Number(process.env.LITELLM_TIMEOUT_MS || 8000);
+  },
+  get litellmTotalBudgetMs() {
+    return Number(process.env.LITELLM_TOTAL_BUDGET_MS || 15000);
+  },
+  // Admin decisions list: default page size and hard cap.
+  get adminDecisionsDefaultLimit() {
+    return Number(process.env.ADMIN_DECISIONS_DEFAULT_LIMIT || 50);
+  },
+  get adminDecisionsMaxLimit() {
+    return Number(process.env.ADMIN_DECISIONS_MAX_LIMIT || 200);
+  },
+  get adminDecisionsExportMaxItems() {
+    return Number(process.env.ADMIN_DECISIONS_EXPORT_MAX_ITEMS || 10000);
+  },
+  // Admin users list: default page size and hard cap.
+  get adminUsersDefaultLimit() {
+    return Number(process.env.ADMIN_USERS_DEFAULT_LIMIT || 50);
+  },
+  get adminUsersMaxLimit() {
+    return Number(process.env.ADMIN_USERS_MAX_LIMIT || 100);
+  },
+  // Admin sessions list: default page size and hard cap.
+  get adminSessionsDefaultLimit() {
+    return Number(process.env.ADMIN_SESSIONS_DEFAULT_LIMIT || 100);
+  },
+  get adminSessionsMaxLimit() {
+    return Number(process.env.ADMIN_SESSIONS_MAX_LIMIT || 500);
+  },
+  // LLM cost estimate per L1+L2 call (tune once real pricing lands).
+  get estLlmUnitUsd() {
+    return Number(process.env.EST_LLM_UNIT_USD || 0.0006);
+  },
+  // Risk score half-life in seconds (default 24 h).
+  get riskHalfLifeSec() {
+    return Number(process.env.RISK_HALF_LIFE_SEC || 24 * 3600);
+  },
+  // Sparkline window in days and row limit for getUserRisk.
+  get riskSparklineWindowDays() {
+    return Number(process.env.RISK_SPARKLINE_WINDOW_DAYS || 7);
+  },
+  get riskSparklineLimit() {
+    return Number(process.env.RISK_SPARKLINE_LIMIT || 20);
+  },
 };
 
 module.exports = { CFG };
