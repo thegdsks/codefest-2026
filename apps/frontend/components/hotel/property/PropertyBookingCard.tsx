@@ -1,10 +1,11 @@
 'use client';
 
-import { Award, Check, ChevronDown, Clock, Sparkles, Star } from 'lucide-react';
+import { Award, Check, ChevronDown, Clock, Sparkles, Star, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
-import { createBooking } from '@/lib/hotel/customer-api';
+import type { AvailabilityResult } from '@/lib/hotel/customer-api';
+import { checkAvailability, createBooking } from '@/lib/hotel/customer-api';
 import type { PropertyConfig } from '@/lib/hotel/property-data';
 import type { PrestigeAdvanceContext } from '@/lib/hotel/surface-types';
 import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
@@ -13,6 +14,8 @@ interface PropertyBookingCardProps {
   propertyId: string;
   config: PropertyConfig;
 }
+
+type BookingStep = 'idle' | 'checking' | 'available' | 'booking' | 'booked';
 
 function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600);
@@ -31,11 +34,15 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
   const [checkOut, setCheckOut] = useState('2026-10-21');
   const [adults, setAdults] = useState(2);
   const [childrenCount, setChildrenCount] = useState(0);
-  const [bookingStatus, setBookingStatus] = useState<'idle' | 'checking' | 'confirmed'>('idle');
-  const [timeLeft, setTimeLeft] = useState(3 * 3600);
   const [suiteType, setSuiteType] = useState(config.suites[0].name);
+  const [timeLeft, setTimeLeft] = useState(3 * 3600);
 
-  const prestigeSurface = surfaces['PROPERTY_PRESTIGE_ADVANCE'];
+  // Two-step booking state
+  const [step, setStep] = useState<BookingStep>('idle');
+  const [availability, setAvailability] = useState<AvailabilityResult | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
+
+  const prestigeSurface = surfaces.PROPERTY_PRESTIGE_ADVANCE;
 
   useEffect(() => {
     setSuiteType(config.suites[0].name);
@@ -57,18 +64,74 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
     [config]
   );
 
-  const handleBook = async (e: FormEvent) => {
-    e.preventDefault();
-    setBookingStatus('checking');
+  // Any change to dates, guests, or suite type resets back to idle so the user
+  // must re-check before proceeding to book.
+  const resetAvailability = useCallback(() => {
+    setStep('idle');
+    setAvailability(null);
+    setCheckError(null);
+  }, []);
 
-    const checkInDate = new Date(checkIn);
-    const checkOutDate = new Date(checkOut);
-    const nights = Math.max(
-      1,
-      Math.round((checkOutDate.getTime() - checkInDate.getTime()) / 86_400_000)
-    );
-    const nightlyRate = suiteRates[suiteType] || config.price;
-    const costSfc = nights * nightlyRate;
+  const handleCheckAvailability = async (e: FormEvent) => {
+    e.preventDefault();
+    setStep('checking');
+    setCheckError(null);
+
+    try {
+      if (!session) {
+        // Simulate availability when not logged in.
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        const nights = Math.max(
+          1,
+          Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000)
+        );
+        setAvailability({
+          available: true,
+          propertyId,
+          checkIn,
+          checkOut,
+          adults,
+          children: childrenCount,
+          nights,
+          pricePerNight: 1250,
+          totalSfc: nights * 1250,
+          currency: 'SFC',
+        });
+        setStep('available');
+        return;
+      }
+
+      const res = await checkAvailability(
+        session.token,
+        propertyId,
+        checkIn,
+        checkOut,
+        adults,
+        childrenCount
+      );
+
+      if (res.data?.available) {
+        setAvailability(res.data);
+        setStep('available');
+      } else if (res.data && !res.data.available) {
+        setCheckError('This property is fully booked for the selected dates.');
+        setStep('idle');
+      } else {
+        setCheckError('Could not verify availability. Please try again.');
+        setStep('idle');
+      }
+    } catch {
+      setCheckError('Could not verify availability. Please try again.');
+      setStep('idle');
+    }
+  };
+
+  const handleBook = async () => {
+    if (!availability) return;
+    setStep('booking');
+
+    const costSfc = availability.totalSfc;
+    const nights = availability.nights;
 
     if (session) {
       const res = await createBooking(session.token, session.userId, propertyId, nights, costSfc);
@@ -78,10 +141,8 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
       }
     }
 
-    // Fallback if not logged in or backend unavailable: show inline confirmation.
-    setTimeout(() => {
-      setBookingStatus('confirmed');
-    }, 1800);
+    // Fallback: show inline confirmation.
+    setStep('booked');
   };
 
   const prestigeCtx = prestigeSurface?.context as PrestigeAdvanceContext | undefined;
@@ -134,7 +195,7 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
             </span>
             <div className="flex items-baseline gap-1">
               <span className="font-serif text-3xl font-semibold text-black">
-                ${(suiteRates[suiteType] || config.price).toLocaleString()}
+                {(suiteRates[suiteType] || config.price).toLocaleString()} SFC
               </span>
               <span className="text-xs text-gray-500 font-sans">/night</span>
             </div>
@@ -145,7 +206,7 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
           </div>
         </div>
 
-        {bookingStatus === 'confirmed' ? (
+        {step === 'booked' ? (
           <div className="text-center py-8 px-4 bg-emerald-50 border border-emerald-100 rounded text-emerald-800 animate-fade-in">
             <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto mb-4">
               <Check size={24} />
@@ -157,14 +218,14 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
             </p>
             <button
               type="button"
-              onClick={() => setBookingStatus('idle')}
+              onClick={resetAvailability}
               className="text-xs uppercase font-semibold text-[#775a19] tracking-widest hover:underline cursor-pointer border-none bg-transparent font-sans"
             >
               Adjust Booking parameters
             </button>
           </div>
         ) : (
-          <form onSubmit={handleBook} className="space-y-6">
+          <form onSubmit={handleCheckAvailability} className="space-y-6">
             <div className="space-y-1.5">
               <label
                 htmlFor="suiteType"
@@ -176,12 +237,15 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
                 <select
                   id="suiteType"
                   value={suiteType}
-                  onChange={(e) => setSuiteType(e.target.value)}
+                  onChange={(e) => {
+                    setSuiteType(e.target.value);
+                    resetAvailability();
+                  }}
                   className="w-full bg-transparent border border-gray-200 px-4 py-3 text-xs font-medium font-sans rounded-none focus:outline-none focus:border-black appearance-none text-gray-900"
                 >
                   {config.suites.map((suite) => (
                     <option key={suite.name} value={suite.name}>
-                      {suite.name} (${suite.price.toLocaleString()}/n)
+                      {suite.name} ({suite.price.toLocaleString()} SFC/n)
                     </option>
                   ))}
                 </select>
@@ -204,7 +268,10 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
                   <input
                     type="date"
                     value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
+                    onChange={(e) => {
+                      setCheckIn(e.target.value);
+                      resetAvailability();
+                    }}
                     className="w-full bg-transparent border-none p-0 text-xs font-semibold font-sans focus:ring-0 outline-none text-gray-800"
                   />
                 </div>
@@ -215,7 +282,10 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
                   <input
                     type="date"
                     value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
+                    onChange={(e) => {
+                      setCheckOut(e.target.value);
+                      resetAvailability();
+                    }}
                     className="w-full bg-transparent border-none p-0 text-xs font-semibold font-sans focus:ring-0 outline-none text-gray-800"
                   />
                 </div>
@@ -234,7 +304,10 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
                   <div className="relative">
                     <select
                       value={adults}
-                      onChange={(e) => setAdults(Number(e.target.value))}
+                      onChange={(e) => {
+                        setAdults(Number(e.target.value));
+                        resetAvailability();
+                      }}
                       className="w-full bg-transparent border border-gray-200 px-3 py-2.5 text-xs font-semibold font-sans rounded-none focus:outline-none focus:border-black appearance-none text-gray-800"
                     >
                       {Array.from({ length: 8 - childrenCount }, (_, i) => i + 1).map((val) => (
@@ -257,7 +330,10 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
                   <div className="relative">
                     <select
                       value={childrenCount}
-                      onChange={(e) => setChildrenCount(Number(e.target.value))}
+                      onChange={(e) => {
+                        setChildrenCount(Number(e.target.value));
+                        resetAvailability();
+                      }}
                       className="w-full bg-transparent border border-gray-200 px-3 py-2.5 text-xs font-semibold font-sans rounded-none focus:outline-none focus:border-black appearance-none text-gray-800"
                     >
                       {Array.from({ length: 9 - adults }, (_, i) => i).map((val) => (
@@ -309,13 +385,94 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={bookingStatus === 'checking'}
-              className="w-full bg-black hover:bg-[#775a19] text-white py-4.5 text-xs font-bold uppercase tracking-[0.2em] transition-colors focus:ring-0 cursor-pointer active:scale-95 disabled:bg-gray-400 disabled:cursor-not-allowed font-sans"
-            >
-              {bookingStatus === 'checking' ? 'ALIGNING PORTFOLIOS...' : 'CHECK AVAILABILITY'}
-            </button>
+            {/* Error message */}
+            {checkError && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 animate-fade-in">
+                <X size={14} className="shrink-0" />
+                <span className="text-[11px] font-sans font-medium">{checkError}</span>
+              </div>
+            )}
+
+            {/* Step 1: availability summary card */}
+            {step === 'available' && availability && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 animate-fade-in space-y-2">
+                <div className="flex items-center gap-1.5 text-emerald-700 mb-2">
+                  <Check size={14} className="shrink-0" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest font-sans">
+                    Dates Available
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <span className="block text-[8px] uppercase tracking-wider text-gray-400 font-sans">
+                      Nights
+                    </span>
+                    <span className="text-sm font-bold font-sans text-gray-900">
+                      {availability.nights}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] uppercase tracking-wider text-gray-400 font-sans">
+                      Per Night
+                    </span>
+                    <span className="text-sm font-bold font-sans text-gray-900">
+                      {availability.pricePerNight.toLocaleString()} SFC
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] uppercase tracking-wider text-gray-400 font-sans">
+                      Total
+                    </span>
+                    <span className="text-sm font-bold font-sans text-[#775a19]">
+                      {availability.totalSfc.toLocaleString()} SFC
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 1 button: check availability */}
+            {step !== 'available' && (
+              <button
+                type="submit"
+                disabled={step === 'checking'}
+                className="w-full bg-black hover:bg-[#775a19] text-white py-4 text-xs font-bold uppercase tracking-[0.2em] transition-colors focus:ring-0 cursor-pointer active:scale-95 disabled:bg-gray-400 disabled:cursor-not-allowed font-sans"
+              >
+                {step === 'checking' ? 'CHECKING AVAILABILITY...' : 'CHECK AVAILABILITY'}
+              </button>
+            )}
+
+            {/* Step 2 buttons: book or change dates */}
+            {step === 'available' && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={handleBook}
+                  disabled={step !== 'available'}
+                  className="w-full bg-[#775a19] hover:bg-black text-white py-4 text-xs font-bold uppercase tracking-[0.2em] transition-colors focus:ring-0 cursor-pointer active:scale-95 font-sans"
+                >
+                  BOOK THIS STAY
+                </button>
+                <button
+                  type="button"
+                  onClick={resetAvailability}
+                  className="w-full border border-gray-300 text-gray-600 hover:border-black hover:text-black py-3 text-xs font-bold uppercase tracking-[0.2em] transition-colors focus:ring-0 cursor-pointer bg-transparent font-sans"
+                >
+                  CHANGE DATES
+                </button>
+              </div>
+            )}
+
+            {/* Booking in progress */}
+            {step === 'booking' && (
+              <button
+                type="button"
+                disabled
+                className="w-full bg-gray-400 text-white py-4 text-xs font-bold uppercase tracking-[0.2em] font-sans cursor-not-allowed"
+              >
+                CONFIRMING RESERVATION...
+              </button>
+            )}
           </form>
         )}
 
@@ -332,7 +489,7 @@ export default function PropertyBookingCard({ propertyId, config }: PropertyBook
           valley views are entirely unmatched."
         </p>
         <span className="block mt-2 text-[10px] uppercase font-bold text-[#775a19] tracking-widest font-sans">
-          — Condé Nast Traveler
+          Conde Nast Traveler
         </span>
       </div>
     </aside>

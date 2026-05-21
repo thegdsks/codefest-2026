@@ -466,3 +466,89 @@ export function fetchLoyaltySummary(
     { headers: bearer(token) }
   );
 }
+
+// ----------------------------------------------------------------------------
+// Property availability
+// ----------------------------------------------------------------------------
+
+export interface AvailabilityResult {
+  available: true;
+  propertyId: string;
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  children: number;
+  nights: number;
+  pricePerNight: number;
+  totalSfc: number;
+  currency: 'SFC';
+}
+
+export interface AvailabilityUnavailable {
+  available: false;
+  propertyId: string;
+  reason: string;
+}
+
+export type AvailabilityData = AvailabilityResult | AvailabilityUnavailable;
+
+/**
+ * Check availability for a property. Uses a bearer token so the user must
+ * be logged in, but no userId matching is required server-side.
+ */
+export function checkAvailability(
+  token: string,
+  propertyId: string,
+  checkIn: string,
+  checkOut: string,
+  adults: number,
+  children: number
+): Promise<ApiResult<AvailabilityData>> {
+  const params = new URLSearchParams({
+    checkIn,
+    checkOut,
+    adults: String(adults),
+    children: String(children),
+  });
+  return apiFetch<AvailabilityData>(
+    `/customer/properties/${encodeURIComponent(propertyId)}/availability?${params}`,
+    { headers: bearer(token) }
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Personalized offer
+// ----------------------------------------------------------------------------
+
+export interface PersonalizedOffer {
+  headline: string;
+  body: string;
+  cta: string;
+  discountPct: number;
+  validUntilMin: number;
+  personalizationFactors: string[];
+}
+
+export interface PersonalizedOfferResponse {
+  offer: PersonalizedOffer | null;
+}
+
+/**
+ * Fetch an AI-composed personalized offer for the current user and property.
+ * Returns offer:null when the LLM is unavailable or budget is exhausted.
+ */
+export function fetchPersonalizedOffer(
+  token: string,
+  userId: string,
+  propertyId: string,
+  dwellMs: number
+): Promise<ApiResult<PersonalizedOfferResponse>> {
+  const params = new URLSearchParams({
+    userId,
+    dwellMs: String(dwellMs),
+  });
+  return apiFetch<PersonalizedOfferResponse>(
+    `/customer/properties/${encodeURIComponent(propertyId)}/personalized-offer?${params}`,
+    { headers: bearer(token) }
+  );
+}
