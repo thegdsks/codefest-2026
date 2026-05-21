@@ -9,11 +9,13 @@ interface StatusBadgeProps {
 const statusConfig: Record<RuleStatus, { label: string; className: string }> = {
   ACTIVE: {
     label: 'Active',
-    className: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+    className:
+      'bg-[color:var(--success-bg)] text-[color:var(--success-fg)] border border-[color:var(--success-border)]',
   },
   DRAFT: {
     label: 'Draft',
-    className: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+    className:
+      'bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] border border-[color:var(--warning-border)]',
   },
   ARCHIVED: {
     label: 'Archived',

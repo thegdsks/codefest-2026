@@ -151,7 +151,7 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
               overCopy
                 ? 'text-rose-400'
                 : warnCopy
-                  ? 'text-amber-300'
+                  ? 'text-[color:var(--warning-fg)]'
                   : 'text-[color:var(--text-dim)]'
             }`}
           >

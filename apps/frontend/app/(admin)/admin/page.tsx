@@ -193,7 +193,7 @@ export default function AdminDashboardPage() {
               label="LLM spend"
               value={
                 <div className="space-y-1">
-                  <div className="font-mono text-2xl font-semibold tabular-nums text-amber-300">
+                  <div className="font-mono text-2xl font-semibold tabular-nums text-[color:var(--warning-fg)]">
                     {formatUsd(data?.budget?.usedUsd ?? data?.costEstimateUsd ?? 0)}
                     <span className="text-base font-normal text-[color:var(--text-muted)]">
                       {' / '}

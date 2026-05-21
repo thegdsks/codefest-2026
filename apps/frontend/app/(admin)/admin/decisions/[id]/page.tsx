@@ -117,13 +117,13 @@ export default function DecisionDetailPage() {
               type="button"
               onClick={onRelease}
               disabled={releasing}
-              className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] px-3 py-1.5 text-xs font-medium text-[color:var(--warning-fg)] hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
             >
               <ShieldSlash size={12} />
               {releasing ? 'Releasing' : 'Release this block'}
             </button>
             {releaseOk ? (
-              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1 text-xs text-[color:var(--success-fg)]">
                 <CheckCircle size={12} />
                 Released. Refreshing.
               </span>

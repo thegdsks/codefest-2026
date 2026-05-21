@@ -72,7 +72,7 @@ export default function RuleDisclaimers({
       {warnings.map((w) => (
         <div
           key={w.id}
-          className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+          className="flex items-start gap-2 rounded-lg border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] px-4 py-3 text-sm text-[color:var(--warning-fg)]"
         >
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>{w.message}</span>

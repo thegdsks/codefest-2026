@@ -240,7 +240,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={handleReseedClick}
-                  className="inline-flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+                  className="inline-flex items-center gap-2 rounded-md border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] px-3 py-2 text-sm text-[color:var(--warning-fg)] hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
                 >
                   <RefreshCw size={14} />
                   Reseed demo data
@@ -253,11 +253,11 @@ export default function SettingsPage() {
                   role="alertdialog"
                   aria-modal="false"
                   aria-labelledby="reseed-confirm-title"
-                  className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4"
+                  className="rounded-lg border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-4"
                 >
                   <p
                     id="reseed-confirm-title"
-                    className="mb-3 text-sm font-medium text-amber-800 dark:text-amber-200"
+                    className="mb-3 text-sm font-medium text-[color:var(--warning-fg)]"
                   >
                     This wipes current state and restores the demo seed. Are you sure?
                   </p>
@@ -294,9 +294,9 @@ export default function SettingsPage() {
               {reseedStatus.kind === 'success' && (
                 <div
                   aria-live="polite"
-                  className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3"
+                  className="space-y-2 rounded-lg border border-[color:var(--success-border)] bg-[color:var(--success-bg)] px-4 py-3"
                 >
-                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                  <p className="text-sm font-medium text-[color:var(--success-fg)]">
                     Reseed complete
                   </p>
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
