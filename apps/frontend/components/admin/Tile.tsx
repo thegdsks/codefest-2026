@@ -1,4 +1,5 @@
 import type { Icon } from '@phosphor-icons/react';
+import type { ReactNode } from 'react';
 
 interface TileProps {
   label: string;
@@ -7,6 +8,7 @@ interface TileProps {
   icon?: Icon;
   accent?: 'default' | 'green' | 'amber' | 'rose' | 'indigo';
   loading?: boolean;
+  trend?: ReactNode;
 }
 
 const accentMap: Record<NonNullable<TileProps['accent']>, string> = {
@@ -24,6 +26,7 @@ export default function Tile({
   icon: Icon,
   accent = 'default',
   loading = false,
+  trend,
 }: TileProps) {
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
@@ -31,12 +34,15 @@ export default function Tile({
         <span>{label}</span>
         {Icon ? <Icon size={14} className="text-zinc-500" /> : null}
       </div>
-      <div className={`mt-2 text-3xl font-semibold tabular-nums ${accentMap[accent]}`}>
-        {loading ? (
-          <span className="inline-block h-7 w-24 rounded bg-zinc-800 motion-safe:animate-pulse" />
-        ) : (
-          value
-        )}
+      <div className="mt-2 flex items-end justify-between gap-3">
+        <div className={`text-3xl font-semibold tabular-nums ${accentMap[accent]}`}>
+          {loading ? (
+            <span className="inline-block h-7 w-24 rounded bg-zinc-800 motion-safe:animate-pulse" />
+          ) : (
+            value
+          )}
+        </div>
+        {trend ? <div className="shrink-0 opacity-80">{trend}</div> : null}
       </div>
       {hint ? <div className="mt-1 text-xs text-zinc-500">{hint}</div> : null}
     </div>
