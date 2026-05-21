@@ -38,6 +38,8 @@ const {
 const { evaluate: evaluateRules } = require('../lib/jsonRulesEngine');
 const ruleStore = require('../lib/ruleStore');
 const { extractIdFromPath } = require('../admin');
+const { suggestRule } = require('../lib/aiRuleSuggest');
+const { getRuleMatchCount } = require('../lib/ruleMatchCount');
 
 // ---------------------------------------------------------------------------
 // Signal dispatch table
@@ -346,4 +348,83 @@ async function putRule(event, correlationId) {
   return json(isCreate ? 201 : 200, correlationId, { data: { rule: saved } });
 }
 
-module.exports = { trackEvent, listRules, getRule, putRule };
+// ---------------------------------------------------------------------------
+// aiSuggestRule  POST /admin/rules/ai-suggest
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a natural-language description into a draft engagement rule.
+ *
+ * Body: { description: string }
+ * 200: { data: <RuleDraft> } when the LLM returns a validated draft
+ * 503: when LiteLLM is not configured or the call fails for any reason
+ *
+ * The draft is returned for review; this endpoint does NOT persist it.
+ * The admin UI calls /admin/rules with the edited draft once the operator
+ * approves it.
+ *
+ * @param {object} event
+ * @param {string} correlationId
+ * @returns {Promise<object>}
+ */
+async function aiSuggestRule(event, correlationId) {
+  const authCheck = requireAdmin(event, correlationId);
+  if (!authCheck.ok) return authCheck.response;
+
+  const body = parseBody(event);
+  const description = requireField(body, 'description');
+  if (typeof description !== 'string' || description.trim().length === 0) {
+    return err(400, correlationId, 'VALIDATION_ERROR', 'description must be a non-empty string');
+  }
+
+  const draft = await suggestRule(description);
+  if (!draft) {
+    return err(
+      503,
+      correlationId,
+      'AI_UNAVAILABLE',
+      'AI rule suggestion is unavailable. Author the rule manually or retry later.'
+    );
+  }
+
+  return json(200, correlationId, { data: draft });
+}
+
+// ---------------------------------------------------------------------------
+// testRule  POST /admin/rules/test
+// ---------------------------------------------------------------------------
+
+/**
+ * Preview how often a draft rule would fire against recent ENGAGEMENT
+ * decisions. Lets an author validate a rule before flipping it ACTIVE.
+ *
+ * Body: { definition: object, windowSec?: number }
+ * 200: { data: { count: number, samples: object[] } }
+ *
+ * @param {object} event
+ * @param {string} correlationId
+ * @returns {Promise<object>}
+ */
+async function testRule(event, correlationId) {
+  const authCheck = requireAdmin(event, correlationId);
+  if (!authCheck.ok) return authCheck.response;
+
+  const body = parseBody(event);
+  if (!body?.definition || typeof body.definition !== 'object') {
+    return err(400, correlationId, 'VALIDATION_ERROR', 'definition object is required');
+  }
+
+  let windowSec;
+  if (body.windowSec !== undefined && body.windowSec !== null) {
+    const n = Number(body.windowSec);
+    if (!Number.isFinite(n) || n <= 0) {
+      return err(400, correlationId, 'VALIDATION_ERROR', 'windowSec must be a positive number');
+    }
+    windowSec = n;
+  }
+
+  const result = await getRuleMatchCount(body.definition, windowSec);
+  return json(200, correlationId, { data: result });
+}
+
+module.exports = { trackEvent, listRules, getRule, putRule, aiSuggestRule, testRule };
