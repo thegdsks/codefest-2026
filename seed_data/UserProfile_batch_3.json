@@ -1,0 +1,188 @@
+{
+  "UserProfile": [
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#031" },
+          "username": { "S": "maya031" },
+          "passwordHash": { "S": "Password1" },
+          "email": { "S": "maya031@example.com" },
+          "phone": { "S": "" },
+          "tier": { "S": "Silver" },
+          "loyaltyScore": { "N": "1500" },
+          "profileCompletion": { "N": "0.25" },
+          "emailVerified": { "BOOL": true },
+          "phoneVerified": { "BOOL": false },
+          "createdAt": { "N": "1779401142" },
+          "updatedAt": { "N": "1779401142" },
+          "mfaEnabled": { "BOOL": false },
+          "mfaSecret": { "NULL": true },
+          "mfaRecoveryHashes": { "L": [] },
+          "personaLabel": { "S": "Silver Newcomer" },
+          "personaTagline": { "S": "First-time member, many surfaces to discover" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#032" },
+          "username": { "S": "dre032" },
+          "passwordHash": { "S": "Password1" },
+          "email": { "S": "dre032@example.com" },
+          "phone": { "S": "+1-202-555-1032" },
+          "tier": { "S": "Gold" },
+          "loyaltyScore": { "N": "49500" },
+          "profileCompletion": { "N": "0.75" },
+          "emailVerified": { "BOOL": true },
+          "phoneVerified": { "BOOL": true },
+          "createdAt": { "N": "1779401142" },
+          "updatedAt": { "N": "1779401142" },
+          "mfaEnabled": { "BOOL": false },
+          "mfaSecret": { "NULL": true },
+          "mfaRecoveryHashes": { "L": [] },
+          "personaLabel": { "S": "Gold Near-Platinum" },
+          "personaTagline": { "S": "500 points from Platinum, three upgrade surfaces active" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#033" },
+          "username": { "S": "priya033" },
+          "passwordHash": { "S": "Password1" },
+          "email": { "S": "priya033@example.com" },
+          "phone": { "S": "+1-202-555-1033" },
+          "tier": { "S": "Platinum" },
+          "loyaltyScore": { "N": "120000" },
+          "profileCompletion": { "N": "0.95" },
+          "emailVerified": { "BOOL": true },
+          "phoneVerified": { "BOOL": true },
+          "createdAt": { "N": "1779401142" },
+          "updatedAt": { "N": "1779401142" },
+          "mfaEnabled": { "BOOL": true },
+          "mfaSecret": { "S": "JBSWY3DPEHPK3PXP" },
+          "mfaRecoveryHashes": { "L": [] },
+          "personaLabel": { "S": "Platinum Elite" },
+          "personaTagline": { "S": "Top-tier member, AI demotes most nudges, only celebratory states shown" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#034" },
+          "username": { "S": "ethan034" },
+          "passwordHash": { "S": "Password1" },
+          "email": { "S": "ethan034@example.com" },
+          "phone": { "S": "+1-202-555-1034" },
+          "tier": { "S": "Gold" },
+          "loyaltyScore": { "N": "32000" },
+          "profileCompletion": { "N": "0.60" },
+          "emailVerified": { "BOOL": true },
+          "phoneVerified": { "BOOL": true },
+          "createdAt": { "N": "1779401142" },
+          "updatedAt": { "N": "1779401142" },
+          "mfaEnabled": { "BOOL": true },
+          "mfaSecret": { "S": "JBSWY3DPEHPK3PXP" },
+          "mfaRecoveryHashes": { "L": [] },
+          "personaLabel": { "S": "Frequent Transferrer" },
+          "personaTagline": { "S": "3 transfers in the last hour, ideal for velocity-rule demo" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#035" },
+          "username": { "S": "naomi035" },
+          "passwordHash": { "S": "Password1" },
+          "email": { "S": "naomi035@example.com" },
+          "phone": { "S": "" },
+          "tier": { "S": "Silver" },
+          "loyaltyScore": { "N": "4200" },
+          "profileCompletion": { "N": "0.40" },
+          "emailVerified": { "BOOL": true },
+          "phoneVerified": { "BOOL": false },
+          "createdAt": { "N": "1779401142" },
+          "updatedAt": { "N": "1779401142" },
+          "mfaEnabled": { "BOOL": false },
+          "mfaSecret": { "NULL": true },
+          "mfaRecoveryHashes": { "L": [] },
+          "personaLabel": { "S": "The Abandoner" },
+          "personaTagline": { "S": "Left a 5,000-point transfer 90 seconds ago, abandon offer fires on login" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#036" },
+          "username": { "S": "marcus036" },
+          "passwordHash": { "S": "Password1" },
+          "email": { "S": "marcus036@example.com" },
+          "phone": { "S": "+1-202-555-1036" },
+          "tier": { "S": "Gold" },
+          "loyaltyScore": { "N": "18000" },
+          "profileCompletion": { "N": "0.55" },
+          "emailVerified": { "BOOL": true },
+          "phoneVerified": { "BOOL": true },
+          "createdAt": { "N": "1779401142" },
+          "updatedAt": { "N": "1779401142" },
+          "mfaEnabled": { "BOOL": true },
+          "mfaSecret": { "S": "JBSWY3DPEHPK3PXP" },
+          "mfaRecoveryHashes": { "L": [] },
+          "personaLabel": { "S": "Cautious Browser" },
+          "personaTagline": { "S": "Rage-click and dwell signals in the last 10 minutes, rich AI context" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#037" },
+          "username": { "S": "inez037" },
+          "passwordHash": { "S": "Password1" },
+          "email": { "S": "inez037@example.com" },
+          "phone": { "S": "+1-202-555-1037" },
+          "tier": { "S": "Platinum" },
+          "loyaltyScore": { "N": "88000" },
+          "profileCompletion": { "N": "0.80" },
+          "emailVerified": { "BOOL": true },
+          "phoneVerified": { "BOOL": true },
+          "createdAt": { "N": "1779401142" },
+          "updatedAt": { "N": "1779401142" },
+          "mfaEnabled": { "BOOL": true },
+          "mfaSecret": { "S": "JBSWY3DPEHPK3PXP" },
+          "mfaRecoveryHashes": { "L": [] },
+          "personaLabel": { "S": "The Booker" },
+          "personaTagline": { "S": "Booked 3 nights at PROP#42 just minutes ago, confirmation surface fires" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "userId": { "S": "USER#038" },
+          "username": { "S": "owen038" },
+          "passwordHash": { "S": "Password1" },
+          "email": { "S": "owen038@example.com" },
+          "phone": { "S": "" },
+          "tier": { "S": "Silver" },
+          "loyaltyScore": { "N": "8800" },
+          "profileCompletion": { "N": "0.30" },
+          "emailVerified": { "BOOL": true },
+          "phoneVerified": { "BOOL": false },
+          "createdAt": { "N": "1779401142" },
+          "updatedAt": { "N": "1779401142" },
+          "mfaEnabled": { "BOOL": false },
+          "mfaSecret": { "NULL": true },
+          "mfaRecoveryHashes": { "L": [] },
+          "personaLabel": { "S": "Flagged Suspicious" },
+          "personaTagline": { "S": "Recent BLOCK and REVIEW decisions in history, fraud-explainer AI demo" }
+        }
+      }
+    }
+  ]
+}

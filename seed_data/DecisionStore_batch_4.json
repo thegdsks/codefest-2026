@@ -1,0 +1,92 @@
+{
+  "DecisionStore": [
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": { "S": "DEC#031" },
+          "userId": { "S": "USER#038" },
+          "decisionType": { "S": "FRAUD_TRANSFER" },
+          "score": { "N": "0.91" },
+          "riskLevel": { "S": "HIGH" },
+          "modelVersion": { "S": "v1" },
+          "action": { "S": "BLOCK" },
+          "reason": { "S": "HIGH_VALUE_UNSEEN_LOCATION" },
+          "explanation": { "S": "Transfer of 15,000 points initiated from Lagos, a location never seen on this account. Device fingerprint is new. Transfer amount exceeds 99th-percentile for this account's history." },
+          "channel": { "S": "EARN_REDEEM" },
+          "correlationId": { "S": "CORR#038A" },
+          "isFinalDecision": { "BOOL": true },
+          "timestamp": { "N": "1779379542" },
+          "engineLayer": { "S": "L1" },
+          "ruleId": { "S": "high-value-unseen-location" },
+          "ruleName": { "S": "HIGH_VALUE_UNSEEN_LOCATION" },
+          "latencyMs": { "N": "22" },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": { "S": "amount" },
+                  "operator": { "S": "gt" },
+                  "value": { "S": "10000" },
+                  "satisfied": { "BOOL": true }
+                }
+              },
+              {
+                "M": {
+                  "field": { "S": "locationSeenCount30d" },
+                  "operator": { "S": "eq" },
+                  "value": { "S": "0" },
+                  "satisfied": { "BOOL": true }
+                }
+              }
+            ]
+          },
+          "llmRationale": { "NULL": true }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "decisionId": { "S": "DEC#032" },
+          "userId": { "S": "USER#038" },
+          "decisionType": { "S": "FRAUD_LOGIN" },
+          "score": { "N": "0.74" },
+          "riskLevel": { "S": "HIGH" },
+          "modelVersion": { "S": "v1" },
+          "action": { "S": "REVIEW" },
+          "reason": { "S": "IMPOSSIBLE_TRAVEL" },
+          "explanation": { "S": "Login from Lagos is 11,200 km from the user's last known location in Seattle. Velocity check: previous login was 4 hours ago from a US IP. Flagged for manual review." },
+          "channel": { "S": "PROFILE" },
+          "correlationId": { "S": "CORR#038B" },
+          "isFinalDecision": { "BOOL": true },
+          "timestamp": { "N": "1779379542" },
+          "engineLayer": { "S": "L1+L2" },
+          "ruleId": { "S": "impossible-travel" },
+          "ruleName": { "S": "IMPOSSIBLE_TRAVEL" },
+          "latencyMs": { "N": "38" },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": { "S": "geoDistanceKm" },
+                  "operator": { "S": "gt" },
+                  "value": { "S": "5000" },
+                  "satisfied": { "BOOL": true }
+                }
+              },
+              {
+                "M": {
+                  "field": { "S": "timeSinceLastLoginHours" },
+                  "operator": { "S": "lt" },
+                  "value": { "S": "6" },
+                  "satisfied": { "BOOL": true }
+                }
+              }
+            ]
+          },
+          "llmRationale": { "NULL": true }
+        }
+      }
+    }
+  ]
+}
