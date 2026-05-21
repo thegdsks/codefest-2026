@@ -39,6 +39,19 @@ const CFG = {
   get tUserState() {
     return process.env.TABLE_USER_STATE || 'UserState';
   },
+  // LLM fallback chain config
+  get litellmFallbackModels() {
+    const raw = process.env.LITELLM_FALLBACK_MODELS || '';
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  },
+  get litellmTimeoutMs() {
+    return Number(process.env.LITELLM_TIMEOUT_MS || 8000);
+  },
+  get litellmTotalBudgetMs() {
+    return Number(process.env.LITELLM_TOTAL_BUDGET_MS || 15000);
   // Admin decisions list: default page size and hard cap.
   get adminDecisionsDefaultLimit() {
     return Number(process.env.ADMIN_DECISIONS_DEFAULT_LIMIT || 50);
