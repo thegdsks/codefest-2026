@@ -343,6 +343,22 @@ export function getDecisions(q: DecisionsQuery): Promise<ApiResult<DecisionsList
   return adminFetch<DecisionsListResponse>(`/admin/decisions${decisionsQueryString(q)}`);
 }
 
+/**
+ * listEngagementDecisions
+ *
+ * Convenience wrapper that pre-filters to ENGAGEMENT decision types.
+ * The admin live engagement stream uses this so its query key is distinct
+ * from the general decisions feed and can be paused independently.
+ */
+export function listEngagementDecisions(
+  windowSec = 3600
+): Promise<ApiResult<DecisionsListResponse>> {
+  const windowLabel: Window = windowSec >= 86400 ? '7d' : '1h';
+  return adminFetch<DecisionsListResponse>(
+    `/admin/decisions?type=ENGAGEMENT&window=${windowLabel}&limit=50`
+  );
+}
+
 export function getDecision(decisionId: string): Promise<ApiResult<DecisionDetailResponse>> {
   return adminFetch<DecisionDetailResponse>(`/admin/decisions/${encodeURIComponent(decisionId)}`);
 }

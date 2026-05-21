@@ -1,6 +1,7 @@
 'use client';
 
 import type { EngagementConfig } from '@signal-force/engagement-sdk';
+import { HelpTooltip, NudgeBanner, OfferModal } from '@signal-force/engagement-sdk';
 import { EngagementProvider } from '@signal-force/engagement-sdk/react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef } from 'react';
@@ -13,6 +14,15 @@ const CLIENT_SECRET = process.env.NEXT_PUBLIC_CLIENT_SECRET ?? '';
 function buildBasicAuth(): string {
   return `Basic ${btoa(`${CLIENT_ID}:${CLIENT_SECRET}`)}`;
 }
+
+// The SDK's mountCapture (called inside EngagementProvider) already attaches:
+// - rage_click detector (document-level)
+// - dwell_no_action detector (uses config.dwellThresholdMs)
+// - abandoned_flow_step detector (uses config.onRouteChange)
+// - points_balance_stare detector (looks for data-stare-target="points" in DOM)
+// No manual detector attachment is needed here. The surfaces map below ensures
+// the right component renders for each intervention surface type returned by
+// the backend engagement engine.
 
 export default function EngagementWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -44,5 +54,16 @@ export default function EngagementWrapper({ children }: { children: React.ReactN
     [session?.token]
   );
 
-  return <EngagementProvider config={config}>{children}</EngagementProvider>;
+  return (
+    <EngagementProvider
+      config={config}
+      surfaces={{
+        nudge_banner: NudgeBanner,
+        offer_modal: OfferModal,
+        help_tooltip: HelpTooltip,
+      }}
+    >
+      {children}
+    </EngagementProvider>
+  );
 }

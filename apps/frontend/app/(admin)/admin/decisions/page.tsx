@@ -14,6 +14,7 @@ import AuthGate from '@/components/admin/AuthGate';
 import EngineBadge from '@/components/admin/EngineBadge';
 import FilterChips, { type FeedFilter } from '@/components/admin/FilterChips';
 import { DECISION_TYPE_LABEL } from '@/components/admin/LiveActivityFeed';
+import LiveEngagementStream from '@/components/admin/LiveEngagementStream';
 import Skeleton from '@/components/admin/Skeleton';
 import {
   type DecisionRow,
@@ -140,6 +141,10 @@ export default function DecisionsListPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
+      <div className="mb-8">
+        <LiveEngagementStream />
+      </div>
+
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-[color:var(--text)]">Decision feed</h1>

@@ -117,3 +117,40 @@ export function fetchDashboard(
     headers: bearer(token),
   });
 }
+
+export interface EngagementSignalParams {
+  count?: number;
+  dwellMs?: number;
+  stareMs?: number;
+  [key: string]: number | string | boolean | undefined;
+}
+
+export interface EngagementEventResponse {
+  surface: string | null;
+  copy: string;
+  reasonCode: string;
+  engineLayer: string;
+  score: number;
+  action: string;
+  decisionId: string | null;
+}
+
+/**
+ * fireEngagementSignal
+ *
+ * Posts a synthetic engagement signal directly to the backend event endpoint.
+ * Used by the Demo Panel to force a specific signal without waiting for the
+ * SDK detectors to fire naturally.
+ */
+export function fireEngagementSignal(
+  token: string,
+  signal: string,
+  userId: string,
+  params: EngagementSignalParams = {}
+): Promise<ApiResult<EngagementEventResponse>> {
+  return apiFetch<EngagementEventResponse>('/engagement/event', {
+    method: 'POST',
+    headers: bearer(token),
+    body: JSON.stringify({ signal, userId, sessionId: '', params }),
+  });
+}

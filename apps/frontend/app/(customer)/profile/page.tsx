@@ -15,6 +15,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
+import DynamicOfferCard from '@/components/hotel/DynamicOfferCard';
 import { PARTNERS } from '@/lib/hotel/data';
 
 function formatPhone(code?: string, number?: string) {
@@ -121,6 +122,7 @@ export default function ProfileScreen() {
                   </span>
                   <p
                     data-signal="points_balance"
+                    data-stare-target="points"
                     className="font-serif text-3xl font-semibold text-black mt-1"
                   >
                     {user.points?.toLocaleString()} SFC
@@ -260,6 +262,13 @@ export default function ProfileScreen() {
 
           {/* Right Column */}
           <section className="lg:col-span-8 space-y-12">
+            <section>
+              <header className="mb-4">
+                <h2 className="font-serif text-2xl font-semibold text-black">Your Offers</h2>
+              </header>
+              <DynamicOfferCard />
+            </section>
+
             <section>
               <div className="flex justify-between items-end mb-6">
                 <h2 className="font-serif text-2xl font-semibold text-black">
