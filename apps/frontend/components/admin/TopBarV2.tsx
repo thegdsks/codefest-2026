@@ -1,6 +1,7 @@
 'use client';
 
 import { Command, List, MagnifyingGlass } from '@phosphor-icons/react';
+import { useQuery } from '@tanstack/react-query';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMetrics } from '@/lib/admin-api';
@@ -14,8 +15,13 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/settings': 'Configuration',
 };
 
-const POLL_MS = 5_000;
+const POLL_MS = 10_000;
 const SPARKLINE_POINTS = 12;
+// Fixed Y-axis ceiling for the sparkline so spikes do not auto-rescale
+// the rest of the line on every tick. Anything above this clamps.
+const SPARKLINE_CEILING_DEC_PER_SEC = 5;
+// Exponential moving average smoothing factor. Lower = smoother but laggier.
+const EMA_ALPHA = 0.4;
 
 interface DecPerSecState {
   rate: number;
@@ -23,37 +29,37 @@ interface DecPerSecState {
 }
 
 function useDecisionsPerSec(): DecPerSecState {
-  const [rate, setRate] = useState(0);
-  const [sparkline, setSparkline] = useState<number[]>([]);
   const prevTotalRef = useRef<number | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const smoothedRef = useRef<number>(0);
+  const [sparkline, setSparkline] = useState<number[]>([]);
+  const [rate, setRate] = useState(0);
+
+  const { data } = useQuery({
+    queryKey: ['topbar-metrics-1h'],
+    queryFn: () => getMetrics('1h'),
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
+    staleTime: POLL_MS,
+  });
 
   useEffect(() => {
-    let cancelled = false;
-
-    const tick = async () => {
-      const res = await getMetrics('1h');
-      if (cancelled || res.error !== null || res.data === null) return;
-      const total = res.data.totals.total;
-      if (prevTotalRef.current !== null) {
-        const delta = Math.max(0, total - prevTotalRef.current);
-        const computed = parseFloat((delta / (POLL_MS / 1000)).toFixed(2));
-        setRate(computed);
-        setSparkline((prev) => {
-          const next = [...prev, computed];
-          return next.slice(-SPARKLINE_POINTS);
-        });
-      }
+    if (!data || data.error !== null || data.data === null) return;
+    const total = data.data.totals.total;
+    if (prevTotalRef.current === null) {
       prevTotalRef.current = total;
-    };
-
-    tick();
-    timerRef.current = setInterval(tick, POLL_MS);
-    return () => {
-      cancelled = true;
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+      return;
+    }
+    const delta = Math.max(0, total - prevTotalRef.current);
+    const instant = delta / (POLL_MS / 1000);
+    smoothedRef.current = EMA_ALPHA * instant + (1 - EMA_ALPHA) * smoothedRef.current;
+    const next = Math.round(smoothedRef.current * 100) / 100;
+    setRate(next);
+    setSparkline((prev) => {
+      const updated = [...prev, next];
+      return updated.slice(-SPARKLINE_POINTS);
+    });
+    prevTotalRef.current = total;
+  }, [data]);
 
   return { rate, sparkline };
 }
@@ -66,7 +72,7 @@ function MiniSparkline({ values }: { values: number[] }) {
     return <span className="inline-block w-10 h-4" />;
   }
 
-  const max = Math.max(...values, 0.001);
+  const max = SPARKLINE_CEILING_DEC_PER_SEC;
   const step = width / (values.length - 1);
 
   const points = values
@@ -165,7 +171,7 @@ export default function TopBarV2({ onCmdK, onMenuOpen }: TopBarV2Props) {
         <span className="hidden sm:inline-block w-12">
           <MiniSparkline values={sparkline} />
         </span>
-        <span className="tabular-nums whitespace-nowrap text-[13px] font-semibold text-[color:var(--text)]">
+        <span className="tabular-nums whitespace-nowrap text-[13px] font-semibold text-[color:var(--text)] inline-block w-[42px] text-right">
           {rate.toFixed(2)}
         </span>
         <span className="text-[color:var(--text-dim)] hidden sm:inline whitespace-nowrap text-[11px] uppercase tracking-wider">
