@@ -35,9 +35,9 @@ export default function TransferScreen() {
       setError('Points transfer minimum requirement is 1,000 SFC.');
       return;
     }
-    if (cost > user.points) {
+    if (cost > (user.points || 0) || !user.points) {
       setError(
-        `Insufficient balance. Your account currently holds ${user.points.toLocaleString()} SFC points.`
+        `Insufficient balance. Your account currently holds ${user.points?.toLocaleString() || 0} SFC points.`
       );
       return;
     }
@@ -56,7 +56,12 @@ export default function TransferScreen() {
 
     // Client-side simulation: force the step-up review screen without a real call.
     if (triggerSecurityDemo) {
-      setTransferDetails({ id: newClientRef(), partner: partnerName, amount: cost, date });
+      setTransferDetails({
+        id: newClientRef(),
+        partner: partnerName,
+        amount: cost,
+        date,
+      });
       router.push('/transfer/review');
       return;
     }
@@ -74,7 +79,12 @@ export default function TransferScreen() {
       return;
     }
 
-    setTransferDetails({ id: res.data.transferId, partner: partnerName, amount: cost, date });
+    setTransferDetails({
+      id: res.data.transferId,
+      partner: partnerName,
+      amount: cost,
+      date,
+    });
 
     if (res.data.status === 'UNDER_REVIEW') {
       router.push('/transfer/review');
@@ -168,7 +178,7 @@ export default function TransferScreen() {
                 >
                   SFC Points to Transfer{' '}
                   <span className="text-[#775a19] font-mono text-[10px] text-right font-semibold">
-                    (Max: {user.points.toLocaleString()} SFC)
+                    (Max: {user.points?.toLocaleString() || 0} SFC)
                   </span>
                 </label>
                 <div className="relative flex items-center">
