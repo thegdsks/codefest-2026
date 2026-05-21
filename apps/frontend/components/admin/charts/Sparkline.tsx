@@ -14,10 +14,12 @@ function prefersReducedMotion(): boolean {
 }
 
 export default function Sparkline({ data, color = '#6366F1' }: SparklineProps) {
-  const chartData = useMemo(() => data.map((v, i) => ({ i, v })), [data]);
+  // Guard: callers may pass undefined when the metrics query is still loading.
+  const safeData = Array.isArray(data) ? data : [];
+  const chartData = useMemo(() => safeData.map((v, i) => ({ i, v })), [safeData]);
   const noAnim = prefersReducedMotion();
 
-  if (data.length === 0) return null;
+  if (safeData.length === 0) return null;
 
   return (
     <ResponsiveContainer width={60} height={20}>

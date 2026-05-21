@@ -163,9 +163,10 @@ function TraceSection({ trace }: { trace: DecisionTrace | null }) {
         )}
       </div>
 
-      {trace.matched.length > 0 && (
+      {/* Guard: matched may be absent if the backend omits it on older records. */}
+      {(trace.matched ?? []).length > 0 && (
         <ul className="mb-3 space-y-0.5">
-          {trace.matched.map((condition) => (
+          {(trace.matched ?? []).map((condition) => (
             <MatchedConditionRow
               key={`${condition.field}-${condition.operator}-${String(condition.value)}`}
               condition={condition}
@@ -198,13 +199,14 @@ function AiAnalysisSection({ explanation }: { explanation: AiExplanation }) {
         <p className="text-xs leading-relaxed text-[color:var(--text-muted)]">
           {explanation.paragraph}
         </p>
-        {explanation.riskFactors.length > 0 && (
+        {/* Guard: riskFactors may be missing on partial AI responses. */}
+        {(explanation.riskFactors ?? []).length > 0 && (
           <div>
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-purple-700">
               Risk Factors
             </p>
             <ul className="space-y-1">
-              {explanation.riskFactors.map((f) => (
+              {(explanation.riskFactors ?? []).map((f) => (
                 <li
                   key={f}
                   className="flex items-start gap-1.5 text-[11px] text-[color:var(--text-muted)]"

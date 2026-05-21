@@ -37,7 +37,8 @@ function rowBorderClass(ev: ActivityEvent): string {
   if (ev.kind === 'SESSION') return 'border-l-2 border-l-sky-500/70';
   if (ev.kind === 'DEMO_EVENT') return 'border-l-2 border-l-violet-500/70';
   const d = ev as DecisionActivityEvent;
-  if (d.raw.action === 'BLOCK') return 'border-l-2 border-l-rose-500/70';
+  // Guard: raw may be absent on malformed payloads from the feed endpoint.
+  if (d.raw?.action === 'BLOCK') return 'border-l-2 border-l-rose-500/70';
   return 'border-l-2 border-l-amber-500/50';
 }
 
