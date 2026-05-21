@@ -75,6 +75,13 @@ export function verifyMfa(sessionId: string, otp: string): Promise<ApiResult<Mfa
   });
 }
 
+export function logout(token: string): Promise<ApiResult<null>> {
+  return apiFetch<null>('/auth/logout', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
