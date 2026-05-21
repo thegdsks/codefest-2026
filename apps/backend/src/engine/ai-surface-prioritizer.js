@@ -206,7 +206,7 @@ async function prioritize(surfaces, profile, recentSignals, nowSec, userId) {
       model,
       schema: PrioritizerResponseSchema,
       prompt,
-      abortSignal: AbortSignal.timeout(3000),
+      abortSignal: AbortSignal.timeout(6000),
     });
 
     const latencyMs = Date.now() - start;
