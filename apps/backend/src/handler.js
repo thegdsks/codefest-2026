@@ -1459,6 +1459,21 @@ exports.main = async (event) => {
       event.path ||
       '/';
 
+    // CORS preflight: browsers send OPTIONS without credentials, so the auth
+    // gate below would 401 the preflight and break every browser request.
+    if (method === 'OPTIONS') {
+      return {
+        statusCode: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': '*',
+          'Access-Control-Allow-Methods': '*',
+          'Access-Control-Max-Age': '600',
+        },
+        body: '',
+      };
+    }
+
     // /health is intentionally unauthenticated.
     if (method === 'GET' && rawP === '/health') return healthEndpoint();
 
