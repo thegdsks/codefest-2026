@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
+import DynamicOfferCard from '@/components/hotel/DynamicOfferCard';
 import PropertyBookingCard from '@/components/hotel/property/PropertyBookingCard';
 import PropertyReviews from '@/components/hotel/property/PropertyReviews';
 import { getPropertyConfig } from '@/lib/hotel/property-data';
@@ -124,6 +125,10 @@ export default function PropertyScreen() {
           </div>
 
           <PropertyBookingCard propertyId={propertyId} config={config} />
+        </section>
+
+        <section className="mb-12">
+          <DynamicOfferCard />
         </section>
 
         <PropertyReviews config={config} />
