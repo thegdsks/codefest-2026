@@ -3,6 +3,7 @@
 import { Activity, CircleDollarSign, Cpu, Layers, RefreshCcw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
+import LiveActivityFeed from '@/components/admin/LiveActivityFeed';
 import ProgressBar from '@/components/admin/ProgressBar';
 import Tile from '@/components/admin/Tile';
 import { getMetrics, type MetricsResponse, type Window } from '@/lib/admin-api';
@@ -69,7 +70,7 @@ export default function AdminDashboardPage() {
   const l2 = data?.totals.l1plus_l2 ?? 0;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-[1400px]">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-100">Dashboard</h1>
@@ -103,115 +104,133 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Tile
-          label="Total decisions"
-          value={total}
-          hint={`In the last ${window}`}
-          icon={Activity}
-          loading={loading}
-        />
-        <Tile
-          label="L1 only"
-          value={l1}
-          hint={`${formatPct(l1, total)} of total`}
-          icon={Cpu}
-          accent="green"
-          loading={loading}
-        />
-        <Tile
-          label="L1 + L2"
-          value={l2}
-          hint={`${formatPct(l2, total)} escalated to LLM`}
-          icon={Layers}
-          accent="indigo"
-          loading={loading}
-        />
-        <Tile
-          label="LLM spend"
-          value={formatUsd(data?.costEstimateUsd ?? 0)}
-          hint={`At ${l2} calls`}
-          icon={CircleDollarSign}
-          accent="amber"
-          loading={loading}
-        />
-      </div>
+      <div className="flex gap-6">
+        {/* Left rail: KPI tiles and breakdown charts */}
+        <div className="min-w-0 flex-1">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Tile
+              label="Total decisions"
+              value={total}
+              hint={`In the last ${window}`}
+              icon={Activity}
+              loading={loading}
+            />
+            <Tile
+              label="L1 only"
+              value={l1}
+              hint={`${formatPct(l1, total)} of total`}
+              icon={Cpu}
+              accent="green"
+              loading={loading}
+            />
+            <Tile
+              label="L1 + L2"
+              value={l2}
+              hint={`${formatPct(l2, total)} escalated to LLM`}
+              icon={Layers}
+              accent="indigo"
+              loading={loading}
+            />
+            <Tile
+              label="LLM spend"
+              value={formatUsd(data?.costEstimateUsd ?? 0)}
+              hint={`At ${l2} calls`}
+              icon={CircleDollarSign}
+              accent="amber"
+              loading={loading}
+            />
+          </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-            Actions
-          </h2>
-          {loading ? (
-            <div className="space-y-2">
-              {SKELETON_BARS.map((k) => (
-                <div key={k} className="h-6 w-full motion-safe:animate-pulse rounded bg-zinc-800" />
-              ))}
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+                Actions
+              </h2>
+              {loading ? (
+                <div className="space-y-2">
+                  {SKELETON_BARS.map((k) => (
+                    <div
+                      key={k}
+                      className="h-6 w-full motion-safe:animate-pulse rounded bg-zinc-800"
+                    />
+                  ))}
+                </div>
+              ) : actionRows.length === 0 ? (
+                <p className="text-sm text-zinc-500">No decisions in this window.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {actionRows.map(([action, count]) => {
+                    const pct = total === 0 ? 0 : (count / total) * 100;
+                    return (
+                      <li key={action}>
+                        <div className="flex items-center justify-between text-xs text-zinc-400">
+                          <span className="font-medium text-zinc-200">{action}</span>
+                          <span className="tabular-nums">
+                            {count} ({pct.toFixed(0)}%)
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          <ProgressBar value={pct} tone="indigo" />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+                Decision types
+              </h2>
+              {loading ? (
+                <div className="space-y-2">
+                  {SKELETON_BARS.map((k) => (
+                    <div
+                      key={k}
+                      className="h-6 w-full motion-safe:animate-pulse rounded bg-zinc-800"
+                    />
+                  ))}
+                </div>
+              ) : typeRows.length === 0 ? (
+                <p className="text-sm text-zinc-500">No decisions in this window.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {typeRows.map(([type, count]) => {
+                    const pct = total === 0 ? 0 : (count / total) * 100;
+                    return (
+                      <li key={type}>
+                        <div className="flex items-center justify-between text-xs text-zinc-400">
+                          <span className="font-medium text-zinc-200">{type}</span>
+                          <span className="tabular-nums">
+                            {count} ({pct.toFixed(0)}%)
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          <ProgressBar value={pct} tone="emerald" />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          </div>
+
+          {data?.asOf ? (
+            <div aria-live="polite" className="mt-6 text-xs text-zinc-600">
+              Snapshot taken {new Date(data.asOf * 1000).toLocaleString()}
             </div>
-          ) : actionRows.length === 0 ? (
-            <p className="text-sm text-zinc-500">No decisions in this window.</p>
-          ) : (
-            <ul className="space-y-2">
-              {actionRows.map(([action, count]) => {
-                const pct = total === 0 ? 0 : (count / total) * 100;
-                return (
-                  <li key={action}>
-                    <div className="flex items-center justify-between text-xs text-zinc-400">
-                      <span className="font-medium text-zinc-200">{action}</span>
-                      <span className="tabular-nums">
-                        {count} ({pct.toFixed(0)}%)
-                      </span>
-                    </div>
-                    <div className="mt-1">
-                      <ProgressBar value={pct} tone="indigo" />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-            Decision types
-          </h2>
-          {loading ? (
-            <div className="space-y-2">
-              {SKELETON_BARS.map((k) => (
-                <div key={k} className="h-6 w-full motion-safe:animate-pulse rounded bg-zinc-800" />
-              ))}
-            </div>
-          ) : typeRows.length === 0 ? (
-            <p className="text-sm text-zinc-500">No decisions in this window.</p>
-          ) : (
-            <ul className="space-y-2">
-              {typeRows.map(([type, count]) => {
-                const pct = total === 0 ? 0 : (count / total) * 100;
-                return (
-                  <li key={type}>
-                    <div className="flex items-center justify-between text-xs text-zinc-400">
-                      <span className="font-medium text-zinc-200">{type}</span>
-                      <span className="tabular-nums">
-                        {count} ({pct.toFixed(0)}%)
-                      </span>
-                    </div>
-                    <div className="mt-1">
-                      <ProgressBar value={pct} tone="emerald" />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-      </div>
-
-      {data?.asOf ? (
-        <div aria-live="polite" className="mt-6 text-xs text-zinc-600">
-          Snapshot taken {new Date(data.asOf * 1000).toLocaleString()}
+          ) : null}
         </div>
-      ) : null}
+
+        {/* Right rail: live feed (xl breakpoint and up) */}
+        <div className="hidden w-80 shrink-0 xl:block">
+          <div className="sticky top-4 h-[calc(100vh-8rem)]">
+            <LiveActivityFeed />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
