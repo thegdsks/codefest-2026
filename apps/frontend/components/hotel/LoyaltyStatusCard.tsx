@@ -107,14 +107,14 @@ export default function LoyaltyStatusCard({ compact = false }: Props) {
           <svg
             width="72"
             height="72"
-            viewBox="0 0 120 120"
+            viewBox="0 0 140 140"
             aria-hidden="true"
             className="shrink-0 -rotate-90"
           >
-            <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="#f0ece6" strokeWidth="10" />
+            <circle cx="70" cy="70" r={RADIUS} fill="none" stroke="#f0ece6" strokeWidth="10" />
             <circle
-              cx="60"
-              cy="60"
+              cx="70"
+              cy="70"
               r={RADIUS}
               fill="none"
               stroke="#775a19"
@@ -174,18 +174,18 @@ export default function LoyaltyStatusCard({ compact = false }: Props) {
 
       {/* Arc + counter */}
       <div className="flex flex-col items-center mb-6">
-        <div className="relative">
+        <div className="relative w-[140px] h-[140px]">
           <svg
             width="140"
             height="140"
-            viewBox="0 0 120 120"
+            viewBox="0 0 140 140"
             aria-label={`${Math.round(arcProgress * 100)}% through ${data.currentTier} tier`}
             className="-rotate-90"
           >
-            <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="#f0ece6" strokeWidth="10" />
+            <circle cx="70" cy="70" r={RADIUS} fill="none" stroke="#f0ece6" strokeWidth="10" />
             <circle
-              cx="60"
-              cy="60"
+              cx="70"
+              cy="70"
               r={RADIUS}
               fill="none"
               stroke="#775a19"
@@ -196,10 +196,10 @@ export default function LoyaltyStatusCard({ compact = false }: Props) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center rotate-90">
-            <span className="font-mono text-2xl font-bold text-black leading-none">
+            <span className="font-mono text-2xl font-bold text-black leading-none whitespace-nowrap">
               {displayPoints.toLocaleString()}
             </span>
-            <span className="text-[10px] text-gray-400 font-sans uppercase tracking-wider mt-0.5">
+            <span className="text-[10px] text-gray-400 font-sans uppercase tracking-wider mt-0.5 whitespace-nowrap">
               SFC Points
             </span>
           </div>
