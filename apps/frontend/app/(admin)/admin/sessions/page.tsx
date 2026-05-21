@@ -45,13 +45,15 @@ function StatCard({
   value: string | number;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elevated)]/40 px-4 py-3">
       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
         {icon}
       </div>
       <div>
-        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
-        <p className="text-lg font-semibold tabular-nums text-zinc-100">{value}</p>
+        <p className="text-[10px] font-medium uppercase tracking-wider text-[color:var(--text-dim)]">
+          {label}
+        </p>
+        <p className="text-lg font-semibold tabular-nums text-[color:var(--text)]">{value}</p>
       </div>
     </div>
   );
@@ -143,8 +145,8 @@ export default function SessionsPage() {
   return (
     <div className="mx-auto max-w-[1200px]">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-100">Sessions</h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h1 className="text-2xl font-semibold text-[color:var(--text)]">Sessions</h1>
+        <p className="mt-1 text-sm text-[color:var(--text-muted)]">
           Session lifecycle, MFA status, and risk context. Click a row to inspect.
         </p>
       </div>
@@ -157,10 +159,10 @@ export default function SessionsPage() {
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-[color:var(--text-dim)]">
             Time range
           </span>
-          <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-900/40 p-0.5">
+          <div className="flex items-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-elevated)]/40 p-0.5">
             {TIME_RANGE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -169,7 +171,7 @@ export default function SessionsPage() {
                 className={
                   timeRange === opt.value
                     ? 'rounded-md bg-indigo-500 px-3 py-1 text-xs font-semibold text-white'
-                    : 'rounded-md px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200'
+                    : 'rounded-md px-3 py-1 text-xs text-[color:var(--text-muted)] hover:text-[color:var(--text)]'
                 }
               >
                 {opt.label}
@@ -181,14 +183,14 @@ export default function SessionsPage() {
         <div className="relative">
           <MagnifyingGlass
             size={13}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[color:var(--text-dim)]"
           />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search user or session ID..."
-            className="h-8 w-64 rounded-lg border border-zinc-800 bg-zinc-900/40 pl-7 pr-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/40"
+            className="h-8 w-64 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-elevated)]/40 pl-7 pr-3 text-xs text-[color:var(--text)] placeholder:text-[color:var(--text-dim)] focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/40"
           />
         </div>
       </div>
@@ -202,8 +204,8 @@ export default function SessionsPage() {
             onClick={() => setFilter(f.value)}
             className={
               filter === f.value
-                ? 'inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950'
-                : 'inline-flex items-center rounded-full border border-zinc-800 bg-zinc-900/40 px-3 py-1 text-xs text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950'
+                ? 'inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg)]'
+                : 'inline-flex items-center rounded-full border border-[color:var(--border)] bg-[color:var(--bg-elevated)]/40 px-3 py-1 text-xs text-[color:var(--text-muted)] hover:border-[color:var(--border-strong)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg)]'
             }
           >
             {f.label}
@@ -257,7 +259,7 @@ export default function SessionsPage() {
       />
 
       {mfaData && (
-        <div className="mt-4 flex items-center gap-2 text-[11px] text-zinc-600">
+        <div className="mt-4 flex items-center gap-2 text-[11px] text-[color:var(--text-dim)]">
           <ShieldSlash size={11} />
           Platform MFA: {mfaData.enrolled} enrolled, {mfaData.notEnrolled} not enrolled out of{' '}
           {mfaData.total} users
