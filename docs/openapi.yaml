@@ -9,9 +9,18 @@ info:
     Fraud-aware loyalty platform demo. L1 deterministic rules with L2 LLM
     router on gray-zone decisions.
 
-    All endpoints require HTTP Basic authentication at the gateway level
-    (client ID and secret). Admin endpoints additionally verify that the
-    Basic Auth subject is listed in the ADMIN_USERNAMES environment variable.
+    Auth model is two-layered:
+
+    * `POST /auth/login`, `POST /auth/mfa/verify`, `POST /auth/mfa/recover`,
+      and the `/admin/*` routes use **Basic Auth** at the client-id level
+      (demoClient / demoSecret for the demo stack). Admin routes additionally
+      require the Basic Auth subject to be in `ADMIN_USERNAMES`.
+    * All customer routes plus `POST /auth/logout`, `GET /auth/session`, and
+      the MFA enroll/confirm pair use a per-user **Bearer token** issued at
+      login. Token expires `SESSION_TTL_SEC` seconds after the last
+      authenticated call (sliding window, default 1800s).
+
+    `GET /health` is unauthenticated.
 
 servers:
   - url: https://55p8lbxf9g.execute-api.us-east-1.amazonaws.com
@@ -26,9 +35,20 @@ components:
       type: http
       scheme: basic
       description: >
-        Gateway-level Basic Auth. Credentials: demoClient / demoSecret for the
-        demo stack. Admin endpoints additionally require the subject to be in
-        the ADMIN_USERNAMES env var.
+        Client-id check. Credentials: demoClient / demoSecret for the demo
+        stack. Used by /auth/login, /auth/mfa/verify, /auth/mfa/recover, and
+        all /admin/* routes. Admin routes additionally require the subject
+        to be in the ADMIN_USERNAMES env var.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: >
+        Per-user opaque access token (32 random bytes, base64url) issued by
+        /auth/login (no-MFA path) or /auth/mfa/verify (MFA path). The token
+        is also the UserSession row's sessionId, so revocation is a single
+        DeleteItem. Required by all customer endpoints, /auth/logout,
+        /auth/session, and /auth/mfa/enroll, /auth/mfa/confirm-enroll.
 
   parameters:
     UserId:
@@ -496,7 +516,7 @@ paths:
                     oneOf:
                       - title: Success
                         type: object
-                        required: [status, userId, sessionId]
+                        required: [status, userId, sessionId, token, expiresAt]
                         properties:
                           status:
                             type: string
@@ -507,6 +527,17 @@ paths:
                           sessionId:
                             type: string
                             example: 'SESSION#a1b2c3d4'
+                          token:
+                            type: string
+                            description: >
+                              Opaque bearer access token (base64url). Pass as
+                              `Authorization: Bearer <token>` on all
+                              subsequent customer endpoint calls.
+                            example: 'k7sH2Wq...redacted...vNc'
+                          expiresAt:
+                            type: integer
+                            description: Unix seconds at which the token expires (sliding window).
+                            example: 1747840000
                       - title: MFA required
                         type: object
                         required: [status, reason, sessionId, mfa]
@@ -571,9 +602,12 @@ paths:
       operationId: mfaVerify
       summary: Verify OTP to complete MFA-gated login
       description: >
-        Validates the one-time password against the static demo OTP (123456).
-        The session must have been created by a prior POST /auth/login call that
-        returned status=MFA_REQUIRED.
+        Validates a TOTP code generated from the user's enrolled mfaSecret. If
+        MFA_MODE=static is set on the Lambda, the static demo OTP (default
+        123456) is also accepted as a fallback for the judges-no-phone case.
+
+        On success a bearer access token is issued and returned alongside an
+        mfaPath field indicating which path accepted ('TOTP' or 'STATIC').
       requestBody:
         required: true
         content:
@@ -588,11 +622,11 @@ paths:
                   example: 'SESSION#a1b2c3d4'
                 otp:
                   type: string
-                  description: One-time password. Static value is 123456 in the demo.
-                  example: '123456'
+                  description: 6-digit TOTP code (or the static fallback when MFA_MODE=static).
+                  example: '492013'
       responses:
         '200':
-          description: OTP accepted; login complete.
+          description: OTP accepted; login complete and a bearer token is issued.
           content:
             application/json:
               schema:
@@ -603,7 +637,7 @@ paths:
                     type: string
                   data:
                     type: object
-                    required: [status, message]
+                    required: [status, message, mfaPath, token, expiresAt]
                     properties:
                       status:
                         type: string
@@ -611,6 +645,16 @@ paths:
                       message:
                         type: string
                         example: MFA verified
+                      mfaPath:
+                        type: string
+                        enum: [TOTP, STATIC]
+                        description: Which validation path accepted the code.
+                      token:
+                        type: string
+                        description: Opaque bearer token for subsequent calls.
+                      expiresAt:
+                        type: integer
+                        description: Unix seconds at which the token expires.
         '400':
           description: Validation error.
           content:
@@ -641,6 +685,240 @@ paths:
                   message: Session not found
         '500':
           description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/mfa/enroll:
+    post:
+      operationId: mfaEnroll
+      summary: Begin TOTP MFA enrollment for the current user
+      description: >
+        Generates a base32 TOTP secret, a QR-encoded otpauth URL, and 10
+        single-use recovery codes. The secret is parked as pendingMfaSecret
+        until /auth/mfa/confirm-enroll succeeds, so a half-complete
+        enrollment cannot lock the user out. Recovery codes are returned
+        ONCE and never again; the client must surface them to the user.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Enrollment started. Display the QR code to the user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [otpauthUrl, qrCodePngBase64, recoveryCodes, issuer, username]
+                    properties:
+                      otpauthUrl:
+                        type: string
+                        example: 'otpauth://totp/SignalForce:user001?secret=JBSWY3DPEHPK3PXP&issuer=SignalForce'
+                      qrCodePngBase64:
+                        type: string
+                        description: >
+                          PNG QR code as base64 (no `data:` prefix). Render via
+                          `<img src="data:image/png;base64,...">`.
+                      recoveryCodes:
+                        type: array
+                        items:
+                          type: string
+                        minItems: 10
+                        maxItems: 10
+                      issuer:
+                        type: string
+                        example: SignalForce
+                      username:
+                        type: string
+                        example: user001
+        '401':
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/mfa/confirm-enroll:
+    post:
+      operationId: mfaConfirmEnroll
+      summary: Promote pending MFA secret to active on a verified TOTP code
+      description: >
+        The client sends a TOTP code generated from the pending secret. On
+        success the server promotes pendingMfaSecret to mfaSecret and sets
+        mfaEnabled=true. On failure the pending state stays in place so the
+        user can retry.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  description: 6-digit TOTP code generated from the pending secret.
+                  example: '492013'
+      responses:
+        '200':
+          description: MFA enrollment confirmed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [status]
+                    properties:
+                      status:
+                        type: string
+                        enum: [ENROLLED]
+        '400':
+          description: No pending enrollment for this user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                correlationId: ''
+                error:
+                  code: NO_PENDING_ENROLLMENT
+                  message: No pending MFA enrollment for this user
+        '401':
+          description: Bearer missing, or confirmation code rejected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/mfa/recover:
+    post:
+      operationId: mfaRecover
+      summary: Consume a single-use recovery code to reset MFA
+      description: >
+        Authenticated by username + password (not bearer), since the user
+        has lost access to their second factor. On success the consumed
+        recovery code is removed from the stored set, mfaSecret is cleared,
+        and a fresh bearer is issued so the user can re-enroll.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, code]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                code:
+                  type: string
+                  description: One of the recovery codes from a prior enroll. Case-insensitive.
+      responses:
+        '200':
+          description: Recovery code accepted, MFA disabled, token issued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [status, token, expiresAt, recoveryCodesRemaining, message]
+                    properties:
+                      status:
+                        type: string
+                        enum: [RECOVERED]
+                      token:
+                        type: string
+                      expiresAt:
+                        type: integer
+                      recoveryCodesRemaining:
+                        type: integer
+                      message:
+                        type: string
+        '401':
+          description: Invalid credentials or invalid recovery code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Revoke the current bearer token
+      description: >
+        Deletes the UserSession row keyed by the bearer. Idempotent:
+        returns 204 whether the row existed or not, so a double-click on
+        logout in the UI is harmless. A subsequent call with the same
+        token returns 401 INVALID_TOKEN.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Session revoked (or already gone).
+        '401':
+          description: Bearer missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/session:
+    get:
+      operationId: sessionInfo
+      summary: Return metadata about the current bearer session
+      description: >
+        Used by the FE to render the "session expires in 12m" indicator.
+        Calling this slides the expiry forward via validateBearer, so just
+        polling /auth/session keeps the session alive.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current session metadata.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [userId, issuedAt, expiresAt, lastActivityAt, mfaVerified]
+                    properties:
+                      userId:
+                        type: string
+                      issuedAt:
+                        type: integer
+                      expiresAt:
+                        type: integer
+                      lastActivityAt:
+                        type: integer
+                      mfaVerified:
+                        type: boolean
+        '401':
+          description: Bearer missing or invalid.
           content:
             application/json:
               schema:
@@ -1548,3 +1826,202 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /admin/sessions:
+    get:
+      operationId: adminGetSessions
+      summary: List active bearer-token sessions
+      description: >
+        Returns ACCESS rows from UserSession. The raw token value is stripped
+        from the response so the admin UI never sees it; sessions are
+        revoked by sessionId only. Most-recent first by issuedAt.
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          description: Filter to sessions belonging to this user.
+          schema:
+            type: string
+        - name: active
+          in: query
+          required: false
+          description: 'true to include only non-expired sessions, false for expired.'
+          schema:
+            type: string
+            enum: ['true', 'false']
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            maximum: 500
+      responses:
+        '200':
+          description: Session list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [sessions, count, totalMatched, filters]
+                    properties:
+                      sessions:
+                        type: array
+                        items:
+                          type: object
+                          required: [sessionId, userId, issuedAt, expiresAt, lastActivityAt, mfaVerified, active]
+                          properties:
+                            sessionId:
+                              type: string
+                            userId:
+                              type: string
+                            issuedAt:
+                              type: integer
+                            expiresAt:
+                              type: integer
+                            lastActivityAt:
+                              type: integer
+                            mfaVerified:
+                              type: boolean
+                            location:
+                              type: string
+                            ipAddress:
+                              type: string
+                            deviceId:
+                              type: string
+                            active:
+                              type: boolean
+                              description: expiresAt > now
+                      count:
+                        type: integer
+                      totalMatched:
+                        type: integer
+                      filters:
+                        type: object
+        '400':
+          description: Validation error (invalid `active` value).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller is not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/sessions/{sessionId}/revoke:
+    post:
+      operationId: adminRevokeSession
+      summary: Force-revoke a bearer session
+      description: >
+        Deletes the UserSession row keyed by sessionId. Idempotent 204
+        regardless of whether the row existed. URL-decodes the path
+        segment so legacy SESSION%23... ids resolve correctly.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Session revoked (or already gone).
+        '400':
+          description: sessionId missing from path.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller is not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/mfa-status:
+    get:
+      operationId: adminGetMfaStatus
+      summary: MFA adoption counters across all users
+      description: >
+        Scans UserProfile and returns total / enrolled / pending /
+        notEnrolled counts plus an enrolled percentage. Powers the
+        "MFA adoption" tile on the admin dashboard.
+      responses:
+        '200':
+          description: MFA adoption snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [total, enrolled, pending, notEnrolled, enrolledPercent]
+                    properties:
+                      total:
+                        type: integer
+                      enrolled:
+                        type: integer
+                      pending:
+                        type: integer
+                      notEnrolled:
+                        type: integer
+                      enrolledPercent:
+                        type: number
+                        description: enrolled / total * 100, rounded to one decimal.
+        '403':
+          description: Caller is not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      operationId: health
+      summary: Unauthenticated health probe
+      description: >
+        Returns service version, the commit SHA the Lambda was deployed
+        from, and a snapshot of the L2 LLM call-count breaker. No auth
+        required.
+      security: []
+      responses:
+        '200':
+          description: Service is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version, commit, engineLayer, asOf]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  version:
+                    type: string
+                  commit:
+                    type: string
+                  engineLayer:
+                    type: object
+                    required: [breakerOpen, callsInWindow, maxCalls]
+                    properties:
+                      breakerOpen:
+                        type: boolean
+                      callsInWindow:
+                        type: integer
+                      maxCalls:
+                        type: integer
+                  asOf:
+                    type: integer

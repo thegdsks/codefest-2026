@@ -38,6 +38,46 @@
           },
           "updatedAt": {
             "N": "1776509298"
+          },
+          "mfaEnabled": {
+            "BOOL": true
+          },
+          "mfaSecret": {
+            "S": "JBSWY3DPEHPK3PXP"
+          },
+          "mfaRecoveryHashes": {
+            "L": [
+              {
+                "S": "e115c0006d9e6b392de011f7dc402e25bb35cf23025773378adf14903ea4f94e"
+              },
+              {
+                "S": "440d56ef951c026ad4742647cd1ea12d9666b56c6159a44741951eef85ae653f"
+              },
+              {
+                "S": "f135ce7d179088361be0ae0307c1a6a05697f301a31be93c2c7c0c92c1d6afa9"
+              },
+              {
+                "S": "959b50f5fa4d8c9ff511eb57b2302dea3f333d6cb2fa6428fbed7c4bf0864a6c"
+              },
+              {
+                "S": "05ead2b65c7257c3f967d18d2e323851c89dc930212822a4212e76512b61a7ad"
+              },
+              {
+                "S": "78613896629c16b13c792578e310dfcb2092af25d0af3fc9375a810edc0767dc"
+              },
+              {
+                "S": "4e30438375b309949cb1c1cf81a99db30666b90534a172f8c043559ebc755a19"
+              },
+              {
+                "S": "9a79d166a136540a20ddd73eef42fd0859743b4993487f6c1ab6cca2ca75221a"
+              },
+              {
+                "S": "1333ef1b12b364911c8deaa664131db4540ee78c2751033a2aa3902f7785476f"
+              },
+              {
+                "S": "0b63ee863e1dc1113c3b3c3d57d01e2778f9aeba736dce391dc5b4bb12d1b519"
+              }
+            ]
           }
         }
       }
@@ -80,6 +120,15 @@
           },
           "updatedAt": {
             "N": "1776595698"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -122,6 +171,15 @@
           },
           "updatedAt": {
             "N": "1776682098"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -164,6 +222,15 @@
           },
           "updatedAt": {
             "N": "1776768498"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -206,6 +273,15 @@
           },
           "updatedAt": {
             "N": "1776854898"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -248,6 +324,15 @@
           },
           "updatedAt": {
             "N": "1776941298"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -290,6 +375,15 @@
           },
           "updatedAt": {
             "N": "1777027698"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -332,6 +426,15 @@
           },
           "updatedAt": {
             "N": "1777114098"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -374,6 +477,15 @@
           },
           "updatedAt": {
             "N": "1777200498"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -416,6 +528,15 @@
           },
           "updatedAt": {
             "N": "1777286898"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -458,6 +579,15 @@
           },
           "updatedAt": {
             "N": "1777373298"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -500,6 +630,15 @@
           },
           "updatedAt": {
             "N": "1777459698"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -542,6 +681,15 @@
           },
           "updatedAt": {
             "N": "1777546098"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -584,6 +732,15 @@
           },
           "updatedAt": {
             "N": "1777632498"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -626,6 +783,15 @@
           },
           "updatedAt": {
             "N": "1777718898"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -668,6 +834,15 @@
           },
           "updatedAt": {
             "N": "1777805298"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -710,6 +885,15 @@
           },
           "updatedAt": {
             "N": "1777891698"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -752,6 +936,15 @@
           },
           "updatedAt": {
             "N": "1777978098"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -794,6 +987,15 @@
           },
           "updatedAt": {
             "N": "1778064498"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -836,6 +1038,15 @@
           },
           "updatedAt": {
             "N": "1778150898"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -878,6 +1089,15 @@
           },
           "updatedAt": {
             "N": "1778237298"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -920,6 +1140,15 @@
           },
           "updatedAt": {
             "N": "1778323698"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -962,6 +1191,15 @@
           },
           "updatedAt": {
             "N": "1778410098"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -1004,6 +1242,15 @@
           },
           "updatedAt": {
             "N": "1778496498"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
@@ -1046,6 +1293,15 @@
           },
           "updatedAt": {
             "N": "1778582898"
+          },
+          "mfaEnabled": {
+            "BOOL": false
+          },
+          "mfaSecret": {
+            "NULL": true
+          },
+          "mfaRecoveryHashes": {
+            "L": []
           }
         }
       }
