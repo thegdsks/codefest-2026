@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Circle, X } from 'lucide-react';
+import { Check, Circle, X } from '@phosphor-icons/react';
 import { useCallback, useEffect, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
 import Skeleton from '@/components/admin/Skeleton';
@@ -90,7 +90,7 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-100">Settings</h1>
+        <h1 className="text-2xl font-semibold text-zinc-100">Configuration</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Read only. Confirms the SPA is wired to a live API and shows engine guard state.
         </p>

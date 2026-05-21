@@ -26,12 +26,12 @@ interface NavItem {
 }
 
 const items: NavItem[] = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/decisions', label: 'Decisions', icon: Activity },
+  { href: '/admin', label: 'Overview', icon: LayoutDashboard },
+  { href: '/admin/decisions', label: 'Decision feed', icon: Activity },
   { href: '/admin/users', label: 'Users', icon: Users },
-  { href: '/admin/sessions', label: 'Sessions', icon: ShieldCheck },
+  { href: '/admin/sessions', label: 'Auth sessions', icon: ShieldCheck },
   { href: '/admin/rules', label: 'Rules', icon: ScrollText },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
+  { href: '/admin/settings', label: 'Configuration', icon: Settings },
 ];
 
 function useHealthPoll(): { state: HealthState; checkedAt: number | null } {
@@ -75,9 +75,12 @@ export default function SidebarV2() {
 
   return (
     <aside className="group hidden md:flex w-16 hover:w-56 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950 transition-all duration-200 ease-in-out overflow-hidden">
-      {/* Logo */}
+      {/* Logo — gradient kept as brand mark, not chrome */}
       <div className="flex items-center gap-2 px-4 py-5 border-b border-zinc-800 min-h-[57px]">
-        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-xs font-bold text-white">
+        <span
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-xs font-bold text-white"
+          aria-hidden="true"
+        >
           SF
         </span>
         <div className="leading-tight opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap overflow-hidden">
@@ -101,9 +104,9 @@ export default function SidebarV2() {
                   : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100'
               }`}
             >
-              {/* Gradient active stripe */}
+              {/* Solid accent left stripe for active state */}
               {isActive ? (
-                <span className="absolute left-0 top-1 bottom-1 w-0.5 rounded-r bg-gradient-to-b from-indigo-500 to-fuchsia-500" />
+                <span className="absolute left-0 top-1 bottom-1 w-0.5 rounded-r bg-indigo-500" />
               ) : null}
               <Icon size={15} className="shrink-0" />
               <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap overflow-hidden">

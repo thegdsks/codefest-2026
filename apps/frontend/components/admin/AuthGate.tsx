@@ -1,6 +1,6 @@
 'use client';
 
-import { type LucideIcon, ServerCrash, ShieldAlert, ShieldOff, WifiOff } from 'lucide-react';
+import { type Icon, ShieldSlash, ShieldWarning, Warning, WifiSlash } from '@phosphor-icons/react';
 import type { ApiErrorDetail } from '@/lib/types';
 
 interface AuthGateProps {
@@ -15,7 +15,7 @@ interface KindDef {
   title: string;
   body: string;
   cta?: string;
-  icon: LucideIcon;
+  icon: Icon;
 }
 
 function classify(error: ApiErrorDetail): KindDef {
@@ -26,7 +26,7 @@ function classify(error: ApiErrorDetail): KindDef {
       title: 'Cannot reach the API',
       body: 'Check the demo connectivity. The browser could not contact the gateway.',
       cta: 'Retry',
-      icon: WifiOff,
+      icon: WifiSlash,
     };
   }
   if (code === '401' || code === 'UNAUTHORIZED' || code === 'INVALID_CREDENTIALS') {
@@ -35,7 +35,7 @@ function classify(error: ApiErrorDetail): KindDef {
       title: 'Sign in required',
       body: 'Your session is missing or expired. Sign in with an admin account to continue.',
       cta: 'Go to login',
-      icon: ShieldAlert,
+      icon: ShieldWarning,
     };
   }
   if (code === '403' || code === 'FORBIDDEN') {
@@ -44,7 +44,7 @@ function classify(error: ApiErrorDetail): KindDef {
       title: 'Admin access required',
       body: 'This account is signed in but not in ADMIN_USERNAMES. Switch to an admin user to access this panel.',
       cta: 'Switch user',
-      icon: ShieldOff,
+      icon: ShieldSlash,
     };
   }
   return {
@@ -52,7 +52,7 @@ function classify(error: ApiErrorDetail): KindDef {
     title: 'Server error',
     body: error.message || 'The API returned an unexpected response.',
     cta: 'Retry',
-    icon: ServerCrash,
+    icon: Warning,
   };
 }
 

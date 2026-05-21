@@ -1,7 +1,7 @@
 'use client';
 
+import { X } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { type AuditTrailStep, type DecisionRow, getDecision } from '@/lib/admin-api';
 import Skeleton from './Skeleton';

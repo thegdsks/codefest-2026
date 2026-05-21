@@ -1,17 +1,17 @@
 'use client';
 
 import {
-  Activity,
   ArrowRight,
-  CornerDownLeft,
-  LayoutDashboard,
-  type LucideIcon,
-  Search,
-  Settings,
+  ChartLine,
+  Gear,
+  type Icon,
+  KeyReturn,
+  MagnifyingGlass,
   ShieldCheck,
-  Sparkles,
+  Sparkle,
+  SquaresFour,
   Users,
-} from 'lucide-react';
+} from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -22,7 +22,7 @@ interface CommandItem {
   group: CommandGroup;
   label: string;
   hint?: string;
-  icon: LucideIcon;
+  icon: Icon;
   shortcut?: string;
   run: () => void;
 }
@@ -60,18 +60,18 @@ export default function CommandPalette({
       {
         id: 'nav.dashboard',
         group: 'Navigate',
-        label: 'Go to Dashboard',
+        label: 'Go to Overview',
         hint: 'Live metrics and engine health',
-        icon: LayoutDashboard,
+        icon: SquaresFour,
         shortcut: 'G D',
         run: () => router.push('/admin'),
       },
       {
         id: 'nav.decisions',
         group: 'Navigate',
-        label: 'Go to Decisions',
+        label: 'Go to Decision feed',
         hint: 'Stream of engine outcomes',
-        icon: Activity,
+        icon: ChartLine,
         shortcut: 'G C',
         run: () => router.push('/admin/decisions'),
       },
@@ -87,7 +87,7 @@ export default function CommandPalette({
       {
         id: 'nav.sessions',
         group: 'Navigate',
-        label: 'Go to Sessions',
+        label: 'Go to Auth sessions',
         hint: 'Active auth sessions',
         icon: ShieldCheck,
         shortcut: 'G S',
@@ -96,8 +96,8 @@ export default function CommandPalette({
       {
         id: 'nav.settings',
         group: 'Navigate',
-        label: 'Go to Settings',
-        icon: Settings,
+        label: 'Go to Configuration',
+        icon: Gear,
         shortcut: 'G ,',
         run: () => router.push('/admin/settings'),
       },
@@ -109,7 +109,7 @@ export default function CommandPalette({
         group: 'Actions',
         label: 'Tail latest decisions',
         hint: 'Auto-scroll to newest rows',
-        icon: Sparkles,
+        icon: Sparkle,
         run: () => {
           onTailLatest?.();
           router.push('/admin/decisions');
@@ -123,21 +123,21 @@ export default function CommandPalette({
             id: 'filter.1h',
             group: 'Filters',
             label: 'Set window: last 1 hour',
-            icon: Activity,
+            icon: ChartLine,
             run: () => onSetWindow('1h'),
           },
           {
             id: 'filter.24h',
             group: 'Filters',
             label: 'Set window: last 24 hours',
-            icon: Activity,
+            icon: ChartLine,
             run: () => onSetWindow('24h'),
           },
           {
             id: 'filter.7d',
             group: 'Filters',
             label: 'Set window: last 7 days',
-            icon: Activity,
+            icon: ChartLine,
             run: () => onSetWindow('7d'),
           },
         ]
@@ -237,9 +237,9 @@ export default function CommandPalette({
         className="absolute inset-0 cursor-default bg-zinc-950/70 backdrop-blur-sm"
       />
       <div className="relative w-full max-w-xl overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-950 shadow-2xl shadow-indigo-500/10 ring-1 ring-white/5">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-indigo-500/30" />
         <div className="flex items-center gap-2 border-b border-zinc-800/80 px-3 py-2.5">
-          <Search size={16} className="text-zinc-500" aria-hidden="true" />
+          <MagnifyingGlass size={16} className="text-zinc-500" aria-hidden="true" />
           <input
             ref={inputRef}
             value={query}
@@ -282,7 +282,7 @@ export default function CommandPalette({
                           }}
                           className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${
                             isActive
-                              ? 'bg-gradient-to-r from-indigo-500/15 to-fuchsia-500/10 text-zinc-100 ring-1 ring-inset ring-indigo-400/30'
+                              ? 'bg-indigo-500/10 text-zinc-100 ring-1 ring-inset ring-indigo-400/30'
                               : 'text-zinc-300 hover:bg-zinc-900'
                           }`}
                         >
@@ -329,7 +329,7 @@ export default function CommandPalette({
         <div className="flex items-center justify-between border-t border-zinc-800/80 bg-zinc-950/80 px-3 py-2 text-[10px] text-zinc-500">
           <span className="inline-flex items-center gap-1">
             <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 py-0.5 font-medium">
-              <CornerDownLeft size={9} />
+              <KeyReturn size={9} />
             </kbd>
             to run
           </span>

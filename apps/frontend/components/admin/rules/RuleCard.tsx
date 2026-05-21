@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, ChevronRight, Clock } from 'lucide-react';
+import { CaretRight, Clock, Pulse } from '@phosphor-icons/react';
 import Link from 'next/link';
 import type { EngagementRule } from '@/lib/rules-api';
 import StatusBadge from './StatusBadge';
@@ -39,12 +39,12 @@ export default function RuleCard({ rule }: RuleCardProps) {
               {formatUpdatedAt(rule.updatedAt)}
             </span>
             <span className="flex items-center gap-1">
-              <Activity size={11} />
+              <Pulse size={11} />
               {rule.firesLast24h} fires / 24h
             </span>
           </div>
         </div>
-        <ChevronRight size={16} className="shrink-0 text-zinc-600" />
+        <CaretRight size={16} className="shrink-0 text-zinc-600" />
       </Link>
     </li>
   );

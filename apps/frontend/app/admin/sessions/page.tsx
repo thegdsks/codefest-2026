@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, ShieldCheck, ShieldX } from 'lucide-react';
+import { Clock, ShieldCheck, ShieldSlash } from '@phosphor-icons/react';
 import { useCallback, useEffect, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
 import Skeleton from '@/components/admin/Skeleton';
@@ -115,7 +115,7 @@ export default function SessionsPage() {
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-100">Sessions</h1>
+          <h1 className="text-2xl font-semibold text-zinc-100">Auth sessions</h1>
           <p className="mt-1 text-sm text-zinc-500">
             Active session tokens. Force logout from here.
           </p>
@@ -193,7 +193,7 @@ export default function SessionsPage() {
                     disabled={revokingId === row.sessionId}
                     className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-xs text-rose-200 hover:bg-rose-500/20 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
                   >
-                    <ShieldX size={11} />
+                    <ShieldSlash size={11} />
                     {revokingId === row.sessionId ? 'Revoking' : 'Force logout'}
                   </button>
                 </div>

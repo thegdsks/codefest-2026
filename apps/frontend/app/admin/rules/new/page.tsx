@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, Save } from 'lucide-react';
+import { FloppyDisk, Warning } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import RuleActionPanel from '@/components/admin/rules/RuleActionPanel';
 import RuleConditionsEditor from '@/components/admin/rules/RuleConditionsEditor';
@@ -69,14 +69,14 @@ export default function NewRulePage() {
           disabled={form.saving}
           className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
         >
-          <Save size={14} />
+          <FloppyDisk size={14} />
           {form.saving ? 'Saving...' : 'Create rule'}
         </button>
       </div>
 
       {form.saveError ? (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
-          <AlertCircle size={14} className="shrink-0" />
+          <Warning size={14} className="shrink-0" />
           {form.saveError}
         </div>
       ) : null}
