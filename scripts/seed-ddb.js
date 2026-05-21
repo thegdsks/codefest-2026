@@ -9,6 +9,7 @@ const TABLE_KEY_SCHEMA = {
   UserActivity: { pk: 'userId', pkType: 'S', sk: 'activityTime', skType: 'N' },
   DecisionStore: { pk: 'decisionId', pkType: 'S', sk: null },
   UserState: { pk: 'userId', pkType: 'S', sk: null },
+  EngagementRules: { pk: 'ruleId', pkType: 'S', sk: 'version', skType: 'S' },
 };
 
 const ALL_TABLES = Object.keys(TABLE_KEY_SCHEMA);
