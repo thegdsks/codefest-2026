@@ -248,13 +248,17 @@ export interface EngagementEventResponse {
  *
  * Calls GET /customer/surface-eligibility and returns the full response.
  * The hook wraps this with caching and per-session invalidation.
+ * Pass aiMode=false to skip the LLM prioritizer layer and return only
+ * deterministic surface evaluations.
  */
 export function fetchSurfaceEligibility(
   token: string,
-  userId: string
+  userId: string,
+  aiMode = true
 ): Promise<ApiResult<SurfaceEligibilityResponse>> {
+  const modeParam = aiMode ? 'on' : 'off';
   return apiFetch<SurfaceEligibilityResponse>(
-    `/customer/surface-eligibility?userId=${encodeURIComponent(userId)}`,
+    `/customer/surface-eligibility?userId=${encodeURIComponent(userId)}&aiMode=${modeParam}`,
     { headers: bearer(token) }
   );
 }
