@@ -52,6 +52,7 @@ const CFG = {
   },
   get litellmTotalBudgetMs() {
     return Number(process.env.LITELLM_TOTAL_BUDGET_MS || 15000);
+  },
   // Admin decisions list: default page size and hard cap.
   get adminDecisionsDefaultLimit() {
     return Number(process.env.ADMIN_DECISIONS_DEFAULT_LIMIT || 50);
