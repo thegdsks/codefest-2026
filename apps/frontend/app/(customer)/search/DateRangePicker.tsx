@@ -1,17 +1,17 @@
-"use client"
+'use client';
 
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 // ── date helpers ──────────────────────────────────────────────────────────────
 
 function daysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate()
+  return new Date(year, month + 1, 0).getDate();
 }
 
 /** Monday-based offset: Mon=0 … Sun=6 */
 function firstDayOffset(year: number, month: number) {
-  return (new Date(year, month, 1).getDay() + 6) % 7
+  return (new Date(year, month, 1).getDay() + 6) % 7;
 }
 
 function sameDay(a: Date, b: Date) {
@@ -19,31 +19,31 @@ function sameDay(a: Date, b: Date) {
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
-  )
+  );
 }
 
 function shiftMonth(year: number, month: number, delta: number) {
-  const d = new Date(year, month + delta, 1)
-  return { year: d.getFullYear(), month: d.getMonth() }
+  const d = new Date(year, month + delta, 1);
+  return { year: d.getFullYear(), month: d.getMonth() };
 }
 
 function formatRange(from: Date, to: Date | null): string {
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }
-  const f = from.toLocaleDateString("en-US", opts)
-  if (!to) return f
-  return `${f} — ${to.toLocaleDateString("en-US", opts)}`
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  const f = from.toLocaleDateString('en-US', opts);
+  if (!to) return f;
+  return `${f} — ${to.toLocaleDateString('en-US', opts)}`;
 }
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
 interface Range {
-  from: Date | null
-  to: Date | null
+  from: Date | null;
+  to: Date | null;
 }
 
 // ── MonthGrid ─────────────────────────────────────────────────────────────────
 
-const DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 function MonthGrid({
   year,
@@ -55,38 +55,35 @@ function MonthGrid({
   onDay,
   onHover,
 }: {
-  year: number
-  month: number
-  range: Range
-  hover: Date | null
-  today: Date
-  minDate: Date
-  onDay: (d: Date) => void
-  onHover: (d: Date | null) => void
+  year: number;
+  month: number;
+  range: Range;
+  hover: Date | null;
+  today: Date;
+  minDate: Date;
+  onDay: (d: Date) => void;
+  onHover: (d: Date | null) => void;
 }) {
-  const label = new Date(year, month).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  })
+  const label = new Date(year, month).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
 
-  const count = daysInMonth(year, month)
-  const offset = firstDayOffset(year, month)
+  const count = daysInMonth(year, month);
+  const offset = firstDayOffset(year, month);
 
   // effective range end — show hover preview before user picks second date
-  const effectiveTo =
-    range.from && !range.to && hover && hover > range.from ? hover : range.to
+  const effectiveTo = range.from && !range.to && hover && hover > range.from ? hover : range.to;
 
   const cells: Array<Date | null> = [
     ...Array(offset).fill(null),
     ...Array.from({ length: count }, (_, i) => new Date(year, month, i + 1)),
-  ]
-  while (cells.length % 7 !== 0) cells.push(null)
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
 
   return (
     <div className="select-none min-w-[252px]">
-      <p className="text-center font-serif text-sm font-semibold text-black mb-3 px-8">
-        {label}
-      </p>
+      <p className="text-center font-serif text-sm font-semibold text-black mb-3 px-8">{label}</p>
 
       <div className="grid grid-cols-7">
         {DAYS.map((d) => (
@@ -100,45 +97,40 @@ function MonthGrid({
 
         {cells.map((date, idx) => {
           if (!date) {
-            return <div key={`e-${idx}`} className="h-9 w-9" />
+            return <div key={`e-${idx}`} className="h-9 w-9" />;
           }
 
-          const isPast = date < minDate && !sameDay(date, minDate)
-          const isToday = sameDay(date, today)
-          const isStart = range.from ? sameDay(date, range.from) : false
-          const isEnd = effectiveTo ? sameDay(date, effectiveTo) : false
-          const inBand =
-            !!range.from &&
-            !!effectiveTo &&
-            date > range.from &&
-            date < effectiveTo
+          const isPast = date < minDate && !sameDay(date, minDate);
+          const isToday = sameDay(date, today);
+          const isStart = range.from ? sameDay(date, range.from) : false;
+          const isEnd = effectiveTo ? sameDay(date, effectiveTo) : false;
+          const inBand = !!range.from && !!effectiveTo && date > range.from && date < effectiveTo;
 
-          const hasBand =
-            (isStart || isEnd || inBand) && !!range.from && !!effectiveTo
-          const colInWeek = idx % 7
+          const hasBand = (isStart || isEnd || inBand) && !!range.from && !!effectiveTo;
+          const colInWeek = idx % 7;
 
           // Cell carries the continuous band background
-          let cellClass = "h-9 w-9"
+          let cellClass = 'h-9 w-9';
           if (hasBand && !(isStart && isEnd)) {
             cellClass +=
-              " bg-[#775a19]/10" +
-              (isStart || colInWeek === 0 ? " rounded-l-full" : "") +
-              (isEnd || colInWeek === 6 ? " rounded-r-full" : "")
+              ' bg-[#775a19]/10' +
+              (isStart || colInWeek === 0 ? ' rounded-l-full' : '') +
+              (isEnd || colInWeek === 6 ? ' rounded-r-full' : '');
           }
 
           // Button carries the circle (start/end) or is transparent (mid-range)
           let btnClass =
-            "h-9 w-9 flex items-center justify-center text-sm rounded-full transition-colors focus:outline-none "
+            'h-9 w-9 flex items-center justify-center text-sm rounded-full transition-colors focus:outline-none ';
 
           if (isPast) {
-            btnClass += "text-gray-300 cursor-default"
+            btnClass += 'text-gray-300 cursor-default';
           } else if (isStart || isEnd) {
-            btnClass += "bg-[#775a19] text-white font-medium cursor-pointer"
+            btnClass += 'bg-[#775a19] text-white font-medium cursor-pointer';
           } else if (isToday) {
             btnClass +=
-              "ring-1 ring-[#775a19] text-[#775a19] font-semibold cursor-pointer hover:bg-[#775a19]/5"
+              'ring-1 ring-[#775a19] text-[#775a19] font-semibold cursor-pointer hover:bg-[#775a19]/5';
           } else {
-            btnClass += "text-gray-700 cursor-pointer hover:bg-gray-100"
+            btnClass += 'text-gray-700 cursor-pointer hover:bg-gray-100';
           }
 
           return (
@@ -154,84 +146,77 @@ function MonthGrid({
                 {date.getDate()}
               </button>
             </div>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }
 
 // ── DateRangePicker ───────────────────────────────────────────────────────────
 
 interface DateRangePickerProps {
-  value: string
-  onChange: (value: string) => void
+  value: string;
+  onChange: (value: string) => void;
 }
 
 export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  const [open, setOpen] = useState(false)
-  const [range, setRange] = useState<Range>({ from: null, to: null })
-  const [hover, setHover] = useState<Date | null>(null)
+  const [open, setOpen] = useState(false);
+  const [range, setRange] = useState<Range>({ from: null, to: null });
+  const [hover, setHover] = useState<Date | null>(null);
   const [view, setView] = useState({
     year: today.getFullYear(),
     month: today.getMonth(),
-  })
-  const containerRef = useRef<HTMLDivElement>(null)
+  });
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const nextView = shiftMonth(view.year, view.month, 1)
+  const nextView = shiftMonth(view.year, view.month, 1);
 
   // Close on outside click
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     function handler(e: MouseEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false)
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
       }
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
-  }, [open])
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
 
   function handleDay(date: Date) {
     // First click — or restarting after a complete range
     if (!range.from || (range.from && range.to)) {
-      setRange({ from: date, to: null })
-      return
+      setRange({ from: date, to: null });
+      return;
     }
     // Second click — complete or swap
-    if (sameDay(date, range.from)) return // ignore same-day click
+    if (sameDay(date, range.from)) return; // ignore same-day click
     if (date < range.from) {
-      setRange({ from: date, to: range.from })
+      setRange({ from: date, to: range.from });
     } else {
-      setRange({ from: range.from, to: date })
+      setRange({ from: range.from, to: date });
     }
   }
 
   function handleConfirm() {
     if (range.from) {
-      onChange(formatRange(range.from, range.to))
+      onChange(formatRange(range.from, range.to));
     }
-    setOpen(false)
+    setOpen(false);
   }
 
   function handleClear() {
-    setRange({ from: null, to: null })
+    setRange({ from: null, to: null });
   }
 
-  const canConfirm = !!range.from
-  const selectionLabel = range.from ? formatRange(range.from, range.to) : null
+  const canConfirm = !!range.from;
+  const selectionLabel = range.from ? formatRange(range.from, range.to) : null;
   const promptLabel =
-    range.from && !range.to
-      ? "Select check-out"
-      : !range.from
-        ? "Select check-in"
-        : null
+    range.from && !range.to ? 'Select check-out' : !range.from ? 'Select check-in' : null;
 
   return (
     <div ref={containerRef} className="relative flex-1">
@@ -246,9 +231,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
         </span>
         <div className="flex items-center gap-3">
           <Calendar size={18} className="text-[#775a19] shrink-0" />
-          <span className="font-serif text-lg md:text-xl font-medium text-black">
-            {value}
-          </span>
+          <span className="font-serif text-lg md:text-xl font-medium text-black">{value}</span>
         </div>
       </button>
 
@@ -307,9 +290,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
           <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between gap-4">
             <p className="text-xs font-sans">
               {selectionLabel ? (
-                <span className="font-semibold text-[#775a19]">
-                  {selectionLabel}
-                </span>
+                <span className="font-semibold text-[#775a19]">{selectionLabel}</span>
               ) : promptLabel ? (
                 <span className="text-gray-400 italic">{promptLabel}</span>
               ) : null}
@@ -335,5 +316,5 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
         </div>
       )}
     </div>
-  )
+  );
 }
