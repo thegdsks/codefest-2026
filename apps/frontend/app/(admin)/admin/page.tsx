@@ -281,29 +281,29 @@ export default function AdminDashboardPage() {
             </section>
           </div>
 
-          {/* Live activity + engine guard side by side (no right rail) */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <section className="lg:col-span-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 overflow-hidden">
-              <div className="h-96">
-                <LiveActivityFeed />
-              </div>
-            </section>
-            <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 p-5">
-              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
-                Engine guard
-                <Tooltip content="Live state of the LLM cost guardrail. Radial fill shows how much of the spend cap has been consumed in the rolling window. The breaker trips and stops L2 calls when it hits 100 percent.">
-                  <button
-                    type="button"
-                    aria-label="What is the engine guard?"
-                    className="text-[color:var(--text-dim)] hover:text-[color:var(--text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
-                  >
-                    <Info size={12} weight="bold" />
-                  </button>
-                </Tooltip>
-              </h2>
-              <EngineGuardRadial window={activeWindow} height={200} />
-            </section>
-          </div>
+          {/* Live activity feed: full-width hero */}
+          <section className="h-[520px] overflow-hidden rounded-xl">
+            <LiveActivityFeed />
+          </section>
+
+          {/* Engine guard: intentionally dark in both themes so the radial
+              chart's hardcoded colors stay legible and the card reads as a
+              high-contrast accent on the otherwise light page. */}
+          <section className="rounded-xl border border-zinc-800 bg-zinc-950 p-5 shadow-lg">
+            <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+              Engine guard
+              <Tooltip content="Live state of the LLM cost guardrail. Radial fill shows how much of the spend cap has been consumed in the rolling window. The breaker trips and stops L2 calls when it hits 100 percent.">
+                <button
+                  type="button"
+                  aria-label="What is the engine guard?"
+                  className="text-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
+                >
+                  <Info size={12} weight="bold" />
+                </button>
+              </Tooltip>
+            </h2>
+            <EngineGuardRadial window={activeWindow} height={200} />
+          </section>
 
           {data?.asOf ? (
             <div aria-live="polite" className="text-xs text-[color:var(--text-dim)]">
