@@ -45,12 +45,21 @@ export interface BookingContext {
   recentBookingAt?: number;
 }
 
+export interface PropertyPersonalizedOfferContext {
+  dwellMs: number;
+  propertyId: string | null;
+  userTier: string;
+  userPointsBalance: number;
+  pointsToNextTier: number;
+}
+
 export type SurfaceContext =
   | PrestigeAdvanceContext
   | CatalystElevateContext
   | MfaEnrollmentContext
   | TransferAbandonContext
-  | BookingContext;
+  | BookingContext
+  | PropertyPersonalizedOfferContext;
 
 export type AiAction = 'KEEP' | 'PROMOTE' | 'DEMOTE' | 'HIDE' | 'SWAP';
 
