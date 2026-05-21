@@ -17,6 +17,9 @@ function clearLiteLLMEnv() {
   delete process.env.LITELLM_BASE_URL;
   delete process.env.LITELLM_API_KEY;
   delete process.env.LITELLM_MODEL;
+  delete process.env.LITELLM_FALLBACK_MODELS;
+  delete process.env.LITELLM_TIMEOUT_MS;
+  delete process.env.LITELLM_TOTAL_BUDGET_MS;
 }
 
 // ---------------------------------------------------------------------------
@@ -33,7 +36,6 @@ const { classify, writeText, _setProvider } = require('./llm.js');
 describe('missing env vars', () => {
   before(() => {
     clearLiteLLMEnv();
-    // Ensure the provider seam is cleared so the module re-checks env vars
     _setProvider(null);
   });
   after(() => {
@@ -60,10 +62,10 @@ describe('missing env vars', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Successful classify - inject a fake provider, check returned shape
+// 2. Successful classify - primary model succeeds, no fallback needed
 // ---------------------------------------------------------------------------
 
-describe('successful classify', () => {
+describe('successful classify - primary model', () => {
   let originalLog;
   let logLines;
 
@@ -75,7 +77,6 @@ describe('successful classify', () => {
       LITELLM_MODEL: 'claude-haiku-4-5',
     });
 
-    // Capture console.log for EMF metric assertion
     originalLog = console.log;
     logLines = [];
     console.log = (...args) => logLines.push(args.join(' '));
@@ -88,17 +89,6 @@ describe('successful classify', () => {
   });
 
   test('returns correct shape with latencyMs as number', async () => {
-    // Inject a fake provider whose model() function returns an object that
-    // generateObject will use. We stub at the module level by injecting a
-    // fake that makes generateObject produce a known value.
-    //
-    // Since generateObject calls provider(modelName) to get the language model,
-    // we inject a fake at the _setProvider seam so the real SDK path is bypassed.
-    // The fake generateObject is injected via _setProvider({ generateObject, generateText }).
-    //
-    // However the cleanest seam is to replace the internal sdk functions directly.
-    // llm.js exposes _setProvider(p) where p = { generateObject, generateText } for tests.
-
     _setProvider({
       generateObject: async () => ({
         object: { label: 'ALLOW', confidence: 0.95, rationale: 'Low risk login' },
@@ -120,7 +110,6 @@ describe('successful classify', () => {
   });
 
   test('EMF metric line is emitted on classify success with correct shape', () => {
-    // logLines captured from previous test (classify success)
     const emfLine = logLines.find((l) => {
       try {
         return JSON.parse(l)._aws !== undefined;
@@ -163,7 +152,8 @@ describe('successful classify', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. Schema mismatch on classify - stub returns malformed data, must return null
+// 3. Schema mismatch on classify - stub returns malformed data, must return
+//    rule-only fallback sentinel (no fallback models configured)
 // ---------------------------------------------------------------------------
 
 describe('schema mismatch', () => {
@@ -181,25 +171,27 @@ describe('schema mismatch', () => {
     clearLiteLLMEnv();
   });
 
-  test('classify returns null when generateObject throws a schema error', async () => {
+  test('classify returns rule-only sentinel when generateObject throws a schema error', async () => {
     _setProvider({
       generateObject: async () => {
-        const err = new Error(
+        const e = new Error(
           'Schema validation failed: label must be one of ALLOW|REVIEW|BLOCK|MFA'
         );
-        err.name = 'AI_NoObjectGeneratedError';
-        throw err;
+        e.name = 'AI_NoObjectGeneratedError';
+        throw e;
       },
       generateText: async () => ({ text: '', usage: {} }),
     });
 
     const result = await classify('ambiguous event');
-    assert.equal(result, null);
+    assert.ok(result !== null, 'result should not be null');
+    assert.equal(result.source, 'rule-only-fallback');
+    assert.equal(result.reason, 'all-llm-models-unavailable');
   });
 });
 
 // ---------------------------------------------------------------------------
-// 4. Timeout / abort - simulate AbortError, must return null
+// 4. Timeout / abort - simulate AbortError, triggers fallback or sentinel
 // ---------------------------------------------------------------------------
 
 describe('timeout handling', () => {
@@ -217,31 +209,279 @@ describe('timeout handling', () => {
     clearLiteLLMEnv();
   });
 
-  test('classify returns null when generateObject throws an AbortError', async () => {
+  test('classify returns rule-only sentinel when generateObject throws an AbortError', async () => {
     _setProvider({
       generateObject: async () => {
-        const err = new Error('The operation was aborted.');
-        err.name = 'AbortError';
-        throw err;
+        const e = new Error('The operation was aborted.');
+        e.name = 'AbortError';
+        throw e;
       },
       generateText: async () => ({ text: '', usage: {} }),
     });
 
     const result = await classify('hanging prompt');
-    assert.equal(result, null);
+    assert.ok(result !== null, 'result should not be null');
+    assert.equal(result.source, 'rule-only-fallback');
+    assert.equal(result.reason, 'all-llm-models-unavailable');
   });
 
   test('writeText returns null when generateText throws an AbortError', async () => {
     _setProvider({
       generateObject: async () => ({ object: {}, usage: {} }),
       generateText: async () => {
-        const err = new Error('The operation was aborted.');
-        err.name = 'AbortError';
-        throw err;
+        const e = new Error('The operation was aborted.');
+        e.name = 'AbortError';
+        throw e;
       },
     });
 
     const result = await writeText('hanging nudge');
     assert.equal(result, null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. Primary fails, first fallback succeeds
+// ---------------------------------------------------------------------------
+
+describe('fallback chain: primary fails, first fallback succeeds', () => {
+  before(() => {
+    clearLiteLLMEnv();
+    setEnv({
+      LITELLM_BASE_URL: 'https://fake-litellm.example.com',
+      LITELLM_API_KEY: 'sk-test',
+      LITELLM_MODEL: 'primary-model',
+      LITELLM_FALLBACK_MODELS: 'fallback-model-1,fallback-model-2',
+      LITELLM_TIMEOUT_MS: '8000',
+      LITELLM_TOTAL_BUDGET_MS: '15000',
+    });
+  });
+
+  after(() => {
+    _setProvider(null);
+    clearLiteLLMEnv();
+  });
+
+  test('classify returns result from first fallback when primary fails', async () => {
+    const callLog = [];
+
+    _setProvider({
+      generateObject: async ({ model }) => {
+        // model is null when using injected provider - track calls by callLog index
+        callLog.push('call');
+        if (callLog.length === 1) {
+          // Primary attempt
+          const e = new Error('Service unavailable');
+          e.name = 'APICallError';
+          throw e;
+        }
+        // First fallback succeeds
+        return {
+          object: { label: 'REVIEW', confidence: 0.7, rationale: 'Fallback model response' },
+          usage: { totalTokens: 30 },
+        };
+      },
+      generateText: async () => ({ text: '', usage: {} }),
+    });
+
+    const result = await classify('suspicious transaction');
+
+    assert.ok(result !== null, 'result should not be null');
+    assert.ok(!result.source, 'should not be rule-only sentinel');
+    assert.equal(result.label, 'REVIEW');
+    assert.equal(result.confidence, 0.7);
+    assert.equal(result.rationale, 'Fallback model response');
+    assert.ok(typeof result.latencyMs === 'number', 'latencyMs should be a number');
+    assert.equal(callLog.length, 2, 'should have made exactly 2 attempts');
+  });
+
+  test('writeText returns result from first fallback when primary fails', async () => {
+    const callLog = [];
+
+    _setProvider({
+      generateObject: async () => ({ object: {}, usage: {} }),
+      generateText: async () => {
+        callLog.push('call');
+        if (callLog.length === 1) {
+          const e = new Error('Model overloaded');
+          e.name = 'APICallError';
+          throw e;
+        }
+        return { text: 'Redeem your points for a free night.', usage: { totalTokens: 15 } };
+      },
+    });
+
+    const result = await writeText('loyalty offer nudge');
+
+    assert.ok(result !== null, 'result should not be null');
+    assert.equal(result.text, 'Redeem your points for a free night.');
+    assert.equal(callLog.length, 2, 'should have made exactly 2 attempts');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 6. All models fail - rule-only fallback sentinel is returned from classify
+// ---------------------------------------------------------------------------
+
+describe('all models fail', () => {
+  before(() => {
+    clearLiteLLMEnv();
+    setEnv({
+      LITELLM_BASE_URL: 'https://fake-litellm.example.com',
+      LITELLM_API_KEY: 'sk-test',
+      LITELLM_MODEL: 'primary-model',
+      LITELLM_FALLBACK_MODELS: 'fallback-model-1,fallback-model-2',
+      LITELLM_TIMEOUT_MS: '8000',
+      LITELLM_TOTAL_BUDGET_MS: '15000',
+    });
+  });
+
+  after(() => {
+    _setProvider(null);
+    clearLiteLLMEnv();
+  });
+
+  test('classify returns rule-only sentinel when all three models fail', async () => {
+    const callLog = [];
+
+    _setProvider({
+      generateObject: async () => {
+        callLog.push('call');
+        const e = new Error('All models down');
+        e.name = 'NetworkError';
+        throw e;
+      },
+      generateText: async () => ({ text: '', usage: {} }),
+    });
+
+    const result = await classify('high risk event');
+
+    assert.ok(result !== null, 'result should not be null');
+    assert.equal(result.source, 'rule-only-fallback');
+    assert.equal(result.reason, 'all-llm-models-unavailable');
+    assert.equal(callLog.length, 3, 'should have attempted all 3 models');
+  });
+
+  test('writeText returns null when all models fail', async () => {
+    _setProvider({
+      generateObject: async () => ({ object: {}, usage: {} }),
+      generateText: async () => {
+        const e = new Error('All models down');
+        e.name = 'NetworkError';
+        throw e;
+      },
+    });
+
+    const result = await writeText('nudge text');
+    assert.equal(result, null, 'writeText should return null when all models fail');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. Total budget exhausted - stops trying even if fallbacks remain
+// ---------------------------------------------------------------------------
+
+describe('total budget exhausted', () => {
+  let originalError;
+  let errorLines;
+
+  before(() => {
+    clearLiteLLMEnv();
+    setEnv({
+      LITELLM_BASE_URL: 'https://fake-litellm.example.com',
+      LITELLM_API_KEY: 'sk-test',
+      LITELLM_MODEL: 'primary-model',
+      LITELLM_FALLBACK_MODELS: 'fallback-model-1,fallback-model-2',
+      LITELLM_TIMEOUT_MS: '8000',
+      LITELLM_TOTAL_BUDGET_MS: '1', // 1ms budget - immediately exhausted after first attempt
+    });
+
+    originalError = console.error;
+    errorLines = [];
+    console.error = (...args) => errorLines.push(args.join(' '));
+  });
+
+  after(() => {
+    console.error = originalError;
+    _setProvider(null);
+    clearLiteLLMEnv();
+  });
+
+  test('classify stops after primary when budget is exhausted and returns rule-only sentinel', async () => {
+    const callLog = [];
+
+    _setProvider({
+      generateObject: async () => {
+        callLog.push('call');
+        // Add a small delay to ensure budget is consumed
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        const e = new Error('Primary failed');
+        e.name = 'APICallError';
+        throw e;
+      },
+      generateText: async () => ({ text: '', usage: {} }),
+    });
+
+    const result = await classify('budget test prompt');
+
+    assert.ok(result !== null);
+    assert.equal(result.source, 'rule-only-fallback');
+    assert.equal(result.reason, 'all-llm-models-unavailable');
+    // With a 1ms budget that was consumed by the primary attempt (5ms delay),
+    // only 1 call should have been made (the budget check happens before each model)
+    // The primary model runs first (no budget check before it since elapsed=0 at start),
+    // then the budget is checked before fallback-model-1 and it's exhausted.
+    assert.ok(callLog.length >= 1, 'at least one attempt was made');
+    assert.ok(callLog.length <= 2, 'budget should have cut off remaining fallbacks');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. Fallback timeout triggers switch to next model
+// ---------------------------------------------------------------------------
+
+describe('timeout triggers fallback', () => {
+  before(() => {
+    clearLiteLLMEnv();
+    setEnv({
+      LITELLM_BASE_URL: 'https://fake-litellm.example.com',
+      LITELLM_API_KEY: 'sk-test',
+      LITELLM_MODEL: 'primary-model',
+      LITELLM_FALLBACK_MODELS: 'fallback-model-1',
+      LITELLM_TIMEOUT_MS: '8000',
+      LITELLM_TOTAL_BUDGET_MS: '15000',
+    });
+  });
+
+  after(() => {
+    _setProvider(null);
+    clearLiteLLMEnv();
+  });
+
+  test('classify falls through to fallback when primary throws TimeoutError', async () => {
+    const callLog = [];
+
+    _setProvider({
+      generateObject: async () => {
+        callLog.push('call');
+        if (callLog.length === 1) {
+          const e = new Error('Timeout');
+          e.name = 'TimeoutError';
+          throw e;
+        }
+        return {
+          object: { label: 'BLOCK', confidence: 0.99, rationale: 'Fallback caught it' },
+          usage: {},
+        };
+      },
+      generateText: async () => ({ text: '', usage: {} }),
+    });
+
+    const result = await classify('late night login anomaly');
+
+    assert.ok(result !== null);
+    assert.ok(!result.source, 'should not be rule-only sentinel');
+    assert.equal(result.label, 'BLOCK');
+    assert.equal(callLog.length, 2, 'should have tried primary then fallback');
   });
 });
