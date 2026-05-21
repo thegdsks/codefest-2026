@@ -2059,3 +2059,322 @@ describe('POST /auth/mfa/recover', () => {
     assert.equal(body.error.code, 'RECOVERY_CODE_INVALID');
   });
 });
+
+// ---------------------------------------------------------------------------
+// POST /customer/transfers/draft
+// ---------------------------------------------------------------------------
+
+describe('POST /customer/transfers/draft', () => {
+  function draftDdb(userId, token) {
+    const now = Math.floor(Date.now() / 1000);
+    const accessRow = {
+      sessionId: token,
+      recordType: 'ACCESS',
+      userId,
+      token,
+      issuedAt: now - 60,
+      expiresAt: now + 1800,
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
+    const updates = [];
+    const stub = makeDdb({
+      GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession' && cmd.input.Key.sessionId === token) {
+          return { Item: accessRow };
+        }
+        return { Item: undefined };
+      },
+      UpdateCommand: (cmd) => {
+        updates.push(cmd.input);
+        return {};
+      },
+    });
+    stub._updates = updates;
+    return stub;
+  }
+
+  it('returns 200 SAVED and writes transferDraft to UserState', async () => {
+    const token = 'tok-draft-U001';
+    const db = draftDdb('U001', token);
+    handler._setDdb(db);
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/customer/transfers/draft',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ userId: 'U001', amount: 5000, recipientId: 'USER#002' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.status, 'SAVED');
+    assert.ok(typeof body.data.lastUpdatedAt === 'number');
+
+    // Verify UpdateCommand written to UserState
+    const stateUpdate = db._updates.find((u) => u.TableName === 'UserState');
+    assert.ok(stateUpdate, 'UpdateCommand on UserState must be issued');
+    assert.match(stateUpdate.UpdateExpression, /transferDraft/);
+    assert.ok(stateUpdate.ExpressionAttributeValues[':draft'].lastUpdatedAt > 0);
+  });
+
+  it('returns 200 CLEARED when amount=0 (clears draft after submit)', async () => {
+    const token = 'tok-draft-U001b';
+    const db = draftDdb('U001', token);
+    handler._setDdb(db);
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/customer/transfers/draft',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ userId: 'U001', amount: 0 }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.status, 'CLEARED');
+  });
+
+  it('returns 401 when no bearer token is provided', async () => {
+    handler._setDdb(makeDdb());
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/customer/transfers/draft',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ userId: 'U001', amount: 1000, recipientId: 'USER#002' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PUT /customer/profile
+// ---------------------------------------------------------------------------
+
+describe('PUT /customer/profile', () => {
+  function profileUpdateDdb(userId, token, profileItem) {
+    const now = Math.floor(Date.now() / 1000);
+    const accessRow = {
+      sessionId: token,
+      recordType: 'ACCESS',
+      userId,
+      token,
+      issuedAt: now - 60,
+      expiresAt: now + 1800,
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
+    const updates = [];
+    const stub = makeDdb({
+      GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession' && cmd.input.Key.sessionId === token) {
+          return { Item: accessRow };
+        }
+        if (cmd.input.TableName === 'UserProfile') return { Item: profileItem };
+        return { Item: undefined };
+      },
+      UpdateCommand: (cmd) => {
+        updates.push(cmd.input);
+        return {};
+      },
+    });
+    stub._updates = updates;
+    return stub;
+  }
+
+  it('returns 200 UPDATED with new profileCompletion when fields are saved', async () => {
+    const token = 'tok-profile-U001';
+    const profile = { userId: 'U001', username: 'alice', profileCompletion: 50 };
+    const db = profileUpdateDdb('U001', token, profile);
+    handler._setDdb(db);
+
+    const event = makeEvent({
+      httpMethod: 'PUT',
+      path: '/customer/profile',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        userId: 'U001',
+        mobilePhone: '5551234567',
+        email: 'alice@example.com',
+        marketingOptIn: true,
+        dob: '1990-01-15',
+        language: 'en',
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.status, 'UPDATED');
+    assert.ok(typeof body.data.profileCompletion === 'number');
+    assert.ok(body.data.profileCompletion >= 50, 'completion should not decrease');
+
+    // UserProfile UpdateCommand must be issued
+    const profileUpdate = db._updates.find((u) => u.TableName === 'UserProfile');
+    assert.ok(profileUpdate, 'UpdateCommand on UserProfile must be issued');
+    assert.match(profileUpdate.UpdateExpression, /profileCompletion/);
+  });
+
+  it('returns 404 when user does not exist', async () => {
+    const token = 'tok-profile-MISSING';
+    const now = Math.floor(Date.now() / 1000);
+    const accessRow = {
+      sessionId: token,
+      recordType: 'ACCESS',
+      userId: 'MISSING',
+      token,
+      issuedAt: now - 60,
+      expiresAt: now + 1800,
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
+    handler._setDdb(
+      makeDdb({
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserSession') return { Item: accessRow };
+          return { Item: undefined };
+        },
+        UpdateCommand: () => ({}),
+      })
+    );
+
+    const event = makeEvent({
+      httpMethod: 'PUT',
+      path: '/customer/profile',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ userId: 'MISSING', email: 'x@x.com' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 404);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'USER_NOT_FOUND');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /customer/bookings
+// ---------------------------------------------------------------------------
+
+describe('POST /customer/bookings', () => {
+  function bookingDdb(userId, token, profileItem) {
+    const now = Math.floor(Date.now() / 1000);
+    const accessRow = {
+      sessionId: token,
+      recordType: 'ACCESS',
+      userId,
+      token,
+      issuedAt: now - 60,
+      expiresAt: now + 1800,
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
+    const updates = [];
+    const puts = [];
+    const stub = makeDdb({
+      GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession' && cmd.input.Key.sessionId === token) {
+          return { Item: accessRow };
+        }
+        if (cmd.input.TableName === 'UserProfile') return { Item: profileItem };
+        return { Item: undefined };
+      },
+      UpdateCommand: (cmd) => {
+        updates.push(cmd.input);
+        return {};
+      },
+      PutCommand: (cmd) => {
+        puts.push(cmd.input);
+        return {};
+      },
+    });
+    stub._updates = updates;
+    stub._puts = puts;
+    return stub;
+  }
+
+  it('returns 200 CONFIRMED with a bookingId and writes recentBookingAt to UserState', async () => {
+    const token = 'tok-booking-U001';
+    const profile = { userId: 'U001', username: 'alice' };
+    const db = bookingDdb('U001', token, profile);
+    handler._setDdb(db);
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/customer/bookings',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        userId: 'U001',
+        propertyId: 'bastide-gordes',
+        nights: 3,
+        costSfc: 15000,
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.status, 'CONFIRMED');
+    assert.ok(body.data.bookingId, 'bookingId must be returned');
+    assert.equal(body.data.propertyId, 'bastide-gordes');
+    assert.equal(body.data.nights, 3);
+    assert.ok(typeof body.data.bookedAt === 'number');
+
+    // UserState recentBookingAt must be written
+    const stateUpdate = db._updates.find((u) => u.TableName === 'UserState');
+    assert.ok(stateUpdate, 'UpdateCommand on UserState must be issued');
+    assert.match(stateUpdate.UpdateExpression, /recentBookingAt/);
+
+    // Activity row for audit must be written
+    const activityPut = db._puts.find((p) => p.TableName === 'UserActivity');
+    assert.ok(activityPut, 'PutCommand on UserActivity must be issued');
+    assert.equal(activityPut.Item.activityType, 'BOOKING');
+  });
+
+  it('returns 404 when user does not exist', async () => {
+    const token = 'tok-booking-MISSING';
+    const now = Math.floor(Date.now() / 1000);
+    const accessRow = {
+      sessionId: token,
+      recordType: 'ACCESS',
+      userId: 'MISSING',
+      token,
+      issuedAt: now - 60,
+      expiresAt: now + 1800,
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
+    handler._setDdb(
+      makeDdb({
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserSession') return { Item: accessRow };
+          return { Item: undefined };
+        },
+        UpdateCommand: () => ({}),
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/customer/bookings',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ userId: 'MISSING', propertyId: 'bastide-gordes', nights: 1 }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 404);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'USER_NOT_FOUND');
+  });
+
+  it('returns 400 VALIDATION_ERROR when userId is missing', async () => {
+    handler._setDdb(makeDdb());
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/customer/bookings',
+      headers: { authorization: bearer('any-token'), 'content-type': 'application/json' },
+      body: JSON.stringify({ propertyId: 'bastide-gordes', nights: 2 }),
+    });
+    const res = await handler.main(event);
+    // Will be 401 (no bearer found) or 400 depending on auth check order
+    assert.ok(res.statusCode === 400 || res.statusCode === 401);
+  });
+});

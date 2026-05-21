@@ -402,6 +402,150 @@ async function confirmMfaEnroll(userId, secret, recoveryHashes) {
 }
 
 /**
+ * Write or update a transfer draft on UserState.
+ * Sets transferDraft.lastUpdatedAt to nowTs so the surface evaluator can
+ * compute how stale the draft is.
+ */
+async function setTransferDraft(userId, amount, recipientId, nowTs) {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserState,
+      Key: { userId },
+      UpdateExpression: 'SET transferDraft = :draft, updatedAt = :now',
+      ExpressionAttributeValues: {
+        ':draft': { amount, recipientId, lastUpdatedAt: nowTs },
+        ':now': nowTs,
+      },
+    })
+  );
+}
+
+/**
+ * Remove the transfer draft from UserState and record completion time.
+ * Called after a successful transfer so TRANSFER_ABANDON_OFFER shows COMPLETED.
+ */
+async function clearTransferDraft(userId, nowTs) {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserState,
+      Key: { userId },
+      UpdateExpression: 'SET lastTransferCompletedAt = :t, updatedAt = :now REMOVE transferDraft',
+      ExpressionAttributeValues: { ':t': nowTs, ':now': nowTs },
+    })
+  );
+}
+
+/**
+ * Record a recent booking on UserState so BOOKING_CONFIRMATION_OFFER fires.
+ * Removes any prior bookingOfferDismissedAt so the offer re-shows.
+ */
+async function setRecentBooking(userId, propertyId, nights, nowTs) {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserState,
+      Key: { userId },
+      UpdateExpression:
+        'SET recentBookingAt = :t, recentBooking = :booking, updatedAt = :now REMOVE bookingOfferDismissedAt',
+      ExpressionAttributeValues: {
+        ':t': nowTs,
+        ':booking': { propertyId, nights, bookedAt: nowTs },
+        ':now': nowTs,
+      },
+    })
+  );
+}
+
+/**
+ * Update customer-editable profile fields on UserProfile.
+ * Also recomputes profileCompletion and writes profileCompletionReachedAt
+ * to UserState when the score crosses 90 for the first time.
+ *
+ * fields: { mobilePhone?, email?, marketingOptIn?, dob?, language? }
+ *
+ * Each filled optional field contributes 12 points to profileCompletion,
+ * capped at 100. The baseline starts from the existing profileCompletion
+ * value rather than zero so we don't regress already-tracked fields.
+ */
+async function updateCustomerProfile(userId, fields, currentProfile, nowTs) {
+  // Build a map of the fields we accept from the customer
+  const fieldMap = {};
+  if (fields.mobilePhone !== undefined) fieldMap.mobilePhone = String(fields.mobilePhone);
+  if (fields.email !== undefined) fieldMap.email = String(fields.email);
+  if (fields.marketingOptIn !== undefined)
+    fieldMap.marketingOptIn = !!fields.marketingOptIn;
+  if (fields.dob !== undefined) fieldMap.dob = String(fields.dob);
+  if (fields.language !== undefined) fieldMap.language = String(fields.language);
+
+  if (Object.keys(fieldMap).length === 0) return { profileCompletion: currentProfile.profileCompletion || 0 };
+
+  // Compute new profileCompletion
+  const TRACKED = ['mobilePhone', 'email', 'marketingOptIn', 'dob', 'language'];
+  const POINTS_PER_FIELD = 12;
+
+  // Merge current profile fields with new ones for computing completeness
+  const merged = { ...currentProfile, ...fieldMap };
+  let filledCount = 0;
+  for (const f of TRACKED) {
+    const v = merged[f];
+    if (v === undefined || v === null) continue;
+    if (typeof v === 'boolean') { if (v) filledCount++; continue; }
+    if (String(v).trim() !== '') filledCount++;
+  }
+  // Start from current profileCompletion, add/replace only tracked fields
+  const baseCompletion = Number(currentProfile.profileCompletion || 0);
+  // New completion = max of existing and what we just computed from tracked fields
+  const trackedScore = Math.min(filledCount * POINTS_PER_FIELD, 60); // max 60 from 5 fields
+  const newCompletion = Math.min(100, Math.max(baseCompletion, trackedScore + baseCompletion - Math.min(baseCompletion, 40)));
+
+  // Build update expression dynamically
+  const exprParts = ['profileCompletion = :pc', 'updatedAt = :now'];
+  const exprNames = {};
+  const exprValues = { ':pc': newCompletion, ':now': nowTs };
+
+  for (const [k, v] of Object.entries(fieldMap)) {
+    const placeholder = `:f_${k}`;
+    // Use expression attribute names only when needed (mobilePhone, email, dob, language are safe)
+    exprParts.push(`${k} = ${placeholder}`);
+    exprValues[placeholder] = v;
+  }
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserProfile,
+      Key: { userId },
+      UpdateExpression: `SET ${exprParts.join(', ')}`,
+      ExpressionAttributeValues: exprValues,
+    })
+  );
+
+  // Write profileCompletionReachedAt when crossing 90
+  const oldCompletion = Number(currentProfile.profileCompletion || 0);
+  if (newCompletion >= 90 && oldCompletion < 90) {
+    await ddb.send(
+      new UpdateCommand({
+        TableName: CFG.tUserState,
+        Key: { userId },
+        UpdateExpression:
+          'SET profileCompletionReachedAt = :t, profileEditInProgress = :false, updatedAt = :now',
+        ExpressionAttributeValues: { ':t': nowTs, ':false': false, ':now': nowTs },
+      })
+    );
+  } else {
+    // Mark edit in progress so surface shows PENDING while user is editing
+    await ddb.send(
+      new UpdateCommand({
+        TableName: CFG.tUserState,
+        Key: { userId },
+        UpdateExpression: 'SET profileEditInProgress = :true, updatedAt = :now',
+        ExpressionAttributeValues: { ':true': true, ':now': nowTs },
+      })
+    );
+  }
+
+  return { profileCompletion: newCompletion };
+}
+
+/**
  * Clear mfaSecret, update recovery hashes, and set mfaEnabled = false.
  * Used by mfaRecover.
  */
@@ -443,6 +587,10 @@ module.exports = {
   clearMfaSecret,
   updateUserRisk,
   readUserRisk,
+  setTransferDraft,
+  clearTransferDraft,
+  setRecentBooking,
+  updateCustomerProfile,
   // Pure helpers exposed for unit tests.
   _riskInternals: { nextRiskScore, applyRiskDecay, RISK_DELTAS, RISK_HALF_LIFE_SEC },
 };

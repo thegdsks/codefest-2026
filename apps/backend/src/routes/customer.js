@@ -17,6 +17,10 @@ const {
   putSession,
   getSession,
   requireBearer,
+  setTransferDraft,
+  clearTransferDraft,
+  setRecentBooking,
+  updateCustomerProfile,
 } = require('../lib/ddb');
 const {
   activityTransfer,
@@ -665,6 +669,132 @@ async function surfaceEligibility(event, correlationId) {
   });
 }
 
+/**
+ * POST /customer/transfers/draft
+ *
+ * Persists a transfer draft to UserState so the TRANSFER_ABANDON_OFFER surface
+ * can fire. Called with debounce from the transfer form when the user changes
+ * the amount or recipientId fields without submitting.
+ *
+ * Body: { userId, amount, recipientId }
+ *
+ * To clear the draft (after a successful submit), pass amount=0.
+ */
+async function transferDraft(event, correlationId) {
+  const body = parseBody(event);
+  const userId = requireField(body, 'userId');
+  await requireBearer(event, userId);
+
+  const amount = Number(body.amount);
+  const recipientId = body.recipientId || '';
+  const now = nowSec();
+
+  if (amount === 0) {
+    // Clear draft after successful transfer
+    await clearTransferDraft(userId, now);
+    return json(200, correlationId, { data: { status: 'CLEARED' } });
+  }
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return err(400, correlationId, 'VALIDATION_ERROR', 'amount must be >= 0');
+  }
+
+  await setTransferDraft(userId, amount, recipientId, now);
+  return json(200, correlationId, { data: { status: 'SAVED', lastUpdatedAt: now } });
+}
+
+/**
+ * PUT /customer/profile
+ *
+ * Updates customer-editable profile fields and recomputes profileCompletion.
+ * When profileCompletion crosses 90 the surface evaluator will show
+ * PROFILE_CATALYST_ELEVATE as COMPLETED.
+ *
+ * Body: { userId, mobilePhone?, email?, marketingOptIn?, dob?, language? }
+ */
+async function updateProfile(event, correlationId) {
+  const body = parseBody(event);
+  const userId = requireField(body, 'userId');
+  await requireBearer(event, userId);
+
+  const profile = await getUserById(userId);
+  if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
+
+  const now = nowSec();
+  const fields = {
+    mobilePhone: body.mobilePhone,
+    email: body.email,
+    marketingOptIn: body.marketingOptIn,
+    dob: body.dob,
+    language: body.language,
+  };
+
+  // Strip undefined so we don't overwrite with undefined
+  for (const k of Object.keys(fields)) {
+    if (fields[k] === undefined) delete fields[k];
+  }
+
+  const { profileCompletion } = await updateCustomerProfile(userId, fields, profile, now);
+
+  return json(200, correlationId, {
+    data: {
+      status: 'UPDATED',
+      profileCompletion,
+      crossed90: profileCompletion >= 90 && Number(profile.profileCompletion || 0) < 90,
+    },
+  });
+}
+
+/**
+ * POST /customer/bookings
+ *
+ * Records a booking action to UserState so BOOKING_CONFIRMATION_OFFER fires.
+ * Writes a UserActivity row for audit.
+ *
+ * Body: { userId, propertyId, nights, costSfc }
+ */
+async function createBooking(event, correlationId) {
+  const body = parseBody(event);
+  const userId = requireField(body, 'userId');
+  await requireBearer(event, userId);
+  const propertyId = requireField(body, 'propertyId');
+  const nights = Number(body.nights || 1);
+  const costSfc = Number(body.costSfc || 0);
+
+  const profile = await getUserById(userId);
+  if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
+
+  const now = nowSec();
+  const bookingId = `BKG#${randomUUID().slice(0, 8)}`;
+
+  await setRecentBooking(userId, propertyId, nights, now);
+  await putActivity({
+    userId,
+    activityTime: now,
+    activityType: 'BOOKING',
+    channel: 'APP',
+    source: 'UI',
+    amount: costSfc,
+    currency: 'SFC',
+    recipientId: '',
+    searchQuery: '',
+    metadata: `bookingId=${bookingId},propertyId=${propertyId},nights=${nights}`,
+    correlationId: correlationId || '',
+    ttl: now + 30 * 86400,
+    createdAt: now,
+  });
+
+  return json(200, correlationId, {
+    data: {
+      status: 'CONFIRMED',
+      bookingId,
+      propertyId,
+      nights,
+      bookedAt: now,
+    },
+  });
+}
+
 module.exports = {
   transfer,
   transferMfaVerify,
@@ -676,4 +806,7 @@ module.exports = {
   dashboard,
   profileCompletenessEndpoint,
   surfaceEligibility,
+  transferDraft,
+  updateProfile,
+  createBooking,
 };

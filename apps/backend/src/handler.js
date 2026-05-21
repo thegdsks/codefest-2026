@@ -23,7 +23,11 @@ const {
   dashboard,
   profileCompletenessEndpoint,
   surfaceEligibility,
+  transferDraft,
+  updateProfile,
+  createBooking,
 } = require('./routes/customer');
+const { loyaltySummary } = require('./routes/loyalty');
 const admin = require('./admin');
 const { reseed, devConfig } = require('./routes/dev');
 const {
@@ -64,6 +68,10 @@ const BEARER_ROUTES = [
   ['POST', '/auth/mfa/confirm-enroll'],
   ['POST', '/engagement/event'],
   ['GET', '/customer/surface-eligibility'],
+  ['POST', '/customer/transfers/draft'],
+  ['PUT', '/customer/profile'],
+  ['POST', '/customer/bookings'],
+  ['GET', '/customer/loyalty-summary'],
 ];
 
 function isBearerRoute(method, path) {
@@ -101,6 +109,12 @@ async function route(event, correlationId) {
   if (method === 'GET' && p === '/dashboard') return dashboard(event, correlationId);
   if (method === 'GET' && p === '/customer/surface-eligibility')
     return surfaceEligibility(event, correlationId);
+  if (method === 'POST' && p === '/customer/transfers/draft')
+    return transferDraft(event, correlationId);
+  if (method === 'PUT' && p === '/customer/profile') return updateProfile(event, correlationId);
+  if (method === 'POST' && p === '/customer/bookings') return createBooking(event, correlationId);
+  if (method === 'GET' && p === '/customer/loyalty-summary')
+    return loyaltySummary(event, correlationId);
   // Demo-only routes. reseed is gated by DEMO_MODE=1 inside the handler.
   if (method === 'GET' && p === '/admin/dev/config') return devConfig(event, correlationId);
   if (method === 'POST' && p === '/admin/dev/reseed') return reseed(event, correlationId);
@@ -116,6 +130,8 @@ async function route(event, correlationId) {
   if (method === 'GET' && p === '/admin/users') return admin.getUsers(event, correlationId);
   if (method === 'GET' && p.match(/^\/admin\/users\/[^/]+\/risk$/))
     return admin.getUserRisk(event, correlationId);
+  if (method === 'POST' && p.match(/^\/admin\/users\/[^/]+\/clear-block$/))
+    return admin.clearUserBlock(event, correlationId);
   if (method === 'GET' && p === '/admin/sessions') return admin.getSessions(event, correlationId);
   if (method === 'GET' && p === '/admin/mfa-status')
     return admin.getMfaStatus(event, correlationId);
