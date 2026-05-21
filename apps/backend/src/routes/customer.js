@@ -64,6 +64,7 @@ async function transfer(event, correlationId) {
   const channel = body.channel || 'APP';
   const deviceFingerprint = body.deviceFingerprint || '';
   const forceHighRisk = body.forceHighRisk === true;
+  const forceBlock = body.forceBlock === true;
 
   if (!Number.isFinite(amount) || amount <= 0)
     return err(400, correlationId, 'VALIDATION_ERROR', 'amount must be > 0');
@@ -85,7 +86,13 @@ async function transfer(event, correlationId) {
 
   const deviceFingerprintSeenDays = resolveDeviceSeenDays(sender, deviceFingerprint);
 
-  const l1Draft = scoreTransfer({ tc1h, amount, deviceFingerprintSeenDays, forceHighRisk });
+  const l1Draft = scoreTransfer({
+    tc1h,
+    amount,
+    deviceFingerprintSeenDays,
+    forceHighRisk,
+    forceBlock,
+  });
   const final = await engineRoute(l1Draft, { userId, category: 'EARN_REDEEM' });
 
   const transferId = `XFER#${randomUUID().slice(0, 8)}`;
@@ -103,21 +110,26 @@ async function transfer(event, correlationId) {
       priorDecisions: [],
     });
 
-    await putDecision(
-      decision(
-        userId,
-        'FRAUD_TRANSFER',
-        final.score,
-        final.riskLevel,
-        'BLOCK',
-        final.reasonCode,
-        final.reasonText,
-        'EARN_REDEEM',
-        correlationId,
-        { ...final, aiExplanation: blockExplanation || undefined }
-      )
+    const blockDecRow = decision(
+      userId,
+      'FRAUD_TRANSFER',
+      final.score,
+      final.riskLevel,
+      'BLOCK',
+      final.reasonCode,
+      final.reasonText,
+      'EARN_REDEEM',
+      correlationId,
+      { ...final, aiExplanation: blockExplanation || undefined }
     );
-    return err(403, correlationId, 'TRANSFER_BLOCKED', 'Transfer blocked due to high fraud risk');
+    await putDecision(blockDecRow);
+    return json(403, correlationId, {
+      error: {
+        code: 'TRANSFER_BLOCKED',
+        message: 'Transfer blocked due to high fraud risk',
+        details: { decisionId: blockDecRow.decisionId },
+      },
+    });
   }
 
   if (final.action === 'MFA') {
