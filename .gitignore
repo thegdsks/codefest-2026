@@ -54,3 +54,7 @@ coverage/
 # OS
 Thumbs.db
 .superpowers/
+
+
+# Builds
+**/tsconfig.tsbuildinfo
