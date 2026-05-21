@@ -298,3 +298,115 @@ describe('trackEvents batch endpoint', () => {
     assert.equal(result.statusCode, 400, 'should return 400 for empty events array');
   });
 });
+
+// ---------------------------------------------------------------------------
+// 4. ENGAGEMENT_SIGNAL UserActivity write
+// ---------------------------------------------------------------------------
+
+describe('trackEvent ENGAGEMENT_SIGNAL UserActivity write', () => {
+  it('writes a UserActivity row with activityType=ENGAGEMENT_SIGNAL for ALLOW action', async () => {
+    const puts = [];
+    setDdb(
+      makeDdb({
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName.includes('UserProfile')) return { Item: userProfile() };
+          if (cmd.input.TableName.includes('UserSession')) return { Item: accessSession() };
+          return {};
+        },
+        UpdateCommand: () => ({}),
+        QueryCommand: () => ({ Items: [], Count: 0 }),
+        PutCommand: (cmd) => {
+          puts.push(cmd.input.Item);
+          return {};
+        },
+      })
+    );
+
+    const event = makeEvent({
+      body: JSON.stringify({
+        signal: 'rage_click',
+        userId: 'USER#001',
+        params: { clickCount: 3 },
+      }),
+    });
+
+    const result = await trackEvent(event, 'corr-signal-001');
+    assert.equal(result.statusCode, 200, 'should return 200');
+
+    const activityRow = puts.find((p) => p && p.activityType === 'ENGAGEMENT_SIGNAL');
+    assert.ok(activityRow, 'should write an ENGAGEMENT_SIGNAL row to UserActivity');
+    assert.equal(activityRow.userId, 'USER#001', 'userId should match');
+    assert.equal(activityRow.signal, 'rage_click', 'signal name should be stored');
+    assert.ok(typeof activityRow.score === 'number', 'score should be a number');
+    assert.ok(typeof activityRow.activityTime === 'number', 'activityTime should be epoch ms');
+    assert.ok(activityRow.activityTime > 1e12, 'activityTime should be epoch milliseconds');
+  });
+
+  it('writes ENGAGEMENT_SIGNAL row even when action is non-ALLOW (NUDGE)', async () => {
+    const puts = [];
+    setDdb(
+      makeDdb({
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName.includes('UserProfile')) return { Item: userProfile() };
+          if (cmd.input.TableName.includes('UserSession')) return { Item: accessSession() };
+          return {};
+        },
+        UpdateCommand: () => ({}),
+        QueryCommand: () => ({ Items: [], Count: 0 }),
+        PutCommand: (cmd) => {
+          puts.push(cmd.input.Item);
+          return {};
+        },
+      })
+    );
+
+    // High click count to push score above NUDGE threshold
+    const event = makeEvent({
+      body: JSON.stringify({
+        signal: 'rage_click',
+        userId: 'USER#001',
+        params: { clickCount: 20 },
+      }),
+    });
+
+    await trackEvent(event, 'corr-signal-002');
+
+    const activityRow = puts.find((p) => p && p.activityType === 'ENGAGEMENT_SIGNAL');
+    assert.ok(activityRow, 'ENGAGEMENT_SIGNAL row should be written regardless of action');
+    assert.equal(activityRow.signal, 'rage_click');
+  });
+
+  it('includes sessionId in ENGAGEMENT_SIGNAL row when provided in body', async () => {
+    const puts = [];
+    setDdb(
+      makeDdb({
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName.includes('UserProfile')) return { Item: userProfile() };
+          if (cmd.input.TableName.includes('UserSession')) return { Item: accessSession() };
+          return {};
+        },
+        UpdateCommand: () => ({}),
+        QueryCommand: () => ({ Items: [], Count: 0 }),
+        PutCommand: (cmd) => {
+          puts.push(cmd.input.Item);
+          return {};
+        },
+      })
+    );
+
+    const event = makeEvent({
+      body: JSON.stringify({
+        signal: 'dwell_no_action',
+        userId: 'USER#001',
+        sessionId: 'sess-xyz-123',
+        params: { thresholdMs: 30000 },
+      }),
+    });
+
+    await trackEvent(event, 'corr-signal-003');
+
+    const activityRow = puts.find((p) => p && p.activityType === 'ENGAGEMENT_SIGNAL');
+    assert.ok(activityRow, 'ENGAGEMENT_SIGNAL row should exist');
+    assert.equal(activityRow.sessionId, 'sess-xyz-123', 'sessionId should be stored');
+  });
+});

@@ -521,7 +521,25 @@ export interface DemoActivityEvent {
   payload: Record<string, unknown>;
 }
 
-export type ActivityEvent = DecisionActivityEvent | SessionActivityEvent | DemoActivityEvent;
+export interface SignalActivityEvent {
+  kind: 'SIGNAL';
+  timestamp: number;
+  userId: string;
+  summary: string;
+  signal: string;
+  count: number;
+  target: string;
+  score: number;
+  action: string;
+  sessionId: string;
+  raw: Record<string, unknown>;
+}
+
+export type ActivityEvent =
+  | DecisionActivityEvent
+  | SessionActivityEvent
+  | DemoActivityEvent
+  | SignalActivityEvent;
 
 export interface ActivityFeedResponse {
   events: ActivityEvent[];

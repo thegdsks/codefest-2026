@@ -25,7 +25,13 @@
 const { randomUUID } = require('node:crypto');
 
 const { json, err, parseBody, requireField } = require('../lib/http');
-const { getUserById, requireBearer, putDecision, upsertFlowState } = require('../lib/ddb');
+const {
+  getUserById,
+  requireBearer,
+  putDecision,
+  putActivity,
+  upsertFlowState,
+} = require('../lib/ddb');
 const { decision } = require('../lib/activity');
 const { route: engineRoute } = require('../engine/router');
 const {
@@ -196,6 +202,23 @@ async function trackEvent(event, correlationId) {
   // Determine surface and copy
   const surface = ACTION_SURFACE[final.action] || null;
   const copy = final.generatedText || DEFAULT_COPY[final.action] || '';
+
+  // Write UserActivity row for every engagement event so the live dashboard
+  // can show signal triggers regardless of action. ALLOW events would be
+  // invisible without this write since they skip the DecisionStore.
+  const sessionId = (body && body.sessionId) || null;
+  await putActivity({
+    userId,
+    activityTime: Date.now(),
+    activityType: 'ENGAGEMENT_SIGNAL',
+    signal,
+    count: Number(params.clickCount || params.count || 1),
+    target: String(params.target || params.element || ''),
+    score: final.score,
+    action: final.action,
+    sessionId: sessionId || '',
+    correlationId,
+  });
 
   // Write DecisionStore row (skip for ALLOW to reduce noise)
   let decisionId = null;
