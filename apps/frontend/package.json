@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@signal-force/engagement-sdk": "*",
     "@tanstack/react-query": "^5",
     "@tanstack/react-virtual": "^3",
