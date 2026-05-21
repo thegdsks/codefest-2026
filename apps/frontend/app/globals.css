@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Customer (hotel) surface utilities ported from the design prototype. */
+@layer utilities {
+  .silk-shadow {
+    box-shadow: 0 30px 60px -12px rgba(13, 28, 50, 0.08);
+  }
+  .hero-gradient {
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.45) 0%,
+      rgba(0, 0, 0, 0.1) 40%,
+      rgba(0, 0, 0, 0.1) 70%,
+      rgba(251, 249, 248, 1) 100%
+    );
+  }
+}
+
 /* Theme tokens — light mode defaults */
 :root {
   --bg: #ffffff;
