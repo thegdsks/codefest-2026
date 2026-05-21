@@ -14,6 +14,7 @@ const { listSessions, revokeSession } = require('./sessions');
 const { getMetrics } = require('./metrics');
 const { getMfaStatus } = require('./mfa');
 const { getAiConfig } = require('./ai-config');
+const { mutateDemoUser } = require('./demo-actions');
 const { setDdb, extractIdFromPath } = require('./shared');
 
 /**
@@ -45,6 +46,8 @@ module.exports = {
   getMfaStatus,
   // ai config
   getAiConfig,
+  // demo actions
+  mutateDemoUser,
   // helpers (re-exported for test assertions in admin.test.js)
   extractIdFromPath,
   // test seam

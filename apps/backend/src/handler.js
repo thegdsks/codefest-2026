@@ -126,6 +126,8 @@ async function route(event, correlationId) {
   if (method === 'POST' && p.match(/^\/admin\/sessions\/[^/]+\/revoke$/))
     return admin.revokeSession(event, correlationId);
   if (method === 'GET' && p === '/admin/ai-config') return admin.getAiConfig(event, correlationId);
+  if (method === 'POST' && p === '/admin/demo-actions/mutate-user')
+    return admin.mutateDemoUser(event, correlationId);
 
   // Engagement routes
   if (method === 'POST' && p === '/engagement/event') return trackEvent(event, correlationId);
