@@ -7,10 +7,8 @@ import {
   ChartLineUp,
   Circle,
   Gear,
-  House,
   ShieldCheck,
   SignOut,
-  Sparkle,
   SquaresFour,
   TextAlignLeft,
   Users,
@@ -48,9 +46,14 @@ const SECTIONS: NavSection[] = [
   {
     label: 'Monitoring',
     items: [
-      { href: '/admin', label: 'Dashboard', icon: SquaresFour },
-      { href: '/admin/decisions', label: 'Decisions', icon: ChartLineUp, badgeKey: 'decisions' },
-      { href: '/admin/sessions', label: 'Sessions', icon: ShieldCheck, badgeKey: 'sessions' },
+      { href: '/admin', label: 'Overview', icon: SquaresFour },
+      {
+        href: '/admin/decisions',
+        label: 'Decision feed',
+        icon: ChartLineUp,
+        badgeKey: 'decisions',
+      },
+      { href: '/admin/sessions', label: 'Auth sessions', icon: ShieldCheck, badgeKey: 'sessions' },
     ],
   },
   {
@@ -61,7 +64,7 @@ const SECTIONS: NavSection[] = [
     label: 'Config',
     items: [
       { href: '/admin/rules', label: 'Rules', icon: TextAlignLeft },
-      { href: '/admin/settings', label: 'Settings', icon: Gear },
+      { href: '/admin/settings', label: 'Configuration', icon: Gear },
     ],
   },
 ];
@@ -105,7 +108,7 @@ function useBadgeCounts(): BadgeCounts | null {
       setCounts({
         decisions: totals.total,
         users: totals.by_action ? Object.values(totals.by_action).reduce((a, b) => a + b, 0) : 0,
-        sessions: totals.by_type?.['login'] ?? 0,
+        sessions: totals.by_type?.login ?? 0,
       });
     };
     fetch();
@@ -180,7 +183,7 @@ function NavLink({ item, isActive, badge }: NavLinkProps) {
       {isActive && (
         <span
           aria-hidden="true"
-          className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full bg-gradient-to-b from-indigo-500 to-fuchsia-500"
+          className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full bg-indigo-500"
         />
       )}
       <Icon
