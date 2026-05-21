@@ -56,20 +56,55 @@ const DEMO_DEVICE_ID = 'device-web-demo';
 // Recipient that stands in for the loyalty partner in the user-to-user transfer model.
 export const DEMO_RECIPIENT_ID = 'USER#002';
 
+export interface LoginRequest {
+  username: string;
+  password: string;
+  ctx?: LoginContext;
+  forceMfa?: boolean;
+}
+
+/**
+ * Submit a login request.
+ *
+ * Accepts either an options object (preferred) or the legacy positional
+ * signature (username, password, ctx) for backward compatibility with
+ * callers that have not yet been updated.
+ */
 export function login(
-  username: string,
-  password: string,
-  ctx?: LoginContext
+  usernameOrRequest: string | LoginRequest,
+  legacyPassword?: string,
+  legacyCtx?: LoginContext
 ): Promise<ApiResult<LoginData>> {
+  let username: string;
+  let password: string;
+  let ctx: LoginContext | undefined;
+  let forceMfa: boolean | undefined;
+
+  if (typeof usernameOrRequest === 'string') {
+    username = usernameOrRequest;
+    password = legacyPassword ?? '';
+    ctx = legacyCtx;
+    forceMfa = undefined;
+  } else {
+    username = usernameOrRequest.username;
+    password = usernameOrRequest.password;
+    ctx = usernameOrRequest.ctx;
+    forceMfa = usernameOrRequest.forceMfa;
+  }
+
+  const body: Record<string, unknown> = {
+    username,
+    password,
+    location: ctx?.location ?? DEMO_LOCATION,
+    deviceId: ctx?.deviceId ?? DEMO_DEVICE_ID,
+    deviceType: ctx?.deviceType ?? 'desktop',
+  };
+  if (forceMfa === true) {
+    body.forceMfa = true;
+  }
   return apiFetch<LoginData>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({
-      username,
-      password,
-      location: ctx?.location ?? DEMO_LOCATION,
-      deviceId: ctx?.deviceId ?? DEMO_DEVICE_ID,
-      deviceType: ctx?.deviceType ?? 'desktop',
-    }),
+    body: JSON.stringify(body),
   });
 }
 

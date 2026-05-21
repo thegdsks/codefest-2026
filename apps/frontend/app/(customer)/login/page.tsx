@@ -2,8 +2,9 @@
 
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
+import { getDevConfig } from '@/lib/admin-api';
 import { login as loginRequest } from '@/lib/hotel/customer-api';
 import { getDemoLoginContext } from '@/lib/hotel/demo-context';
 
@@ -15,6 +16,18 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forceMfa, setForceMfa] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
+
+  useEffect(() => {
+    getDevConfig()
+      .then((res) => {
+        if (res.data?.demoMode) setDemoMode(true);
+      })
+      .catch(() => {
+        // Config fetch failure is non-fatal; checkbox stays hidden.
+      });
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -22,7 +35,12 @@ export default function LoginScreen() {
     setSubmitting(true);
     setError(null);
 
-    const res = await loginRequest(username, password, getDemoLoginContext());
+    const res = await loginRequest({
+      username,
+      password,
+      ctx: getDemoLoginContext(),
+      forceMfa: demoMode && forceMfa,
+    });
 
     if (res.error) {
       setError(
@@ -127,6 +145,29 @@ export default function LoginScreen() {
               </button>
             </div>
           </div>
+
+          {demoMode && (
+            <div className="flex items-start gap-3 pt-2">
+              <input
+                id="force-mfa"
+                type="checkbox"
+                checked={forceMfa}
+                onChange={(e) => setForceMfa(e.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer accent-[#775a19]"
+              />
+              <div>
+                <label
+                  htmlFor="force-mfa"
+                  className="text-[10px] uppercase font-bold tracking-widest text-gray-400 cursor-pointer font-sans"
+                >
+                  Force MFA challenge (demo)
+                </label>
+                <p className="mt-0.5 text-[10px] text-gray-400 font-sans">
+                  Skips the fraud engine and triggers MFA. Only honored when DEMO_MODE is on.
+                </p>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="bg-[#fff4f4] border border-red-200 text-red-700 text-xs font-sans px-4 py-3 rounded-sm animate-fade-in">
