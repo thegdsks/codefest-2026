@@ -26,6 +26,8 @@ const {
   transferDraft,
   updateProfile,
   createBooking,
+  checkPropertyAvailability,
+  getPropertyPersonalizedOffer,
 } = require('./routes/customer');
 const { loyaltySummary } = require('./routes/loyalty');
 const admin = require('./admin');
@@ -76,9 +78,18 @@ const BEARER_ROUTES = [
   ['GET', '/customer/loyalty-summary'],
 ];
 
+// Dynamic bearer routes - matched by regex for parameterized paths.
+const BEARER_ROUTE_PATTERNS = [
+  ['GET', /^\/customer\/properties\/[^/]+\/availability$/],
+  ['GET', /^\/customer\/properties\/[^/]+\/personalized-offer$/],
+];
+
 function isBearerRoute(method, path) {
   for (const [m, p] of BEARER_ROUTES) {
     if (m === method && p === path) return true;
+  }
+  for (const [m, pattern] of BEARER_ROUTE_PATTERNS) {
+    if (m === method && pattern.test(path)) return true;
   }
   return false;
 }
@@ -117,6 +128,16 @@ async function route(event, correlationId) {
   if (method === 'POST' && p === '/customer/bookings') return createBooking(event, correlationId);
   if (method === 'GET' && p === '/customer/loyalty-summary')
     return loyaltySummary(event, correlationId);
+
+  // Parameterized property routes.
+  const availMatch = method === 'GET' && p.match(/^\/customer\/properties\/([^/]+)\/availability$/);
+  if (availMatch)
+    return checkPropertyAvailability(event, correlationId, decodeURIComponent(availMatch[1]));
+  const offerMatch =
+    method === 'GET' && p.match(/^\/customer\/properties\/([^/]+)\/personalized-offer$/);
+  if (offerMatch)
+    return getPropertyPersonalizedOffer(event, correlationId, decodeURIComponent(offerMatch[1]));
+
   // Demo-only routes. reseed is gated by DEMO_MODE=1 inside the handler.
   if (method === 'GET' && p === '/admin/dev/config') return devConfig(event, correlationId);
   if (method === 'POST' && p === '/admin/dev/reseed') return reseed(event, correlationId);

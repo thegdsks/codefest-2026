@@ -6,6 +6,7 @@ const PLAT_TIER = 'platinum';
 const GOLD_TIER = 'gold';
 const RECENT_WINDOW_SEC = 60;
 const BOOKING_WINDOW_SEC = 300;
+const PROPERTY_DWELL_THRESHOLD_MS = 5000;
 // Personas seeded with loyaltyScore >= 1000 store realistic point totals;
 // smaller values are legacy 0-1000 ratings that need scaling to render as
 // believable balances (matches the heuristic in routes/loyalty.js).
@@ -78,6 +79,15 @@ function evaluateSurfaces({ profile, state, nowSec }) {
     mfaEnrollmentNudge({ profile, tier, isPlat, st, nowSec }),
     transferAbandonOffer({ st, nowSec }),
     bookingConfirmationOffer({ st, nowSec }),
+    propertyPersonalizedOffer({
+      state: st,
+      tier,
+      isPlat,
+      points,
+      pointsToNextTier,
+      displayTier,
+      nowSec,
+    }),
   ];
 }
 
@@ -362,6 +372,118 @@ function bookingConfirmationOffer({ st, nowSec }) {
       headline: 'Thank You for Your Booking',
       body: 'Earn 500 bonus points when you add breakfast to your reservation.',
     },
+    nextAction: null,
+  };
+}
+
+/**
+ * PROPERTY_PERSONALIZED_OFFER
+ *
+ * States:
+ *   PENDING  - user has been on the property page < 5 s (dwell not established)
+ *   SHOWN    - dwell > 5 s AND not recently booked AND tier-appropriate offer exists
+ *   HIDDEN   - user is in booking flow, recently booked any property, or tier ineligible
+ */
+function propertyPersonalizedOffer({
+  state,
+  tier,
+  isPlat,
+  points,
+  pointsToNextTier,
+  displayTier,
+  nowSec,
+}) {
+  const st = state || {};
+  const dwellMs = Number(st.propertyDwellMs || 0);
+  const recentBookingAt = st.recentBookingAt ? Number(st.recentBookingAt) : null;
+  const inBookingFlow = !!st.bookingFlowActive;
+
+  if (inBookingFlow) {
+    return {
+      surfaceId: 'PROPERTY_PERSONALIZED_OFFER',
+      state: 'HIDDEN',
+      ruleId: null,
+      reason: 'User is in active booking flow',
+      context: {
+        dwellMs,
+        propertyId: st.currentPropertyId || null,
+        userTier: displayTier,
+        userPointsBalance: points,
+        pointsToNextTier,
+      },
+      copy: null,
+      nextAction: null,
+    };
+  }
+
+  if (recentBookingAt && nowSec - recentBookingAt <= BOOKING_WINDOW_SEC) {
+    return {
+      surfaceId: 'PROPERTY_PERSONALIZED_OFFER',
+      state: 'HIDDEN',
+      ruleId: null,
+      reason: 'User recently booked a property',
+      context: {
+        dwellMs,
+        propertyId: st.currentPropertyId || null,
+        userTier: displayTier,
+        userPointsBalance: points,
+        pointsToNextTier,
+      },
+      copy: null,
+      nextAction: null,
+    };
+  }
+
+  const eligibleTier = isPlat || tier === GOLD_TIER;
+  if (!eligibleTier) {
+    return {
+      surfaceId: 'PROPERTY_PERSONALIZED_OFFER',
+      state: 'HIDDEN',
+      ruleId: null,
+      reason: 'Tier not eligible for property personalized offer',
+      context: {
+        dwellMs,
+        propertyId: st.currentPropertyId || null,
+        userTier: displayTier,
+        userPointsBalance: points,
+        pointsToNextTier,
+      },
+      copy: null,
+      nextAction: null,
+    };
+  }
+
+  if (dwellMs < PROPERTY_DWELL_THRESHOLD_MS) {
+    return {
+      surfaceId: 'PROPERTY_PERSONALIZED_OFFER',
+      state: 'PENDING',
+      ruleId: 'RULE#PROPERTY_PERSONALIZED_OFFER',
+      reason: `Dwell ${dwellMs}ms below ${PROPERTY_DWELL_THRESHOLD_MS}ms threshold`,
+      context: {
+        dwellMs,
+        propertyId: st.currentPropertyId || null,
+        userTier: displayTier,
+        userPointsBalance: points,
+        pointsToNextTier,
+      },
+      copy: null,
+      nextAction: null,
+    };
+  }
+
+  return {
+    surfaceId: 'PROPERTY_PERSONALIZED_OFFER',
+    state: 'SHOWN',
+    ruleId: 'RULE#PROPERTY_PERSONALIZED_OFFER',
+    reason: `Dwell > 5s, ${displayTier} member eligible for personalized offer`,
+    context: {
+      dwellMs,
+      propertyId: st.currentPropertyId || null,
+      userTier: displayTier,
+      userPointsBalance: points,
+      pointsToNextTier,
+    },
+    copy: null,
     nextAction: null,
   };
 }

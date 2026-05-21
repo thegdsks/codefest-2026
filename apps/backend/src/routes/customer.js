@@ -36,6 +36,10 @@ const { route: engineRoute } = require('../engine/router');
 const { evaluateSurfaces } = require('../engine/surfaces');
 const { prioritize: aiPrioritize } = require('../engine/ai-surface-prioritizer');
 const { explain: aiExplain } = require('../engine/ai-fraud-explainer');
+const { composeOffer: aiComposeOffer } = require('../engine/ai-offer-composer');
+
+// Demo-only: these property IDs are always marked as fully booked.
+const FULLY_BOOKED_PROPERTY_IDS = new Set(['prop-fully-booked-demo']);
 const { evaluateMfaCode } = require('./auth');
 
 /**
@@ -795,6 +799,89 @@ async function createBooking(event, correlationId) {
   });
 }
 
+/**
+ * GET /customer/properties/:propertyId/availability
+ *
+ * Deterministic availability check. Always returns available=true unless the
+ * propertyId is in FULLY_BOOKED_PROPERTY_IDS (demo-only override).
+ * Pricing: 1250 SFC per night.
+ */
+async function checkPropertyAvailability(event, correlationId, propertyId) {
+  // Require any valid bearer; empty string skips userId match.
+  await requireBearer(event, '');
+
+  const checkIn = qparam(event, 'checkIn', '');
+  const checkOut = qparam(event, 'checkOut', '');
+  const adults = Number(qparam(event, 'adults', '1'));
+  const children = Number(qparam(event, 'children', '0'));
+
+  if (FULLY_BOOKED_PROPERTY_IDS.has(propertyId)) {
+    return json(200, correlationId, {
+      available: false,
+      propertyId,
+      reason: 'FULLY_BOOKED',
+    });
+  }
+
+  // Derive nights from dates when both provided; otherwise default to 1.
+  let nights = 1;
+  if (checkIn && checkOut) {
+    const msPerDay = 86400000;
+    const diff = new Date(checkOut).getTime() - new Date(checkIn).getTime();
+    if (Number.isFinite(diff) && diff > 0) nights = Math.round(diff / msPerDay);
+  }
+
+  const pricePerNight = 1250;
+  const totalSfc = pricePerNight * nights;
+
+  return json(200, correlationId, {
+    available: true,
+    propertyId,
+    checkIn,
+    checkOut,
+    adults,
+    children,
+    nights,
+    pricePerNight,
+    totalSfc,
+    currency: 'SFC',
+  });
+}
+
+/**
+ * GET /customer/properties/:propertyId/personalized-offer?userId=
+ *
+ * Returns an AI-composed personalized offer for the given user + property
+ * combination. Returns offer:null when the LLM is unavailable or the budget
+ * is exhausted.
+ */
+async function getPropertyPersonalizedOffer(event, correlationId, propertyId) {
+  const userId = qparam(event, 'userId', '');
+  if (!userId) return err(400, correlationId, 'VALIDATION_ERROR', 'userId is required');
+  await requireBearer(event, userId);
+
+  const profile = await getUserById(userId);
+  if (!profile) return err(404, correlationId, 'NOT_FOUND', 'User not found');
+
+  const state = await getState(userId);
+  const st = state || {};
+  const dwellMs = Number(st.propertyDwellMs || 0);
+  const propertyName = qparam(event, 'propertyName', propertyId);
+  const pricePerNight = 1250;
+
+  const offer = await aiComposeOffer({
+    userId,
+    profile,
+    state: st,
+    propertyId,
+    propertyName,
+    pricePerNight,
+    dwellMs,
+  });
+
+  return json(200, correlationId, { data: { offer: offer || null } });
+}
+
 module.exports = {
   transfer,
   transferMfaVerify,
@@ -809,4 +896,6 @@ module.exports = {
   transferDraft,
   updateProfile,
   createBooking,
+  checkPropertyAvailability,
+  getPropertyPersonalizedOffer,
 };
