@@ -19,6 +19,12 @@ interface DecisionDrawerProps {
   onClose: () => void;
 }
 
+interface AiExplanation {
+  paragraph: string;
+  riskFactors: string[];
+  recommendation: string;
+}
+
 function DecisionSummary({ decision }: { decision: DecisionRow }) {
   const rows: [string, string][] = [
     ['Decision ID', decision.decisionId],
@@ -182,6 +188,47 @@ function TraceSection({ trace }: { trace: DecisionTrace | null }) {
   );
 }
 
+function AiAnalysisSection({ explanation }: { explanation: AiExplanation }) {
+  return (
+    <section>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-dim)]">
+        AI Analysis
+      </h3>
+      <div className="space-y-3 rounded-md border border-purple-200 bg-purple-50/40 p-3">
+        <p className="text-xs leading-relaxed text-[color:var(--text-muted)]">
+          {explanation.paragraph}
+        </p>
+        {explanation.riskFactors.length > 0 && (
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-purple-700">
+              Risk Factors
+            </p>
+            <ul className="space-y-1">
+              {explanation.riskFactors.map((f) => (
+                <li
+                  key={f}
+                  className="flex items-start gap-1.5 text-[11px] text-[color:var(--text-muted)]"
+                >
+                  <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-400" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-purple-700">
+            Recommendation
+          </p>
+          <p className="text-[11px] leading-relaxed text-[color:var(--text-muted)]">
+            {explanation.recommendation}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function DecisionDrawer({ decisionId, onClose }: DecisionDrawerProps) {
   const isOpen = decisionId !== null;
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -258,6 +305,13 @@ export default function DecisionDrawer({ decisionId, onClose }: DecisionDrawerPr
               <DecisionSummary decision={decision} />
 
               {trace !== undefined && <TraceSection trace={trace} />}
+
+              {decision.aiExplanation &&
+                (decision.action === 'BLOCK' ||
+                  decision.action === 'REVIEW' ||
+                  decision.action === 'MFA') && (
+                  <AiAnalysisSection explanation={decision.aiExplanation} />
+                )}
 
               {(decision.reasonText || decision.explanation || decision.reason) && (
                 <section>

@@ -70,6 +70,9 @@ export default function DemoPanel() {
     surfaces,
     isLoading: surfacesLoading,
     refetch: refetchSurfaces,
+    aiMode,
+    setAiMode,
+    aiUnavailable,
   } = useSurfaceEligibility();
 
   const [open, setOpen] = useState(false);
@@ -501,6 +504,31 @@ export default function DemoPanel() {
 
                 {eligibilityOpen && (
                   <div className="space-y-2">
+                    {/* AI Mode toggle */}
+                    <div className="flex items-center justify-between bg-[#f5f0ff] border border-[#c4b5fd] px-2 py-1.5">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-[#6d28d9] font-sans">
+                        AI Prioritizer
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {aiUnavailable && (
+                          <span className="text-[8px] text-amber-600 font-sans">unavailable</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setAiMode(!aiMode)}
+                          className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${aiMode ? 'bg-[#6d28d9]' : 'bg-gray-300'}`}
+                          aria-label={aiMode ? 'Disable AI prioritizer' : 'Enable AI prioritizer'}
+                        >
+                          <span
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${aiMode ? 'translate-x-3.5' : 'translate-x-0.5'}`}
+                          />
+                        </button>
+                        <span className="text-[9px] text-gray-500 font-sans">
+                          {aiMode ? 'on' : 'off'}
+                        </span>
+                      </div>
+                    </div>
+
                     {/* Quick Mutations */}
                     <div className="bg-[#ffdea5]/20 border border-[#ffdea5] p-2 space-y-1.5">
                       <p className="text-[9px] font-bold uppercase tracking-widest text-[#775a19] font-sans">
@@ -560,6 +588,37 @@ export default function DemoPanel() {
                         COMPLETED: 'bg-blue-100 text-blue-700',
                       };
                       const pillClass = statePillClass[s.state] ?? 'bg-gray-100 text-gray-500';
+
+                      const aiVerdictConfig = s.aiAction
+                        ? {
+                            PROMOTE: {
+                              label: 'PROMOTE',
+                              cls: 'bg-blue-100 text-blue-700',
+                              icon: <ArrowUp size={8} />,
+                            },
+                            KEEP: {
+                              label: 'KEEP',
+                              cls: 'bg-gray-100 text-gray-500',
+                              icon: null,
+                            },
+                            DEMOTE: {
+                              label: 'DEMOTE',
+                              cls: 'bg-gray-200 text-gray-500',
+                              icon: <ArrowDown size={8} />,
+                            },
+                            HIDE: {
+                              label: 'HIDE',
+                              cls: 'bg-red-100 text-red-600',
+                              icon: <EyeOff size={8} />,
+                            },
+                            SWAP: {
+                              label: 'SWAP',
+                              cls: 'bg-purple-100 text-purple-700',
+                              icon: <Shuffle size={8} />,
+                            },
+                          }[s.aiAction]
+                        : null;
+
                       return (
                         <div
                           key={s.surfaceId}
@@ -569,11 +628,24 @@ export default function DemoPanel() {
                             <span className="font-mono text-[9px] text-gray-600 break-all">
                               {s.surfaceId}
                             </span>
-                            <span
-                              className={`shrink-0 px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold uppercase tracking-wider ${pillClass}`}
-                            >
-                              {s.state}
-                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {aiVerdictConfig && (
+                                <span
+                                  className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-[3px] text-[8px] font-bold uppercase tracking-wider ${aiVerdictConfig.cls}`}
+                                >
+                                  {aiVerdictConfig.icon}
+                                  {aiVerdictConfig.label}
+                                  {s.aiPriority !== undefined && (
+                                    <span className="opacity-70 ml-0.5">P{s.aiPriority}</span>
+                                  )}
+                                </span>
+                              )}
+                              <span
+                                className={`px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold uppercase tracking-wider ${pillClass}`}
+                              >
+                                {s.state}
+                              </span>
+                            </div>
                           </div>
                           <p className="text-gray-500 text-[9px]">
                             rule:{' '}
@@ -582,6 +654,11 @@ export default function DemoPanel() {
                             </span>
                           </p>
                           <p className="text-gray-400 text-[9px] leading-snug">{s.reason}</p>
+                          {s.aiRationale && (
+                            <p className="text-[8px] text-purple-600 leading-snug italic border-l-2 border-purple-200 pl-1.5">
+                              {s.aiRationale}
+                            </p>
+                          )}
                           {s.nextAction && (
                             <button
                               type="button"
