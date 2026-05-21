@@ -26,14 +26,16 @@ export default function RuleCard({ rule }: RuleCardProps) {
     <li>
       <Link
         href={`/admin/rules/${encodeURIComponent(rule.ruleId)}`}
-        className="flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-4 transition-colors hover:bg-zinc-900/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+        className="flex items-center gap-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 px-4 py-4 transition-colors hover:bg-[color:var(--bg-surface)]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium text-zinc-100">{rule.name}</span>
+            <span className="truncate text-sm font-medium text-[color:var(--text)]">
+              {rule.name}
+            </span>
             <StatusBadge status={rule.status} />
           </div>
-          <div className="mt-1 flex items-center gap-4 text-[11px] text-zinc-500">
+          <div className="mt-1 flex items-center gap-4 text-[11px] text-[color:var(--text-dim)]">
             <span className="flex items-center gap-1">
               <Clock size={11} />
               {formatUpdatedAt(rule.updatedAt)}
@@ -44,7 +46,7 @@ export default function RuleCard({ rule }: RuleCardProps) {
             </span>
           </div>
         </div>
-        <CaretRight size={16} className="shrink-0 text-zinc-600" />
+        <CaretRight size={16} className="shrink-0 text-[color:var(--text-dim)]" />
       </Link>
     </li>
   );

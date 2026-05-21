@@ -6,7 +6,6 @@ import FloatingSidebar from '@/components/admin/FloatingSidebar';
 import MobileDrawer from '@/components/admin/MobileDrawer';
 import MobileNavBar from '@/components/admin/MobileNavBar';
 import TopBarV2 from '@/components/admin/TopBarV2';
-import { QueryProvider } from '@/lib/query-client';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -24,11 +23,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   return (
-    <QueryProvider>
-      {/* Desktop canvas: page gradient + 12px gutter so the sidebar can float */}
-      <div className="app-canvas fixed inset-0 z-30 flex text-zinc-100 md:p-3">
+    <>
+      <div className="app-canvas fixed inset-0 z-30 flex text-[var(--text)] md:p-3">
         <FloatingSidebar />
-        <div className="flex min-w-0 flex-1 flex-col md:ml-3 md:rounded-xl md:border md:border-white/[0.06] md:bg-[color:var(--bg-surface)] md:shadow-[var(--shadow-float)] overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col md:ml-3 md:rounded-xl md:border md:border-[var(--border)] md:bg-[var(--bg-surface)] md:shadow-[var(--shadow-float)] overflow-hidden">
           <TopBarV2 onCmdK={() => setPaletteOpen(true)} onMenuOpen={() => setDrawerOpen(true)} />
           <main className="flex-1 overflow-auto px-4 py-4 md:px-6 md:py-6 pb-20 md:pb-6">
             {children}
@@ -39,6 +37,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <MobileNavBar onMoreOpen={() => setDrawerOpen(true)} />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
-    </QueryProvider>
+    </>
   );
 }

@@ -51,7 +51,7 @@ export default function TypeDonutChart({ window: windowKey, height = 240 }: Prop
     return (
       <div
         role="img"
-        className="w-full rounded-full bg-zinc-800 motion-safe:animate-pulse mx-auto"
+        className="w-full rounded-full bg-[color:var(--bg-elevated)] motion-safe:animate-pulse mx-auto"
         style={{ width: height, height }}
         aria-label="Loading decision type donut chart"
       />
@@ -74,10 +74,10 @@ export default function TypeDonutChart({ window: windowKey, height = 240 }: Prop
       className="relative h-80 px-4"
     >
       <div className="pointer-events-none absolute left-1/2 top-[38%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-        <span className="text-2xl font-semibold text-zinc-100 tabular-nums leading-none">
+        <span className="text-2xl font-semibold text-[color:var(--text)] tabular-nums leading-none">
           {total.toLocaleString()}
         </span>
-        <span className="mt-1 text-xs text-zinc-500">decisions</span>
+        <span className="mt-1 text-xs text-[color:var(--text-dim)]">decisions</span>
       </div>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>

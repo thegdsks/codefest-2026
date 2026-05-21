@@ -42,7 +42,7 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
           Surface
         </h3>
         <fieldset className="space-y-2">
@@ -56,7 +56,7 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
                 className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition-colors ${
                   selected
                     ? 'border-indigo-500/50 bg-indigo-500/10'
-                    : 'border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900/80'
+                    : 'border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 hover:bg-[color:var(--bg-surface)]/80'
                 }`}
               >
                 <input
@@ -69,14 +69,14 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <div className="text-sm font-medium text-zinc-200">{label}</div>
+                    <div className="text-sm font-medium text-[color:var(--text)]">{label}</div>
                     {unusual ? (
                       <Badge variant="warning" size="sm">
                         Unusual pairing
                       </Badge>
                     ) : null}
                   </div>
-                  <div className="text-[11px] text-zinc-500">{description}</div>
+                  <div className="text-[11px] text-[color:var(--text-dim)]">{description}</div>
                 </div>
               </label>
             );
@@ -86,7 +86,7 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
             Score weight
           </h3>
           <div className="flex items-center gap-2">
@@ -95,7 +95,7 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
                 Unusually extreme
               </Badge>
             ) : null}
-            <span className="font-mono text-sm tabular-nums text-zinc-100">{score}</span>
+            <span className="font-mono text-sm tabular-nums text-[color:var(--text)]">{score}</span>
           </div>
         </div>
         <input
@@ -107,10 +107,10 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
           aria-label="Score weight"
           className="w-full cursor-pointer accent-indigo-500"
         />
-        <div className="mt-1.5 grid grid-cols-4 text-[10px] text-zinc-500">
+        <div className="mt-1.5 grid grid-cols-4 text-[10px] text-[color:var(--text-dim)]">
           {SCORE_ANCHORS.map((a) => (
             <div key={a.label} className="flex flex-col">
-              <span className="font-semibold text-zinc-400">{a.label}</span>
+              <span className="font-semibold text-[color:var(--text-muted)]">{a.label}</span>
               <span>{a.range}</span>
             </div>
           ))}
@@ -118,7 +118,7 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
       </div>
 
       <div>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
           Content
         </h3>
         <label className="mb-3 flex cursor-pointer items-center gap-2">
@@ -128,12 +128,14 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
             onChange={(e) => onChange({ useAI: e.target.checked })}
             className="accent-indigo-500"
           />
-          <span className="text-sm text-zinc-200">Use AI-personalized copy</span>
-          <span className="text-[11px] text-zinc-500">(LLM generates based on user context)</span>
+          <span className="text-sm text-[color:var(--text)]">Use AI-personalized copy</span>
+          <span className="text-[11px] text-[color:var(--text-dim)]">
+            (LLM generates based on user context)
+          </span>
         </label>
 
         <label className="block">
-          <span className="text-xs font-medium text-zinc-400">
+          <span className="text-xs font-medium text-[color:var(--text-muted)]">
             {action.useAI ? 'Fallback copy (if AI unavailable)' : 'Copy text'}
           </span>
           <textarea
@@ -142,11 +144,15 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
             rows={3}
             maxLength={COPY_LIMIT}
             placeholder="Enter display copy..."
-            className="mt-1 block w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            className="mt-1 block w-full rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-3 py-2 text-sm text-[color:var(--text)] placeholder:text-[color:var(--text-dim)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           />
           <div
             className={`mt-1 text-right text-[11px] tabular-nums ${
-              overCopy ? 'text-rose-400' : warnCopy ? 'text-amber-300' : 'text-zinc-500'
+              overCopy
+                ? 'text-rose-400'
+                : warnCopy
+                  ? 'text-amber-300'
+                  : 'text-[color:var(--text-dim)]'
             }`}
           >
             {copyLength} / {COPY_LIMIT}
@@ -155,18 +161,20 @@ export default function RuleActionPanel({ action, onChange }: RuleActionPanelPro
       </div>
 
       <div>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
           Rate limit
         </h3>
         <label className="flex items-center gap-3">
-          <span className="whitespace-nowrap text-sm text-zinc-300">Max per user per day</span>
+          <span className="whitespace-nowrap text-sm text-[color:var(--text-muted)]">
+            Max per user per day
+          </span>
           <input
             type="number"
             min={1}
             max={100}
             value={action.maxPerUserPerDay}
             onChange={(e) => onChange({ maxPerUserPerDay: Math.max(1, Number(e.target.value)) })}
-            className="w-20 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            className="w-20 rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-3 py-1.5 text-sm text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           />
         </label>
       </div>

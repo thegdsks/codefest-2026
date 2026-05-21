@@ -20,7 +20,7 @@ const WORKSPACES: Workspace[] = [
 const ENV_STYLE: Record<Workspace['env'], string> = {
   prod: 'text-amber-300 bg-amber-400/10 ring-amber-400/20',
   staging: 'text-emerald-300 bg-emerald-400/10 ring-emerald-400/20',
-  dev: 'text-zinc-400 bg-zinc-400/10 ring-zinc-400/20',
+  dev: 'text-[color:var(--text-muted)] bg-zinc-400/10 ring-zinc-400/20',
 };
 
 function EnvBadge({ env }: { env: Workspace['env'] }) {
@@ -61,14 +61,18 @@ export default function WorkspaceMenu() {
           {active.initials}
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-[13px] font-semibold leading-none text-zinc-100">
+          <span className="truncate text-[13px] font-semibold leading-none text-[color:var(--text)]">
             {active.name}
           </span>
           <span className="flex items-center gap-1.5">
             <EnvBadge env={active.env} />
           </span>
         </span>
-        <CaretUpDown size={14} className="shrink-0 text-zinc-500" aria-hidden="true" />
+        <CaretUpDown
+          size={14}
+          className="shrink-0 text-[color:var(--text-dim)]"
+          aria-hidden="true"
+        />
       </button>
 
       {open && (
@@ -77,22 +81,26 @@ export default function WorkspaceMenu() {
           className="surface-popover absolute left-0 right-0 top-[calc(100%+6px)] z-50 origin-top-left animate-[menu-in_120ms_ease-out] overflow-hidden rounded-xl"
         >
           <div className="flex items-center gap-2 border-b border-white/[0.06] px-2.5 py-2">
-            <MagnifyingGlass size={13} className="shrink-0 text-zinc-500" aria-hidden="true" />
+            <MagnifyingGlass
+              size={13}
+              className="shrink-0 text-[color:var(--text-dim)]"
+              aria-hidden="true"
+            />
             <input
               // biome-ignore lint/a11y/noAutofocus: focus on open is expected UX for search-in-dropdown
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search workspaces"
-              className="min-w-0 flex-1 bg-transparent text-[12px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent text-[12px] text-[color:var(--text)] placeholder:text-[color:var(--text-dim)] focus:outline-none"
             />
           </div>
           <div className="px-1.5 py-1.5">
-            <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+            <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-dim)]">
               Workspaces
             </div>
             {filtered.length === 0 && (
-              <div className="px-2 py-2 text-[12px] text-zinc-500">No matches</div>
+              <div className="px-2 py-2 text-[12px] text-[color:var(--text-dim)]">No matches</div>
             )}
             {filtered.map((w) => (
               <button
@@ -102,7 +110,7 @@ export default function WorkspaceMenu() {
                   setActiveId(w.id);
                   setOpen(false);
                 }}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-zinc-200 hover:bg-white/[0.05]"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-[color:var(--text)] hover:bg-white/[0.05]"
               >
                 <span
                   aria-hidden="true"
@@ -121,16 +129,16 @@ export default function WorkspaceMenu() {
           <div className="border-t border-white/[0.06] px-1.5 py-1.5">
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-zinc-300 hover:bg-white/[0.05]"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-[color:var(--text-muted)] hover:bg-white/[0.05]"
             >
-              <Plus size={13} className="text-zinc-500" aria-hidden="true" />
+              <Plus size={13} className="text-[color:var(--text-dim)]" aria-hidden="true" />
               <span>Create workspace</span>
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-zinc-300 hover:bg-white/[0.05]"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-[color:var(--text-muted)] hover:bg-white/[0.05]"
             >
-              <Gear size={13} className="text-zinc-500" aria-hidden="true" />
+              <Gear size={13} className="text-[color:var(--text-dim)]" aria-hidden="true" />
               <span>Workspace settings</span>
             </button>
           </div>

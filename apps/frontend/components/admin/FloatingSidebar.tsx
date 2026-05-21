@@ -126,7 +126,7 @@ function Badge({ count, tone }: { count: number; tone: 'default' | 'accent' }) {
   const cls =
     tone === 'accent'
       ? 'bg-indigo-500/15 text-indigo-300 ring-indigo-400/20'
-      : 'bg-white/[0.05] text-zinc-400 ring-white/[0.06]';
+      : 'bg-white/[0.05] text-[color:var(--text-muted)] ring-white/[0.06]';
   return (
     <span
       aria-live="polite"
@@ -153,13 +153,13 @@ function NavLink({ item, isActive, badge }: NavLinkProps) {
       className={`relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium leading-none tracking-[-0.005em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 ${
         isActive
           ? 'bg-white/[0.06] text-zinc-50'
-          : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100'
+          : 'text-[color:var(--text-muted)] hover:bg-white/[0.04] hover:text-[color:var(--text)]'
       }`}
     >
       <I
         size={15}
         weight={isActive ? 'fill' : 'regular'}
-        className={`shrink-0 ${isActive ? 'text-zinc-50' : 'text-zinc-500'}`}
+        className={`shrink-0 ${isActive ? 'text-zinc-50' : 'text-[color:var(--text-dim)]'}`}
         aria-hidden="true"
       />
       <span className="flex-1 truncate">{item.label}</span>
@@ -187,7 +187,7 @@ export default function FloatingSidebar() {
       <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-5" aria-label="Admin navigation">
         {SECTIONS.map((section) => (
           <div key={section.label}>
-            <div className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 select-none">
+            <div className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--text-dim)] select-none">
               {section.label}
             </div>
             <div className="space-y-px">

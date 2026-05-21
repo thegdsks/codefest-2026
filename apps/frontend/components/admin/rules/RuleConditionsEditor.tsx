@@ -12,27 +12,27 @@ import { FIELD_HINTS, fields, SIGNAL_ICONS } from './QueryBuilderConfig';
 
 const QB_CLASS = {
   queryBuilder: 'space-y-2',
-  ruleGroup: 'rounded-md border border-zinc-800 bg-zinc-950/60 p-3 space-y-2',
+  ruleGroup: 'rounded-md border border-[color:var(--border)] bg-[color:var(--bg)]/60 p-3 space-y-2',
   header: 'flex flex-wrap items-center gap-2',
   combinators:
-    'rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
+    'rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
   addRule:
-    'inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
+    'inline-flex items-center rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs text-[color:var(--text-muted)] hover:text-[color:var(--text)] hover:bg-[color:var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
   addGroup:
-    'inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
+    'inline-flex items-center rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs text-[color:var(--text-muted)] hover:text-[color:var(--text)] hover:bg-[color:var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
   removeGroup:
-    'inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
-  rule: 'flex flex-wrap items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2',
+    'inline-flex items-center rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs text-[color:var(--text-dim)] hover:text-rose-400 hover:bg-[color:var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
+  rule: 'flex flex-wrap items-center gap-2 rounded-md border border-[color:var(--border)] bg-[color:var(--bg-surface)]/60 px-3 py-2',
   fields:
-    'rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
+    'rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
   operators:
-    'rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
+    'rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
   value:
-    'rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
+    'rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
   removeRule:
-    'inline-flex items-center rounded-md px-1.5 py-1 text-xs text-zinc-600 hover:text-rose-400 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
-  notToggle: 'flex items-center gap-1 text-xs text-zinc-400',
-  dragHandle: 'cursor-grab text-zinc-600',
+    'inline-flex items-center rounded-md px-1.5 py-1 text-xs text-[color:var(--text-dim)] hover:text-rose-400 hover:bg-[color:var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70',
+  notToggle: 'flex items-center gap-1 text-xs text-[color:var(--text-muted)]',
+  dragHandle: 'cursor-grab text-[color:var(--text-dim)]',
 };
 
 function toQBQuery(group: RuleConditionGroup): RuleGroupType {
@@ -66,12 +66,12 @@ function ThemedRule(props: RuleProps) {
       {hasAdornment && fieldName ? (
         <div className="flex items-center gap-2">
           {Icon ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-200">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border)] bg-[color:var(--bg-surface)]/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-200">
               <Icon className="size-3" />
               {label}
             </span>
           ) : null}
-          {hint ? <span className="text-[11px] text-zinc-500">{hint}</span> : null}
+          {hint ? <span className="text-[11px] text-[color:var(--text-dim)]">{hint}</span> : null}
         </div>
       ) : null}
       <Rule {...props} />
@@ -90,7 +90,7 @@ export default function RuleConditionsEditor({
   return (
     <div>
       {label ? (
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
           {label}
         </h3>
       ) : null}

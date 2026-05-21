@@ -124,7 +124,7 @@ export default function TopBarV2({ onCmdK, onMenuOpen }: TopBarV2Props) {
       <button
         type="button"
         onClick={onMenuOpen}
-        className="md:hidden shrink-0 flex items-center justify-center rounded-md p-1 text-zinc-400 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+        className="md:hidden shrink-0 flex items-center justify-center rounded-md p-1 text-[color:var(--text-muted)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
         aria-label="Open navigation"
       >
         <List size={18} aria-hidden="true" />
@@ -132,25 +132,27 @@ export default function TopBarV2({ onCmdK, onMenuOpen }: TopBarV2Props) {
 
       {/* Left: page title (desktop) */}
       <div className="hidden md:flex items-center gap-2 shrink-0 min-w-[80px]">
-        <span className="text-[13px] font-medium text-zinc-100 tracking-[-0.005em]">{title}</span>
+        <span className="text-[13px] font-medium text-[color:var(--text)] tracking-[-0.005em]">
+          {title}
+        </span>
       </div>
 
       {/* Center: Cmd+K trigger */}
       <button
         type="button"
         onClick={handleClick}
-        className="hidden md:flex flex-1 max-w-md w-full min-w-0 items-center gap-2 h-8 rounded-md bg-white/[0.04] ring-1 ring-inset ring-white/[0.06] px-3 text-sm text-zinc-500 hover:bg-white/[0.06] hover:ring-white/[0.1] hover:text-zinc-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+        className="hidden md:flex flex-1 max-w-md w-full min-w-0 items-center gap-2 h-8 rounded-md bg-white/[0.04] ring-1 ring-inset ring-white/[0.06] px-3 text-sm text-[color:var(--text-dim)] hover:bg-white/[0.06] hover:ring-white/[0.1] hover:text-[color:var(--text-muted)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
         aria-label="Open command palette"
       >
         <MagnifyingGlass size={13} aria-hidden="true" />
         <span className="flex-1 text-left text-[12px] truncate">Search or run a command</span>
-        <span className="inline-flex items-center gap-0.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 ring-1 ring-inset ring-white/[0.08]">
+        <span className="inline-flex items-center gap-0.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--text-muted)] ring-1 ring-inset ring-white/[0.08]">
           <Command size={9} aria-hidden="true" />K
         </span>
       </button>
 
       {/* Mobile page title */}
-      <div className="md:hidden flex-1 min-w-0 text-[13px] font-medium text-zinc-100 truncate">
+      <div className="md:hidden flex-1 min-w-0 text-[13px] font-medium text-[color:var(--text)] truncate">
         {title}
       </div>
 
@@ -163,10 +165,10 @@ export default function TopBarV2({ onCmdK, onMenuOpen }: TopBarV2Props) {
         <span className="hidden sm:inline-block w-12">
           <MiniSparkline values={sparkline} />
         </span>
-        <span className="tabular-nums whitespace-nowrap text-[13px] font-semibold text-zinc-100">
+        <span className="tabular-nums whitespace-nowrap text-[13px] font-semibold text-[color:var(--text)]">
           {rate.toFixed(2)}
         </span>
-        <span className="text-zinc-500 hidden sm:inline whitespace-nowrap text-[11px] uppercase tracking-wider">
+        <span className="text-[color:var(--text-dim)] hidden sm:inline whitespace-nowrap text-[11px] uppercase tracking-wider">
           dec/s
         </span>
       </div>

@@ -58,12 +58,12 @@ export default function RuleAiAssistTab({ onApply }: RuleAiAssistTabProps) {
           onChange={(e) => setDescription(e.target.value)}
           rows={6}
           placeholder="Describe the rule. Example: When a Gold-tier user dwells on their points balance for more than 8 seconds, show a nudge banner suggesting redemption options."
-          className="block w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="block w-full rounded-md border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-3 py-2 text-sm text-[color:var(--text)] placeholder:text-[color:var(--text-dim)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
         />
       </div>
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-[color:var(--text-dim)]">
           Plain English in, structured rule out. You can tweak the result before saving.
         </p>
         <Button
@@ -79,7 +79,7 @@ export default function RuleAiAssistTab({ onApply }: RuleAiAssistTabProps) {
       </div>
 
       {status.kind === 'offline' ? (
-        <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/40 px-4 py-3 text-sm text-zinc-300">
+        <div className="rounded-lg border border-[color:var(--border-strong)]/60 bg-[color:var(--bg-surface)]/40 px-4 py-3 text-sm text-[color:var(--text-muted)]">
           AI assist is offline (LiteLLM not configured). You can still author the rule manually
           under the <span className="font-medium text-indigo-300">Visual</span> tab.
         </div>
@@ -120,14 +120,14 @@ function SuggestionCard({ result, onApply, onDiscard }: SuggestionCardProps) {
           AI suggestion
         </span>
       </div>
-      <div className="text-sm font-medium text-zinc-100">{result.name}</div>
-      <p className="mt-1 text-sm text-zinc-400">{result.explanation}</p>
+      <div className="text-sm font-medium text-[color:var(--text)]">{result.name}</div>
+      <p className="mt-1 text-sm text-[color:var(--text-muted)]">{result.explanation}</p>
 
-      <details className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
-        <summary className="cursor-pointer text-xs font-medium text-zinc-300">
+      <details className="mt-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg)]/60 px-3 py-2">
+        <summary className="cursor-pointer text-xs font-medium text-[color:var(--text-muted)]">
           View compiled conditions
         </summary>
-        <pre className="mt-2 overflow-auto text-[11px] leading-relaxed text-zinc-300">
+        <pre className="mt-2 overflow-auto text-[11px] leading-relaxed text-[color:var(--text-muted)]">
           {JSON.stringify(conditions, null, 2)}
         </pre>
       </details>
