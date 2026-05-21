@@ -40,6 +40,16 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
         correlationId?: string;
         error?: ApiErrorDetail;
       };
+
+      if (
+        response.status === 401 &&
+        typeof window !== 'undefined' &&
+        (init?.headers as Record<string, string> | undefined)?.Authorization?.startsWith('Bearer ')
+      ) {
+        sessionStorage.removeItem('sf.session');
+        window.dispatchEvent(new CustomEvent('sf:session-expired'));
+      }
+
       return {
         data: null,
         error: errorPayload.error ?? {

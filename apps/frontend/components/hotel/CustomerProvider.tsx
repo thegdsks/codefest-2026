@@ -1,7 +1,15 @@
 'use client';
 
-import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react';
-import { fetchDashboard, fetchSession } from '@/lib/hotel/customer-api';
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { fetchDashboard, fetchSession, logout as revokeToken } from '@/lib/hotel/customer-api';
 import { MOCK_USER, PAST_STAYS } from '@/lib/hotel/data';
 import type { PastStay, TransferDetails, UserProfile } from '@/lib/hotel/types';
 
@@ -46,6 +54,10 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     setIsLoggedIn(true);
     setPendingSessionId(null);
 
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('sf.session', JSON.stringify({ token, userId }));
+    }
+
     const dash = await fetchDashboard(token, userId);
     const dashUser = dash.data?.user;
     if (dashUser) {
@@ -60,11 +72,49 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    const currentToken = session?.token;
+    if (currentToken) {
+      revokeToken(currentToken).catch((err) => {
+        console.error('[auth] logout revoke failed', err);
+      });
+    }
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('sf.session');
+    }
     setIsLoggedIn(false);
     setSession(null);
     setPendingSessionId(null);
     setTransferDetails(null);
     setUser(MOCK_USER);
+  }, [session]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = sessionStorage.getItem('sf.session');
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as { token: string; userId: string };
+      if (parsed.token) {
+        completeLogin(parsed.token);
+      }
+    } catch {
+      sessionStorage.removeItem('sf.session');
+    }
+  }, [completeLogin]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleExpired = () => {
+      // TODO: consider routing to /login after state is cleared
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('sf.session');
+      }
+      setIsLoggedIn(false);
+      setSession(null);
+      setUser(MOCK_USER);
+    };
+    window.addEventListener('sf:session-expired', handleExpired);
+    return () => window.removeEventListener('sf:session-expired', handleExpired);
   }, []);
 
   const deductPoints = useCallback((amount: number) => {
