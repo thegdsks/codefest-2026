@@ -12,7 +12,7 @@ import {
   Utensils,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import CheckboxGrid from '@/components/hotel/edit/CheckboxGrid';
 import DobPicker from '@/components/hotel/edit/DobPicker';
@@ -32,6 +32,7 @@ import {
   STATES,
 } from '@/lib/hotel/edit-profile-options';
 import type { UserProfile } from '@/lib/hotel/types';
+import { useRequireAuth } from '@/lib/hotel/use-require-auth';
 
 const ROOM_TYPE_OPTIONS = [
   { value: 'non-smoking', label: 'Non-smoking' },
@@ -56,11 +57,8 @@ function toggle(list: string[], opt: string): string[] {
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user, session, updateProfile, isLoggedIn } = useCustomer();
-
-  useEffect(() => {
-    if (!isLoggedIn) router.replace('/login');
-  }, [isLoggedIn, router]);
+  const { user, session, updateProfile } = useCustomer();
+  const isAuthenticated = useRequireAuth();
 
   const [country, setCountry] = useState(user.country || '');
   const [zipCode, setZipCode] = useState(user.zipCode || '');
@@ -177,6 +175,8 @@ export default function EditProfileScreen() {
       router.push('/profile');
     }, 1600);
   };
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="bg-[#fbf9f8] min-h-screen pb-24 font-sans text-black relative">

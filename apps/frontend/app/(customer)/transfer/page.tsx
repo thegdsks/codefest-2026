@@ -10,6 +10,7 @@ import { animateCounter } from '@/lib/hotel/animate-counter';
 import { DEMO_RECIPIENT_ID, saveTransferDraft, transferPoints } from '@/lib/hotel/customer-api';
 import { PARTNERS } from '@/lib/hotel/data';
 import { useLoyaltySummary } from '@/lib/hotel/use-loyalty-summary';
+import { useRequireAuth } from '@/lib/hotel/use-require-auth';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 function newClientRef() {
@@ -21,7 +22,8 @@ export default function TransferScreen() {
   const pathname = usePathname();
   const { trackEvent } = useTrackedEngagement();
   const routeListenersRef = useRef<Set<(path: string) => void>>(new Set());
-  const { user, session, isLoggedIn, deductPoints, setTransferDetails } = useCustomer();
+  const { user, session, deductPoints, setTransferDetails } = useCustomer();
+  const isAuthenticated = useRequireAuth();
   const { data: loyaltyData } = useLoyaltySummary();
   const [partnerKey, setPartnerKey] = useState('aeroglobal');
   const [displayBalance, setDisplayBalance] = useState<number | null>(null);
@@ -80,10 +82,6 @@ export default function TransferScreen() {
       if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     };
   }, []);
-
-  useEffect(() => {
-    if (!isLoggedIn) router.replace('/login');
-  }, [isLoggedIn, router]);
 
   // Sync display balance to loyalty data on load (no animation on initial set)
   useEffect(() => {
@@ -183,6 +181,8 @@ export default function TransferScreen() {
       router.push('/transfer/review');
     }
   };
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="bg-[#fbf9f8] min-h-screen pb-24 font-sans text-black">

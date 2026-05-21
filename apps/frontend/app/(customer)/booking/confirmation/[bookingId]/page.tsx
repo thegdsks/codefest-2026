@@ -3,21 +3,17 @@
 import { Check, X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useCustomer } from '@/components/hotel/CustomerProvider';
+import { useRequireAuth } from '@/lib/hotel/use-require-auth';
 import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
 
 export default function BookingConfirmationPage() {
   const params = useParams();
   const router = useRouter();
   const bookingId = typeof params.bookingId === 'string' ? params.bookingId : '';
-  const { isLoggedIn } = useCustomer();
+  const isAuthenticated = useRequireAuth();
   const { surfaces, refetch } = useSurfaceEligibility();
   const [offerVisible, setOfferVisible] = useState(false);
   const [offerDismissed, setOfferDismissed] = useState(false);
-
-  useEffect(() => {
-    if (!isLoggedIn) router.replace('/login');
-  }, [isLoggedIn, router]);
 
   // Refresh surfaces so BOOKING_CONFIRMATION_OFFER can flip to SHOWN after the
   // backend writes recentBookingAt. Show the modal ~3s after landing.
@@ -34,8 +30,10 @@ export default function BookingConfirmationPage() {
     };
   }, [refetch]);
 
-  const bookingOffer = surfaces['BOOKING_CONFIRMATION_OFFER'];
+  const bookingOffer = surfaces.BOOKING_CONFIRMATION_OFFER;
   const shouldShowOffer = offerVisible && !offerDismissed && bookingOffer?.state === 'SHOWN';
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="bg-[#fbf9f8] min-h-screen pb-24 font-sans text-black">

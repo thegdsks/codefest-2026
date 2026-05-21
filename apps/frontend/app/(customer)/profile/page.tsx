@@ -19,6 +19,7 @@ import DynamicOfferCard from '@/components/hotel/DynamicOfferCard';
 import LoyaltyStatusCard from '@/components/hotel/LoyaltyStatusCard';
 import { PARTNERS } from '@/lib/hotel/data';
 import type { CatalystElevateContext } from '@/lib/hotel/surface-types';
+import { useRequireAuth } from '@/lib/hotel/use-require-auth';
 import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
@@ -36,14 +37,11 @@ const COMM_CHANNELS = ['Email', 'SMS/Text Message', 'Postal Mail'];
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, pastStays, isLoggedIn } = useCustomer();
+  const { user, pastStays } = useCustomer();
   const { trackEvent } = useTrackedEngagement();
   const { surfaces } = useSurfaceEligibility();
   const catalystSurface = surfaces['PROFILE_CATALYST_ELEVATE'];
-
-  useEffect(() => {
-    if (!isLoggedIn) router.replace('/login');
-  }, [isLoggedIn, router]);
+  const isAuthenticated = useRequireAuth();
 
   // Points balance stare: user lingers on the points balance element.
   // The balance element carries data-stare-target="points" which the global
@@ -54,6 +52,8 @@ export default function ProfileScreen() {
     const detach = attachPointsBalanceStareDetector((signal) => trackEvent(signal), 5_000);
     return detach;
   }, [trackEvent]);
+
+  if (!isAuthenticated) return null;
 
   const coreFields = [
     user.country,
