@@ -2,8 +2,11 @@
 
 import { Info, LogOut, MapPin, Menu, Sparkles, Tag, User, X } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import LoyaltyStatusCard from '@/components/hotel/LoyaltyStatusCard';
 import Logo from '@/components/Logo';
+import { useLoyaltySummary } from '@/lib/hotel/use-loyalty-summary';
+import { useClickOutside } from '@/lib/use-click-outside';
 import { useCustomer } from './CustomerProvider';
 
 const PROPERTY_HOME = '/property/paris';
@@ -13,6 +16,10 @@ export default function Header() {
   const pathname = usePathname();
   const { isLoggedIn, logout, user } = useCustomer();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [loyaltyOpen, setLoyaltyOpen] = useState(false);
+  const loyaltyRef = useRef<HTMLDivElement>(null);
+  useClickOutside(loyaltyRef, () => setLoyaltyOpen(false), loyaltyOpen);
+  const { data: loyaltyData } = useLoyaltySummary();
 
   const go = (path: string) => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -88,6 +95,28 @@ export default function Header() {
         <div className="flex items-center gap-6">
           {isLoggedIn ? (
             <div className="flex items-center gap-4">
+              {/* Loyalty pill + dropdown */}
+              {loyaltyData && (
+                <div ref={loyaltyRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setLoyaltyOpen((v) => !v)}
+                    className="flex items-center gap-1.5 bg-[#ffdea5] text-[#261900] px-3 py-1.5 text-[10px] font-sans font-bold uppercase tracking-wider hover:bg-[#f5c96a] transition-colors cursor-pointer border-none rounded-sm"
+                    aria-expanded={loyaltyOpen}
+                    aria-haspopup="true"
+                  >
+                    {loyaltyData.currentTier}
+                    <span className="text-[#775a19]">|</span>
+                    {loyaltyData.currentPoints.toLocaleString()} pts
+                  </button>
+                  {loyaltyOpen && (
+                    <div className="absolute right-0 top-full mt-2 z-50">
+                      <LoyaltyStatusCard compact />
+                    </div>
+                  )}
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => go('/profile')}

@@ -4,6 +4,7 @@ import { CustomerProvider } from '@/components/hotel/CustomerProvider';
 import DemoPanel from '@/components/hotel/DemoPanel';
 import Footer from '@/components/hotel/Footer';
 import Header from '@/components/hotel/Header';
+import { QueryProvider } from '@/lib/query-client';
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -39,16 +40,18 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     <div
       className={`${montserrat.variable} ${playfair.variable} ${playfairSerif.variable} ${jetbrains.variable} font-sans bg-[#fbf9f8] text-black selection:bg-[#ffdea5] selection:text-[#261900]`}
     >
-      <CustomerProvider>
-        <EngagementWrapper>
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <div className="flex-grow transition-all duration-300">{children}</div>
-            <Footer />
-          </div>
-        </EngagementWrapper>
-        <DemoPanel />
-      </CustomerProvider>
+      <QueryProvider>
+        <CustomerProvider>
+          <EngagementWrapper>
+            <div className="flex flex-col min-h-screen">
+              <Header />
+              <div className="flex-grow transition-all duration-300">{children}</div>
+              <Footer />
+            </div>
+          </EngagementWrapper>
+          <DemoPanel />
+        </CustomerProvider>
+      </QueryProvider>
     </div>
   );
 }

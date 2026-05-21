@@ -1,13 +1,15 @@
 'use client';
 
 import { attachAbandonedFlowStepDetector } from '@signal-force/engagement-sdk';
-import { Calculator, RefreshCw } from 'lucide-react';
+import { Award, Calculator, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
+import { animateCounter } from '@/lib/hotel/animate-counter';
 import { transferPoints } from '@/lib/hotel/customer-api';
 import { PARTNERS } from '@/lib/hotel/data';
+import { useLoyaltySummary } from '@/lib/hotel/use-loyalty-summary';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 function newClientRef() {
@@ -20,7 +22,11 @@ export default function TransferScreen() {
   const { trackEvent } = useTrackedEngagement();
   const routeListenersRef = useRef<Set<(path: string) => void>>(new Set());
   const { user, session, isLoggedIn, deductPoints, setTransferDetails } = useCustomer();
+  const { data: loyaltyData } = useLoyaltySummary();
   const [partnerKey, setPartnerKey] = useState('aeroglobal');
+  const [displayBalance, setDisplayBalance] = useState<number | null>(null);
+  const [escrowState, setEscrowState] = useState(false);
+  const cancelAnimRef = useRef<(() => void) | null>(null);
 
   // Notify abandoned-flow listeners when the pathname changes.
   useEffect(() => {
@@ -50,6 +56,13 @@ export default function TransferScreen() {
   useEffect(() => {
     if (!isLoggedIn) router.replace('/login');
   }, [isLoggedIn, router]);
+
+  // Sync display balance to loyalty data on load (no animation on initial set)
+  useEffect(() => {
+    if (loyaltyData && displayBalance === null) {
+      setDisplayBalance(loyaltyData.currentPoints);
+    }
+  }, [loyaltyData, displayBalance]);
 
   const partnerReceived = Math.floor(Number(pointsInput) / 3) || 0;
 
@@ -120,8 +133,22 @@ export default function TransferScreen() {
 
     if ('status' in data && data.status === 'SUCCESS') {
       deductPoints(cost);
-      router.push('/transfer/success');
+      // Animate the loyalty balance counter down before navigating
+      if (displayBalance !== null) {
+        cancelAnimRef.current?.();
+        cancelAnimRef.current = animateCounter(
+          displayBalance,
+          Math.max(0, displayBalance - cost),
+          600,
+          setDisplayBalance,
+          () => router.push('/transfer/success')
+        );
+      } else {
+        router.push('/transfer/success');
+      }
     } else {
+      // UNDER_REVIEW or other non-SUCCESS: show escrow pill, do not decrement
+      setEscrowState(true);
       router.push('/transfer/review');
     }
   };
@@ -140,6 +167,30 @@ export default function TransferScreen() {
           transcends borders, unlocking flights and marine voyages with global travel entities.
         </p>
       </section>
+
+      {/* Loyalty balance bar */}
+      {loyaltyData && (
+        <section className="px-8 max-w-[1000px] mx-auto mb-6">
+          <div className="bg-white border border-gray-250/20 silk-shadow p-5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Award size={18} className="text-[#775a19] shrink-0" />
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 font-sans block">
+                  {loyaltyData.currentTier} Balance
+                </span>
+                <span className="font-mono text-lg font-bold text-black leading-none">
+                  {(displayBalance ?? loyaltyData.currentPoints).toLocaleString()} SFC
+                </span>
+              </div>
+            </div>
+            {escrowState && (
+              <span className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 text-[10px] font-sans font-bold uppercase tracking-wider rounded-sm animate-fade-in">
+                Held in Escrow
+              </span>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="px-8 max-w-[1000px] mx-auto">
         <div className="bg-white p-8 md:p-12 silk-shadow border border-gray-250/20 text-left">

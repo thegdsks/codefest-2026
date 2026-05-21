@@ -319,3 +319,44 @@ export function fireEngagementSignal(
     body: JSON.stringify({ signal, userId, sessionId: '', params }),
   });
 }
+
+// ----------------------------------------------------------------------------
+// Loyalty summary
+// ----------------------------------------------------------------------------
+
+export interface MilesEntry {
+  id: string;
+  type: 'TRANSFER_OUT' | 'TRANSFER_IN' | 'BOOKING_EARNED' | 'PROMO_BONUS' | 'REDEMPTION';
+  amount: number;
+  counterparty?: string | null;
+  property?: string | null;
+  campaign?: string | null;
+  timestamp: number;
+  balanceAfter: number | null;
+}
+
+export interface LoyaltySummary {
+  userId: string;
+  currentTier: string;
+  currentPoints: number;
+  nextTier: string | null;
+  pointsToNextTier: number;
+  tierProgress: number;
+  tierBenefits: string[];
+  nextTierBenefits: string[];
+  recentMiles: MilesEntry[];
+}
+
+/**
+ * Fetch the full loyalty picture for an authenticated user.
+ * Bearer auth: token must match the userId's active session.
+ */
+export function fetchLoyaltySummary(
+  token: string,
+  userId: string
+): Promise<ApiResult<LoyaltySummary>> {
+  return apiFetch<LoyaltySummary>(
+    `/customer/loyalty-summary?userId=${encodeURIComponent(userId)}`,
+    { headers: bearer(token) }
+  );
+}
