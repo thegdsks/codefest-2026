@@ -6,20 +6,36 @@
 ## Steps to replay on stage
 
 1. Run `POST /admin/dev/reseed` (requires `DEMO_MODE=1` env var) to restore all seed data.
-2. Log in as `user001` to get a bearer token. This is the "clean device, known location" beat - login is ALLOW.
-3. Attempt `POST /customer/transfer` with `userId: USER#001`, `recipientId: USER#002`, `amount: 7500`.
-   - The transfer velocity is within normal range (tc1h = 1 after the first attempt).
-   - The L2 (LLM) classify call receives score=60 gray-zone context and returns `MFA`.
-4. Complete MFA with the TOTP code (or the static OTP `123456` when `MFA_MODE=static`).
-5. Open the admin drawer for `USER#001` - the `DEC#DEMO` row shows:
-   - `action: MFA`, `ruleId: DEMO_HIGH_VALUE_UNSEEN_DEVICE`
-   - Matched conditions: amount >= 5000, deviceFingerprintSeenDays > 30
-   - LLM rationale explaining the 12x baseline deviation and unseen device
+2. Sign in as `user001` (`Password1`). The login is low-risk (ALLOW) - this beat shows the normal path.
+3. On the Transfer page, enter any amount >= 5000 (e.g. `7500`) and submit.
+   - The browser fingerprint is not in `user001`'s known device list, so the L1 rule fires.
+   - The backend returns `action: "MFA"` with a challenge id.
+4. The MFA screen appears (same UI as the login MFA screen for visual continuity).
+5. Enter `123456` (static demo OTP, valid when `MFA_MODE=static`).
+6. Transfer completes. The success page shows the transfer id.
+7. In admin Decisions: two rows appear for `USER#001`:
+   - `action: MFA`, `ruleId: DEMO_HIGH_VALUE_UNSEEN_DEVICE` - the challenge row
+   - `action: ALLOW`, `ruleId: DEMO_HIGH_VALUE_UNSEEN_DEVICE`, `mfaPath: TRANSFER_RISK` - the verify row
+8. Click either row to open the trace drawer. The `matched` array shows the two conditions that fired.
+
+## DemoPanel shortcuts
+
+Open the floating Debug panel (bottom-right corner) while logged in:
+
+- **Force high-risk on a small amount:** Toggle "Force next transfer high-risk". The next transfer
+  you submit (any amount, even $1) will trigger MFA via the `forceHighRisk` backend flag.
+  Hint label: "Forces MFA on the next transfer regardless of amount."
+- **Unseen device control:** Change the Device ID field to any string not in user001's known list
+  to trigger MFA naturally on a large amount. The panel shows a green "(known)" or amber "(unseen)"
+  label next to the current device id so you can see at a glance what the engine will see.
 
 ## Environment variables required
 
 - `DEMO_MODE=1` - enables the `/admin/dev/reseed` endpoint
-- `MFA_MODE=static` (optional) - accepts `123456` as the TOTP code for frictionless demo
+- `MFA_MODE=static` - accepts `123456` as the OTP for frictionless demo
+- `LARGE_TRANSFER_AMOUNT_USD=5000` - threshold above which unseen-device check fires (default)
+- `UNSEEN_DEVICE_DAYS_THRESHOLD=30` - device must have been seen within this many days (default)
+- `TRANSFER_MFA_TTL_SEC=300` - lifetime of a transfer MFA challenge in seconds (default 5 min)
 
 ## One-button verification
 
@@ -30,8 +46,8 @@ npm run rehearsal
 ```
 
 It executes the full demo story end-to-end (reseed, login, MFA, warm-up transfer, big
-transfer, decisions, trace, budget) and prints a pass/warn/fail table. Exit 0 means
-demo-ready. Exit 1 prints the failing step and the exact error so you can fix it fast.
+transfer + MFA verify, decisions, trace, budget) and prints a pass/warn/fail table.
+Exit 0 means demo-ready. Exit 1 prints the failing step and the exact error.
 
 Useful flags:
 - `--dry-run`   show what would run without making network calls
@@ -57,11 +73,12 @@ See `scripts/rehearsal.mjs` for the full env var reference and `--help`.
 
 ## Engine note
 
-The `scoreTransfer` L1 rule scores on velocity (`tc1h`). A single transfer at tc1h=1
-scores 10 (LOW, ALLOW) and skips the LLM. To ensure L2 fires and returns MFA during
-the demo, perform one prior transfer first to bring tc1h to 2 (gray-zone score 60),
-then attempt the $7500 transfer. The `DEC#DEMO` seed record in DecisionStore already
-shows the expected outcome in the admin drawer regardless of the live call result.
+The `scoreTransfer` L1 rule has two MFA paths, checked in this order:
 
-The rehearsal script automates the warm-up transfer (step 6) then the big transfer
-(step 7) in the correct order, so the velocity counter is always in the right state.
+1. `forceHighRisk === true` - highest precedence, fires regardless of amount.
+   Set via the DemoPanel toggle. Clears automatically after the next transfer call.
+2. `amount >= LARGE_TRANSFER_AMOUNT_USD AND deviceFingerprintSeenDays > UNSEEN_DEVICE_DAYS_THRESHOLD`
+   Fires on a natural large-amount + unseen-device combination.
+
+The warm-up transfer (step 6 in rehearsal) keeps `tc1h` low so the big transfer hits path 2
+cleanly without interference from the velocity REVIEW branch.
