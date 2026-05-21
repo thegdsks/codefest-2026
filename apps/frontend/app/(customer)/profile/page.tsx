@@ -11,6 +11,7 @@ import {
   UserCheck,
   Utensils,
 } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
@@ -122,7 +123,7 @@ export default function ProfileScreen() {
                     data-signal="points_balance"
                     className="font-serif text-3xl font-semibold text-black mt-1"
                   >
-                    {user.points.toLocaleString()} SFC
+                    {user.points?.toLocaleString()} SFC
                   </p>
                 </div>
 
@@ -275,10 +276,12 @@ export default function ProfileScreen() {
               <div className="group relative overflow-hidden bg-white border border-gray-250/25 silk-shadow">
                 <div className="grid grid-cols-1 md:grid-cols-5 md:h-64">
                   <div className="md:col-span-2 overflow-hidden h-48 md:h-auto bg-black relative">
-                    <img
+                    <Image
+                      fill
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 group-hover:opacity-90"
                       alt="Upcoming Hotel Palais"
                       src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8VScKEhVD-iNfuJs0WFbkigqDbN21akJRhr2NizOyocMNALG9NVuXOR0lRu8d1IhOCcR4pc2wBDKHABt33yTPJTqfXOqgEU3GvMmPS-Y1IQCEHz4U__DTW5Tv3KtOHWNPNfvd2zMZkoRrMSSszed28WYedUmC4D4QfPPE0EHD1nrNt9wrlE2fDzu_KfTui4fRF8Pot7ProByJhLLdwg2iD_Alv7S5tUBqdF6E2GX9bGUkjjmZPWLyFfiPisDOwI1tpVrISUO-N9Y"
+                      sizes="(max-width: 768px) 100vw, 67vw"
                     />
                   </div>
                   <div className="md:col-span-3 p-8 flex flex-col justify-between text-left">

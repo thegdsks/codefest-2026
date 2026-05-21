@@ -32,7 +32,7 @@ export interface UserProfile {
   email: string;
   memberNumber: number;
   status: 'Gold' | 'Platinum' | 'Diamond';
-  points: number;
+  points?: number;
   nextTierPoints: number;
   preferences: {
     floor: string;
