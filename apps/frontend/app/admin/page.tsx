@@ -21,7 +21,7 @@ import {
   windowToMs,
 } from '@/components/admin/charts';
 import LiveActivityFeed from '@/components/admin/LiveActivityFeed';
-import ProgressBar from '@/components/admin/ProgressBar';
+import StatBreakdown from '@/components/admin/StatBreakdown';
 import Tile from '@/components/admin/Tile';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { getDecisions, getMetrics, type Window } from '@/lib/admin-api';
@@ -38,8 +38,6 @@ function formatUsd(n: number): string {
   if (n < 0.01) return `$${n.toFixed(4)}`;
   return `$${n.toFixed(2)}`;
 }
-
-const SKELETON_BARS = ['a', 'b', 'c'];
 
 export default function AdminDashboardPage() {
   const [activeWindow, setActiveWindow] = useState<Window>('24h');
@@ -222,80 +220,28 @@ export default function AdminDashboardPage() {
             </section>
           </div>
 
-          {/* Flat action and type breakdown bars */}
+          {/* Action and type breakdown with stacked summary and semantic colors */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-                Actions
-              </h2>
-              {loading ? (
-                <div className="space-y-2">
-                  {SKELETON_BARS.map((k) => (
-                    <div
-                      key={k}
-                      className="h-6 w-full motion-safe:animate-pulse rounded bg-zinc-800"
-                    />
-                  ))}
-                </div>
-              ) : actionRows.length === 0 ? (
-                <p className="text-sm text-zinc-500">No decisions in this window.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {actionRows.map(([action, count]) => {
-                    const pct = total === 0 ? 0 : (count / total) * 100;
-                    return (
-                      <li key={action}>
-                        <div className="flex items-center justify-between text-xs text-zinc-400">
-                          <span className="font-medium text-zinc-200">{action}</span>
-                          <span className="tabular-nums">
-                            {count} ({pct.toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="mt-1">
-                          <ProgressBar value={pct} tone="indigo" />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+              <div className="mb-4 flex items-baseline justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
+                  Actions
+                </h2>
+                <span className="text-xs tabular-nums text-zinc-500">
+                  {total.toLocaleString()} total
+                </span>
+              </div>
+              <StatBreakdown rows={actionRows} total={total} variant="action" loading={loading} />
             </section>
 
             <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-                Decision types
-              </h2>
-              {loading ? (
-                <div className="space-y-2">
-                  {SKELETON_BARS.map((k) => (
-                    <div
-                      key={k}
-                      className="h-6 w-full motion-safe:animate-pulse rounded bg-zinc-800"
-                    />
-                  ))}
-                </div>
-              ) : typeRows.length === 0 ? (
-                <p className="text-sm text-zinc-500">No decisions in this window.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {typeRows.map(([type, count]) => {
-                    const pct = total === 0 ? 0 : (count / total) * 100;
-                    return (
-                      <li key={type}>
-                        <div className="flex items-center justify-between text-xs text-zinc-400">
-                          <span className="font-medium text-zinc-200">{type}</span>
-                          <span className="tabular-nums">
-                            {count} ({pct.toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="mt-1">
-                          <ProgressBar value={pct} tone="emerald" />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+              <div className="mb-4 flex items-baseline justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
+                  Decision types
+                </h2>
+                <span className="text-xs tabular-nums text-zinc-500">{typeRows.length} types</span>
+              </div>
+              <StatBreakdown rows={typeRows} total={total} variant="type" loading={loading} />
             </section>
           </div>
 
