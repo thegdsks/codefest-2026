@@ -74,6 +74,7 @@ function buildModel(cfg, modelId) {
  * @param {string} params.reasonText
  * @param {object} params.context      - transfer or login context fields
  * @param {object[]} params.priorDecisions - recent decisions in last 24h
+ * @param {object|null} [params.signalContext] - enriched SDK context (trustScore, recentEvents, etc.)
  * @returns {string}
  */
 function buildPrompt({
@@ -84,6 +85,7 @@ function buildPrompt({
   reasonText,
   context,
   priorDecisions,
+  signalContext,
 }) {
   const contextLines = Object.entries(context || {})
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
@@ -99,20 +101,41 @@ function buildPrompt({
           .join(', ')
       : 'No prior decisions in the last 24h.';
 
+  let sdkContextBlock = '';
+  if (signalContext) {
+    const trust = signalContext.trustScore ?? 70;
+    const scroll = signalContext.scrollDepthPct ?? 0;
+    const recentEvents = (signalContext.recentEventTypes || []).join(', ') || 'none';
+    sdkContextBlock =
+      '\nEnriched session context (from SDK):\n' +
+      `  trustScore=${trust} scrollDepth=${scroll}%\n` +
+      `  recentEventTypes=[${recentEvents}]\n`;
+
+    if (signalContext.flowState) {
+      const fs = signalContext.flowState;
+      sdkContextBlock +=
+        `  flowState: page=${fs.page}` +
+        (fs.step ? ` step=${fs.step}` : '') +
+        (fs.amountSfc !== undefined ? ` amountSfc=${fs.amountSfc}` : '') +
+        '\n';
+    }
+  }
+
   return (
     'You are a fraud analyst assistant for a loyalty points platform. Explain the following fraud decision in plain English.\n\n' +
     'Decision:\n' +
     `  type=${decisionType} action=${action} score=${score} reasonCode=${reasonCode}\n` +
     `  reasonText="${reasonText}"\n\n` +
     'Context:\n' +
-    `${contextLines || '  (none)'}\n\n` +
-    'User history:\n' +
+    `${contextLines || '  (none)'}` +
+    sdkContextBlock +
+    '\nUser history:\n' +
     `  ${priorSummary}\n\n` +
     'Write:\n' +
     '- paragraph: 2-4 sentences in plain English suitable for a fraud analyst or product manager. Describe what happened, why it was flagged, and how confident the system is.\n' +
-    `- riskFactors: bullet list of specific signals that contributed (e.g. "Transfer amount $8,000 exceeds 24h pattern", "Device not seen before").\n` +
+    '- riskFactors: bullet list of specific signals that contributed (e.g. "Transfer amount $8,000 exceeds 24h pattern", "Device not seen before"). Cite at least one specific signal from the context or SDK session data.\n' +
     '- recommendation: one sentence telling the analyst what to do next (review account, contact member, auto-block, etc.).\n\n' +
-    'Be factual. Do not speculate beyond the data provided.'
+    'Be factual. Do not speculate beyond the data provided. Do not invent signals not present in the context.'
   );
 }
 
@@ -137,6 +160,7 @@ function buildPrompt({
  * @param {string} params.reasonText
  * @param {object} [params.context]
  * @param {object[]} [params.priorDecisions]
+ * @param {object|null} [params.signalContext] - enriched SDK context (trustScore, recentEvents, etc.)
  * @returns {Promise<{ paragraph: string, riskFactors: string[], recommendation: string } | null>}
  */
 async function explain({
@@ -147,6 +171,7 @@ async function explain({
   reasonText,
   context,
   priorDecisions,
+  signalContext,
 }) {
   const cfg = readConfig();
   if (!cfg) return null;
@@ -165,6 +190,7 @@ async function explain({
     reasonText: reasonText || '',
     context: context || {},
     priorDecisions: priorDecisions || [],
+    signalContext: signalContext || null,
   });
 
   const start = Date.now();
@@ -208,4 +234,4 @@ async function explain({
   }
 }
 
-module.exports = { explain, _setProvider };
+module.exports = { explain, _setProvider, _buildPrompt: buildPrompt };

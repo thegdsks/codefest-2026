@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '../client.js';
 import { mountCapture } from '../capture/index.js';
 import { NudgeBanner } from '../surfaces/NudgeBanner.js';
@@ -12,6 +6,7 @@ import { OfferModal } from '../surfaces/OfferModal.js';
 import { HelpTooltip } from '../surfaces/HelpTooltip.js';
 import type {
   EngagementConfig,
+  FlowState,
   Intervention,
   SignalEvent,
   SurfaceType,
@@ -83,6 +78,18 @@ export function EngagementProvider({
     captureRef.current?.trackSearch(query);
   }, []);
 
+  const trackHealthyEvent = useCallback((eventKey: string) => {
+    clientRef.current?.trackHealthyEvent(eventKey);
+  }, []);
+
+  const getTrustScore = useCallback((): number => {
+    return clientRef.current?.getTrustScore() ?? 70;
+  }, []);
+
+  const setFlowState = useCallback((state: FlowState | null) => {
+    clientRef.current?.setFlowState(state);
+  }, []);
+
   const dismiss = useCallback(() => {
     setCurrentIntervention(null);
   }, []);
@@ -113,7 +120,17 @@ export function EngagementProvider({
   }
 
   return (
-    <EngagementContext.Provider value={{ trackEvent, trackSearch, currentIntervention, dismiss }}>
+    <EngagementContext.Provider
+      value={{
+        trackEvent,
+        trackSearch,
+        trackHealthyEvent,
+        getTrustScore,
+        setFlowState,
+        currentIntervention,
+        dismiss,
+      }}
+    >
       {renderSurface()}
       {children}
     </EngagementContext.Provider>

@@ -25,7 +25,7 @@
 const { randomUUID } = require('node:crypto');
 
 const { json, err, parseBody, requireField } = require('../lib/http');
-const { getUserById, requireBearer, putDecision } = require('../lib/ddb');
+const { getUserById, requireBearer, putDecision, upsertFlowState } = require('../lib/ddb');
 const { decision } = require('../lib/activity');
 const { route: engineRoute } = require('../engine/router');
 const {
@@ -143,6 +143,19 @@ async function trackEvent(event, correlationId) {
 
   const params = (body && body.params) || {};
 
+  // Extract enriched context block from SDK (optional - backwards compatible)
+  const signalContext = (body && body.context) || null;
+
+  // Persist flow state to UserState when present so future surface evaluation
+  // can see "this user just left mid-transfer at amount=5000" across sessions.
+  if (signalContext && signalContext.flowState) {
+    try {
+      await upsertFlowState(userId, signalContext.flowState);
+    } catch (_) {
+      // Non-blocking - flow state persistence is best-effort
+    }
+  }
+
   // L1 score from the static scorer
   const profile = await getUserById(userId);
   const scorer = SIGNAL_SCORERS[signal];
@@ -170,12 +183,13 @@ async function trackEvent(event, correlationId) {
     // Rule store errors must not block the event; degrade gracefully
   }
 
-  // Route through L1+L2 engine
+  // Route through L1+L2 engine, passing enriched context to L2 when present
   const ctx = {
     userId,
     category: 'ENGAGEMENT',
     payload: { signal, ...params },
     missingFields: [],
+    signalContext,
   };
   const final = await engineRoute(l1Draft, ctx);
 
@@ -427,4 +441,64 @@ async function testRule(event, correlationId) {
   return json(200, correlationId, { data: result });
 }
 
-module.exports = { trackEvent, listRules, getRule, putRule, aiSuggestRule, testRule };
+// ---------------------------------------------------------------------------
+// trackEvents  POST /engagement/events  (batched)
+// ---------------------------------------------------------------------------
+
+/**
+ * Accepts a batch of behavioral signals from the SDK and processes each in
+ * sequence. The SDK sends batches instead of one-at-a-time to reduce network
+ * chatter during rapid signal bursts.
+ *
+ * Request body: { events: Array<{ signal, userId, sessionId, params, context }> }
+ * Response: { data: { processed: number, results: object[] } }
+ *
+ * @param {object} event
+ * @param {string} correlationId
+ * @returns {Promise<object>}
+ */
+async function trackEvents(event, correlationId) {
+  const body = parseBody(event);
+  if (!body || !Array.isArray(body.events) || body.events.length === 0) {
+    return err(
+      400,
+      correlationId,
+      'VALIDATION_ERROR',
+      'events array is required and must be non-empty'
+    );
+  }
+
+  // Cap batch size to prevent abuse
+  const MAX_BATCH = 50;
+  const events = body.events.slice(0, MAX_BATCH);
+
+  const results = [];
+
+  for (const evt of events) {
+    try {
+      // Reuse the single-event handler by synthesising a compatible event shape
+      const syntheticEvent = {
+        ...event,
+        body: JSON.stringify(evt),
+      };
+      const result = await trackEvent(syntheticEvent, correlationId);
+      if (result && result.statusCode === 200) {
+        const parsed = result.body ? JSON.parse(result.body) : {};
+        results.push({ ok: true, data: parsed.data || {} });
+      } else {
+        results.push({ ok: false, signal: evt.signal });
+      }
+    } catch (_) {
+      results.push({ ok: false, signal: evt && evt.signal });
+    }
+  }
+
+  return json(200, correlationId, {
+    data: {
+      processed: results.length,
+      results,
+    },
+  });
+}
+
+module.exports = { trackEvent, trackEvents, listRules, getRule, putRule, aiSuggestRule, testRule };
