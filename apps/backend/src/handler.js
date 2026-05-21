@@ -549,6 +549,11 @@ async function route(event, correlationId) {
   if (method === 'GET' && p.match(/^\/admin\/decisions\/[^/]+$/) && p !== '/admin/decisions/export')
     return admin.getDecisionById(event, correlationId);
   if (method === 'GET' && p === '/admin/users') return admin.getUsers(event, correlationId);
+  if (method === 'GET' && p === '/admin/sessions') return admin.getSessions(event, correlationId);
+  if (method === 'GET' && p === '/admin/mfa-status')
+    return admin.getMfaStatus(event, correlationId);
+  if (method === 'POST' && p.match(/^\/admin\/sessions\/[^/]+\/revoke$/))
+    return admin.revokeSession(event, correlationId);
 
   return err(404, correlationId, 'NOT_FOUND', `Unknown endpoint: ${method} ${p}`);
 }

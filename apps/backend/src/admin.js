@@ -16,6 +16,7 @@ const { getStats: getBudgetStats } = require('./engine/budget');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const {
   DynamoDBDocumentClient,
+  DeleteCommand,
   ScanCommand,
   QueryCommand,
   PutCommand,
@@ -37,6 +38,7 @@ function _setDdb(client) {
 const TABLE_DECISION = process.env.TABLE_DECISION_STORE || 'DecisionStore';
 const TABLE_USER_PROFILE = process.env.TABLE_USER_PROFILE || 'UserProfile';
 const TABLE_USER_STATE = process.env.TABLE_USER_STATE || 'UserState';
+const TABLE_USER_SESSION = process.env.TABLE_USER_SESSION || 'UserSession';
 
 // Comma-separated list of usernames allowed to call admin endpoints.
 const ADMIN_USERNAMES = (process.env.ADMIN_USERNAMES || 'demoClient')
@@ -727,6 +729,186 @@ async function exportDecisions(event, correlationId) {
 }
 
 // ---------------------------------------------------------------------------
+// GET /admin/sessions, POST /admin/sessions/{id}/revoke, GET /admin/mfa-status
+// ---------------------------------------------------------------------------
+
+/**
+ * Project a UserSession ACCESS row to the admin view. Strips the raw token
+ * value so the admin UI never shows it (operators can revoke a session by
+ * sessionId without knowing the bearer string).
+ */
+function projectSessionForAdmin(row) {
+  return {
+    sessionId: row.sessionId,
+    userId: row.userId,
+    issuedAt: row.issuedAt,
+    expiresAt: row.expiresAt,
+    lastActivityAt: row.lastActivityAt,
+    mfaVerified: !!row.mfaVerified,
+    location: row.location || '',
+    ipAddress: row.ipAddress || '',
+    deviceId: row.deviceId || '',
+    active: typeof row.expiresAt === 'number' && row.expiresAt > nowSec(),
+  };
+}
+
+/**
+ * GET /admin/sessions
+ *
+ * Query params:
+ *   userId  - return only sessions belonging to this user
+ *   active  - "true" or "false" to filter by current expiry
+ *   limit   - cap on returned rows (default 100, max 500)
+ *
+ * Implementation: Scan with FilterExpression on recordType=ACCESS. This is
+ * the per-token row written by issueAccessToken; legacy SESSION#<uuid>
+ * challenge rows are skipped.
+ *
+ * Demo-scale only. For production we would add a GSI on userId for the
+ * userId-filter path and TTL the rows so the scan stays bounded.
+ */
+async function getSessions(event, correlationId) {
+  const authCheck = requireAdmin(event, correlationId);
+  if (!authCheck.ok) return authCheck.response;
+
+  const userIdFilter = qstr(event, 'userId');
+  const activeFilter = qstr(event, 'active');
+  if (activeFilter !== null && activeFilter !== 'true' && activeFilter !== 'false') {
+    return err(400, correlationId, 'VALIDATION_ERROR', 'active must be true or false');
+  }
+  const rawLimit = parseInt(qstr(event, 'limit') || '100', 10);
+  const limit = Math.min(isNaN(rawLimit) ? 100 : rawLimit, 500);
+
+  // Filter on recordType=ACCESS at the DDB layer to skip MFA-challenge rows.
+  // userId can also be pushed down to reduce returned bytes; active is
+  // applied in memory because expiresAt is compared against "now".
+  const exprNames = { '#rt': 'recordType' };
+  const exprValues = { ':access': 'ACCESS' };
+  const filterParts = ['#rt = :access'];
+  if (userIdFilter) {
+    exprNames['#uid'] = 'userId';
+    exprValues[':uid'] = userIdFilter;
+    filterParts.push('#uid = :uid');
+  }
+
+  const result = await ddb.send(
+    new ScanCommand({
+      TableName: TABLE_USER_SESSION,
+      FilterExpression: filterParts.join(' AND '),
+      ExpressionAttributeNames: exprNames,
+      ExpressionAttributeValues: exprValues,
+    })
+  );
+
+  let items = (result.Items || []).map(projectSessionForAdmin);
+
+  if (activeFilter === 'true') items = items.filter((it) => it.active);
+  else if (activeFilter === 'false') items = items.filter((it) => !it.active);
+
+  // Most-recent first by issuedAt.
+  items.sort((a, b) => (b.issuedAt || 0) - (a.issuedAt || 0));
+  const sessions = items.slice(0, limit);
+
+  return json(200, correlationId, {
+    data: {
+      sessions,
+      count: sessions.length,
+      totalMatched: items.length,
+      filters: {
+        userId: userIdFilter || null,
+        active: activeFilter,
+      },
+    },
+  });
+}
+
+/**
+ * POST /admin/sessions/{sessionId}/revoke
+ *
+ * Delete a single UserSession row. Idempotent: returns 204 whether the row
+ * existed or not, so a double-revoke from the admin UI is harmless. Path
+ * parameter is URL-decoded because access tokens are base64url, which is
+ * safe, but legacy SESSION#... rows contain '#'.
+ */
+async function revokeSession(event, correlationId) {
+  const authCheck = requireAdmin(event, correlationId);
+  if (!authCheck.ok) return authCheck.response;
+
+  const rawPath =
+    (event.requestContext && event.requestContext.http && event.requestContext.http.path) ||
+    event.path ||
+    '';
+  const rawId = extractIdFromPath(rawPath, '/admin/sessions', '/revoke');
+  if (!rawId) {
+    return err(400, correlationId, 'VALIDATION_ERROR', 'sessionId missing from path');
+  }
+  const sessionId = decodeURIComponent(rawId);
+
+  await ddb.send(
+    new DeleteCommand({
+      TableName: TABLE_USER_SESSION,
+      Key: { sessionId },
+    })
+  );
+
+  return {
+    statusCode: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Methods': '*',
+      'x-correlation-id': correlationId || '',
+    },
+    body: '',
+  };
+}
+
+/**
+ * GET /admin/mfa-status
+ *
+ * Returns total user count, enrolled count, and the percentage. Powers
+ * the "MFA adoption" tile on the admin dashboard.
+ */
+async function getMfaStatus(event, correlationId) {
+  const authCheck = requireAdmin(event, correlationId);
+  if (!authCheck.ok) return authCheck.response;
+
+  // Scan UserProfile projecting only the fields we need to keep the read cost
+  // small. mfaEnabled and pendingMfaSecret tell us enrolled vs pending.
+  const result = await ddb.send(
+    new ScanCommand({
+      TableName: TABLE_USER_PROFILE,
+      ProjectionExpression: '#u, #e, #p',
+      ExpressionAttributeNames: {
+        '#u': 'userId',
+        '#e': 'mfaEnabled',
+        '#p': 'pendingMfaSecret',
+      },
+    })
+  );
+
+  const items = result.Items || [];
+  let enrolled = 0;
+  let pending = 0;
+  for (const it of items) {
+    if (it.mfaEnabled === true) enrolled += 1;
+    else if (it.pendingMfaSecret) pending += 1;
+  }
+  const total = items.length;
+  const enrolledPercent = total === 0 ? 0 : Math.round((enrolled / total) * 1000) / 10;
+
+  return json(200, correlationId, {
+    data: {
+      total,
+      enrolled,
+      pending,
+      notEnrolled: Math.max(0, total - enrolled - pending),
+      enrolledPercent,
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
@@ -737,6 +919,9 @@ module.exports = {
   getUsers,
   getDecisionById,
   exportDecisions,
+  getSessions,
+  revokeSession,
+  getMfaStatus,
   extractIdFromPath,
   _setDdb,
 };
