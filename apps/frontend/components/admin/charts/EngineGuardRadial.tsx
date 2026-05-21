@@ -20,6 +20,15 @@ function formatUsd(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+const WINDOW_LABELS: Record<Window, string> = {
+  '5m': '5 min window',
+  '1h': '60 min window',
+  '6h': '6 hour window',
+  '24h': '24 hour window',
+  '7d': '7 day window',
+  '30d': '30 day window',
+};
+
 interface Props {
   window: Window;
   height?: number;
@@ -69,18 +78,7 @@ export default function EngineGuardRadial({ window: windowKey, height = 240 }: P
 
   const pct = Math.min(100, Math.round((used / cap) * 100));
   const fillColor = colorFromPct(pct);
-  const windowLabel =
-    windowKey === '1h'
-      ? '60 min window'
-      : windowKey === '5m'
-        ? '5 min window'
-        : windowKey === '6h'
-          ? '6 hour window'
-          : windowKey === '30d'
-            ? '30 day window'
-            : windowKey === '7d'
-              ? '7 day window'
-              : '24 hour window';
+  const windowLabel = WINDOW_LABELS[windowKey] ?? '24 hour window';
 
   const chartData = [{ name: 'guard', value: pct, fill: fillColor }];
 

@@ -26,8 +26,15 @@ import Tile from '@/components/admin/Tile';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { getDecisions, getMetrics, type Window } from '@/lib/admin-api';
 
-const WINDOWS: Window[] = ['1h', '24h', '7d'];
+const WINDOWS: Window[] = ['5m', '1h', '6h', '24h', '7d', '30d'];
 const SPARKLINE_BUCKETS = 12;
+
+function pollIntervalMs(w: Window): number {
+  if (w === '5m') return 2_000;
+  if (w === '1h') return 5_000;
+  if (w === '6h' || w === '24h') return 15_000;
+  return 60_000;
+}
 
 function formatPct(part: number, total: number): string {
   if (total === 0) return '0%';
@@ -48,18 +55,20 @@ function budgetBarColor(pct: number): string {
 export default function AdminDashboardPage() {
   const [activeWindow, setActiveWindow] = useState<Window>('24h');
 
+  const pollMs = pollIntervalMs(activeWindow);
+
   const metricsQuery = useQuery({
     queryKey: ['metrics', activeWindow],
     queryFn: () => getMetrics(activeWindow),
-    refetchInterval: 5_000,
-    staleTime: 4_000,
+    refetchInterval: pollMs,
+    staleTime: pollMs - 1_000,
   });
 
   const decisionsQuery = useQuery({
     queryKey: ['decisions', activeWindow, 500],
     queryFn: () => getDecisions({ window: activeWindow, limit: 500 }),
-    refetchInterval: 5_000,
-    staleTime: 4_000,
+    refetchInterval: pollMs,
+    staleTime: pollMs - 1_000,
   });
 
   const data = metricsQuery.data?.data ?? null;
@@ -112,7 +121,7 @@ export default function AdminDashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold text-[color:var(--text)]">Overview</h1>
           <p className="mt-1 text-sm text-[color:var(--text-dim)]">
-            Live decision metrics from the engine. Polls every 5 seconds.
+            Live decision metrics from the engine. Polls every {pollMs / 1000}s.
           </p>
         </div>
         <div className="flex items-center gap-2">

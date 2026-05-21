@@ -7,7 +7,7 @@ const CLIENT_SECRET = process.env.NEXT_PUBLIC_CLIENT_SECRET;
 const AUTH_MODE = (process.env.NEXT_PUBLIC_AUTH_MODE || 'basic').toLowerCase();
 const BEARER_TOKEN_KEY = 'sf.adminBearerToken';
 
-export type Window = '1h' | '24h' | '7d';
+export type Window = '5m' | '1h' | '6h' | '24h' | '7d' | '30d';
 
 export type EngineLayer = 'L1' | 'L1+L2';
 
@@ -353,7 +353,8 @@ export function getDecisions(q: DecisionsQuery): Promise<ApiResult<DecisionsList
 export function listEngagementDecisions(
   windowSec = 3600
 ): Promise<ApiResult<DecisionsListResponse>> {
-  const windowLabel: Window = windowSec >= 86400 ? '7d' : '1h';
+  const windowLabel: Window =
+    windowSec >= 30 * 86400 ? '30d' : windowSec >= 86400 ? '7d' : windowSec >= 21600 ? '6h' : '1h';
   return adminFetch<DecisionsListResponse>(
     `/admin/decisions?type=ENGAGEMENT&window=${windowLabel}&limit=50`
   );
