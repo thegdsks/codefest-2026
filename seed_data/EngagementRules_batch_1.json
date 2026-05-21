@@ -1,0 +1,123 @@
+{
+  "EngagementRules": [
+    {
+      "PutRequest": {
+        "Item": {
+          "ruleId": { "S": "RULE#POINTS_BALANCE_STARE" },
+          "version": { "S": "latest" },
+          "status": { "S": "ACTIVE" },
+          "name": { "S": "Points balance stare prompts help nudge" },
+          "definition": {
+            "M": {
+              "conditions": {
+                "M": {
+                  "all": {
+                    "L": [
+                      { "M": { "fact": { "S": "signal" }, "operator": { "S": "equal" }, "value": { "S": "dwell_no_action" } } },
+                      { "M": { "fact": { "S": "target" }, "operator": { "S": "equal" }, "value": { "S": "points_balance" } } },
+                      { "M": { "fact": { "S": "dwellMs" }, "operator": { "S": "greaterThan" }, "value": { "N": "8000" } } }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "M": {
+                  "type": { "S": "POINTS_BALANCE_STARE" },
+                  "params": {
+                    "M": {
+                      "action": { "S": "NUDGE" },
+                      "surface": { "S": "nudge_banner" },
+                      "score": { "N": "75" },
+                      "copy": { "S": "Looking for help with your points balance? Tap here to see redemption options." }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "createdAt": { "N": "1779200000" },
+          "updatedAt": { "N": "1779200000" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "ruleId": { "S": "RULE#RAGE_CLICK_GLOBAL" },
+          "version": { "S": "latest" },
+          "status": { "S": "ACTIVE" },
+          "name": { "S": "Rage click triggers inline help tooltip" },
+          "definition": {
+            "M": {
+              "conditions": {
+                "M": {
+                  "all": {
+                    "L": [
+                      { "M": { "fact": { "S": "signal" }, "operator": { "S": "equal" }, "value": { "S": "rage_click" } } },
+                      { "M": { "fact": { "S": "clickCount" }, "operator": { "S": "greaterThanInclusive" }, "value": { "N": "5" } } }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "M": {
+                  "type": { "S": "RAGE_CLICK_HELP" },
+                  "params": {
+                    "M": {
+                      "action": { "S": "HINT" },
+                      "surface": { "S": "help_tooltip" },
+                      "score": { "N": "80" },
+                      "copy": { "S": "That control did not respond as expected. Try refreshing or message support if it keeps happening." }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "createdAt": { "N": "1779200000" },
+          "updatedAt": { "N": "1779200000" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "ruleId": { "S": "RULE#TRANSFER_ABANDON_OFFER" },
+          "version": { "S": "latest" },
+          "status": { "S": "ACTIVE" },
+          "name": { "S": "Abandoned transfer flow surfaces a 2x offer" },
+          "definition": {
+            "M": {
+              "conditions": {
+                "M": {
+                  "all": {
+                    "L": [
+                      { "M": { "fact": { "S": "signal" }, "operator": { "S": "equal" }, "value": { "S": "abandoned_flow_step" } } },
+                      { "M": { "fact": { "S": "flow" }, "operator": { "S": "equal" }, "value": { "S": "transfer" } } },
+                      { "M": { "fact": { "S": "step" }, "operator": { "S": "greaterThanInclusive" }, "value": { "N": "2" } } }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "M": {
+                  "type": { "S": "TRANSFER_ABANDON_OFFER" },
+                  "params": {
+                    "M": {
+                      "action": { "S": "OFFER" },
+                      "surface": { "S": "offer_modal" },
+                      "score": { "N": "70" },
+                      "copy": { "S": "Complete your transfer in the next 5 minutes and earn 2x bonus points." }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "createdAt": { "N": "1779200000" },
+          "updatedAt": { "N": "1779200000" }
+        }
+      }
+    }
+  ]
+}
