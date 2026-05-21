@@ -16,6 +16,7 @@ export const TABLE_NAMES = {
   userActivity: 'UserActivity',
   decisionStore: 'DecisionStore',
   userState: 'UserState',
+  engagementRules: 'EngagementRules',
 } as const;
 
 export const BEDROCK_MODEL_ID = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';

@@ -23,6 +23,12 @@ const {
   profileCompletenessEndpoint,
 } = require('./routes/customer');
 const admin = require('./admin');
+const {
+  trackEvent,
+  listRules,
+  getRule: getEngagementRule,
+  putRule,
+} = require('./routes/engagement');
 
 // test-only seam; delegates to lib/ddb so every module in the graph sees the stub
 function _setDdb(client) {
@@ -50,6 +56,7 @@ const BEARER_ROUTES = [
   ['GET', '/auth/session'],
   ['POST', '/auth/mfa/enroll'],
   ['POST', '/auth/mfa/confirm-enroll'],
+  ['POST', '/engagement/event'],
 ];
 
 function isBearerRoute(method, path) {
@@ -103,6 +110,14 @@ async function route(event, correlationId) {
     return admin.getMfaStatus(event, correlationId);
   if (method === 'POST' && p.match(/^\/admin\/sessions\/[^/]+\/revoke$/))
     return admin.revokeSession(event, correlationId);
+
+  // Engagement routes
+  if (method === 'POST' && p === '/engagement/event') return trackEvent(event, correlationId);
+  if (method === 'GET' && p === '/admin/rules') return listRules(event, correlationId);
+  if (method === 'POST' && p === '/admin/rules') return putRule(event, correlationId);
+  if (method === 'GET' && p.match(/^\/admin\/rules\/[^/]+$/))
+    return getEngagementRule(event, correlationId);
+  if (method === 'PUT' && p.match(/^\/admin\/rules\/[^/]+$/)) return putRule(event, correlationId);
 
   return err(404, correlationId, 'NOT_FOUND', `Unknown endpoint: ${method} ${p}`);
 }

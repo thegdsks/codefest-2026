@@ -9,6 +9,7 @@ export class DynamoDbStack extends cdk.Stack {
   public readonly userActivityTable: dynamodb.Table;
   public readonly decisionStoreTable: dynamodb.Table;
   public readonly userStateTable: dynamodb.Table;
+  public readonly engagementRulesTable: dynamodb.Table;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -76,6 +77,18 @@ export class DynamoDbStack extends cdk.Stack {
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
 
+    // EngagementRules: PK ruleId (S), SK version (S)
+    // Stores rule documents for the engagement intelligence engine.
+    // version='latest' is the live/current row; version=ISO-timestamp is history.
+    this.engagementRulesTable = new dynamodb.Table(this, 'EngagementRulesTable', {
+      tableName: TABLE_NAMES.engagementRules,
+      partitionKey: { name: 'ruleId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'version', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+    });
+
     // CfnOutputs: export each table name for cross-stack and backend reference
     new cdk.CfnOutput(this, 'UserProfileTableName', {
       value: this.userProfileTable.tableName,
@@ -96,6 +109,11 @@ export class DynamoDbStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'UserStateTableName', {
       value: this.userStateTable.tableName,
       exportName: `${this.stackName}:UserStateTableName`,
+    });
+
+    new cdk.CfnOutput(this, 'EngagementRulesTableName', {
+      value: this.engagementRulesTable.tableName,
+      exportName: `${this.stackName}:EngagementRulesTableName`,
     });
   }
 }

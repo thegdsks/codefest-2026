@@ -103,6 +103,7 @@ export class RuntimeStack extends cdk.Stack {
         TABLE_USER_ACTIVITY: dynamoDbStack.userActivityTable.tableName,
         TABLE_DECISION_STORE: dynamoDbStack.decisionStoreTable.tableName,
         TABLE_USER_STATE: dynamoDbStack.userStateTable.tableName,
+        TABLE_ENGAGEMENT_RULES: dynamoDbStack.engagementRulesTable.tableName,
         // Cross-region inference profile for Claude Haiku 4.5 (US)
         BEDROCK_MODEL_ID,
         FRAUD_ALERT_TOPIC_ARN: fraudAlertTopic.topicArn,
@@ -119,6 +120,7 @@ export class RuntimeStack extends cdk.Stack {
     dynamoDbStack.userActivityTable.grantReadWriteData(apiLambda);
     dynamoDbStack.decisionStoreTable.grantReadWriteData(apiLambda);
     dynamoDbStack.userStateTable.grantReadWriteData(apiLambda);
+    dynamoDbStack.engagementRulesTable.grantReadWriteData(apiLambda);
 
     fraudAlertTopic.grantPublish(apiLambda);
 
