@@ -64,6 +64,44 @@ function makeDdb(handlers = {}) {
   };
 }
 
+/**
+ * Build a DDB stub whose UserSession GetCommand returns a valid ACCESS row
+ * for the given token. Other GetCommand cases the caller passed are layered
+ * on top, matched by table name. UpdateCommand is no-op'd so the sliding-
+ * window write in validateBearer doesn't surprise the test.
+ */
+function withAccessRow(userId, token, baseHandlers = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  const accessRow = {
+    sessionId: token,
+    recordType: 'ACCESS',
+    userId,
+    token,
+    issuedAt: now - 60,
+    expiresAt: now + 1800,
+    lastActivityAt: now - 60,
+    mfaVerified: true,
+  };
+  const orig = baseHandlers.GetCommand;
+  return makeDdb({
+    ...baseHandlers,
+    GetCommand: (cmd) => {
+      if (cmd.input.TableName === 'UserSession' && cmd.input.Key.sessionId === token) {
+        return { Item: accessRow };
+      }
+      if (typeof orig === 'function') return orig(cmd);
+      if (orig) return orig;
+      return { Item: undefined };
+    },
+    UpdateCommand: baseHandlers.UpdateCommand || (() => ({})),
+  });
+}
+
+/** Bearer Authorization header value. */
+function bearer(token) {
+  return `Bearer ${token}`;
+}
+
 // ---------------------------------------------------------------------------
 // Module under test - loaded once; seam set per describe block.
 // ---------------------------------------------------------------------------
@@ -285,8 +323,9 @@ describe('GET /user/profile', () => {
       emailVerified: true,
       phoneVerified: true,
     };
+    const token = 'tok-U001';
     handler._setDdb(
-      makeDdb({
+      withAccessRow('U001', token, {
         GetCommand: (cmd) => {
           if (cmd.input.TableName === 'UserProfile') return { Item: fakeProfile };
           return { Item: undefined };
@@ -297,6 +336,7 @@ describe('GET /user/profile', () => {
     const event = makeEvent({
       httpMethod: 'GET',
       path: '/user/profile',
+      headers: { authorization: bearer(token) },
       queryStringParameters: { userId: 'U001' },
     });
     const res = await handler.main(event);
@@ -308,10 +348,12 @@ describe('GET /user/profile', () => {
   });
 
   it('returns 404 when user does not exist', async () => {
-    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: undefined }) }));
+    const token = 'tok-MISSING';
+    handler._setDdb(withAccessRow('MISSING', token));
     const event = makeEvent({
       httpMethod: 'GET',
       path: '/user/profile',
+      headers: { authorization: bearer(token) },
       queryStringParameters: { userId: 'MISSING' },
     });
     const res = await handler.main(event);
@@ -322,11 +364,41 @@ describe('GET /user/profile', () => {
 
   it('returns 400 VALIDATION_ERROR when userId query param is missing', async () => {
     handler._setDdb(makeDdb());
+    // qparam runs before requireBearer, so this still hits VALIDATION_ERROR.
     const event = makeEvent({ httpMethod: 'GET', path: '/user/profile' });
     const res = await handler.main(event);
     assert.equal(res.statusCode, 400);
     const body = JSON.parse(res.body);
     assert.equal(body.error.code, 'VALIDATION_ERROR');
+  });
+
+  it('returns 401 UNAUTHORIZED when no bearer token is presented', async () => {
+    handler._setDdb(makeDdb());
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/user/profile',
+      headers: { 'content-type': 'application/json' },
+      queryStringParameters: { userId: 'U001' },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'UNAUTHORIZED');
+  });
+
+  it('returns 403 FORBIDDEN when bearer userId does not match requested userId', async () => {
+    const token = 'tok-U002';
+    handler._setDdb(withAccessRow('U002', token));
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/user/profile',
+      headers: { authorization: bearer(token) },
+      queryStringParameters: { userId: 'U001' },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 403);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'FORBIDDEN');
   });
 });
 
@@ -655,14 +727,32 @@ describe('POST /auth/mfa/verify', () => {
 // ---------------------------------------------------------------------------
 
 describe('POST /transactions/transfer', () => {
-  function transferDdb(senderItem, receiverItem, stateItem = null) {
-    let getCount = 0;
+  /**
+   * DDB stub for transfer: returns an ACCESS row for `token` keyed on
+   * `senderUserId`, sender/receiver UserProfile rows in two consecutive
+   * GetCommand calls, and a UserState row.
+   */
+  function transferDdb(senderUserId, token, senderItem, receiverItem, stateItem = null) {
+    let userProfileGetCount = 0;
+    const now = Math.floor(Date.now() / 1000);
+    const accessRow = {
+      sessionId: token,
+      recordType: 'ACCESS',
+      userId: senderUserId,
+      token,
+      issuedAt: now - 60,
+      expiresAt: now + 1800,
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
     return makeDdb({
       GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession' && cmd.input.Key.sessionId === token) {
+          return { Item: accessRow };
+        }
         if (cmd.input.TableName === 'UserProfile') {
-          // First call: sender, second call: receiver.
-          getCount++;
-          return { Item: getCount === 1 ? senderItem : receiverItem };
+          userProfileGetCount++;
+          return { Item: userProfileGetCount === 1 ? senderItem : receiverItem };
         }
         if (cmd.input.TableName === 'UserState') return { Item: stateItem };
         return { Item: undefined };
@@ -676,11 +766,13 @@ describe('POST /transactions/transfer', () => {
     const sender = { userId: 'U001', username: 'alice' };
     const receiver = { userId: 'U002', username: 'bob' };
     const state = { transferCount1h: 1, lastTransferTime: Math.floor(Date.now() / 1000) - 10 };
-    handler._setDdb(transferDdb(sender, receiver, state));
+    const token = 'tok-U001';
+    handler._setDdb(transferDdb('U001', token, sender, receiver, state));
 
     const event = makeEvent({
       httpMethod: 'POST',
       path: '/transactions/transfer',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
       body: JSON.stringify({
         userId: 'U001',
         recipientId: 'U002',
@@ -699,10 +791,12 @@ describe('POST /transactions/transfer', () => {
   });
 
   it('returns 404 USER_NOT_FOUND when sender does not exist', async () => {
-    handler._setDdb(transferDdb(null, null));
+    const token = 'tok-MISSING';
+    handler._setDdb(transferDdb('MISSING', token, null, null));
     const event = makeEvent({
       httpMethod: 'POST',
       path: '/transactions/transfer',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
       body: JSON.stringify({ userId: 'MISSING', recipientId: 'U002', amount: 100 }),
     });
     const res = await handler.main(event);
@@ -714,10 +808,12 @@ describe('POST /transactions/transfer', () => {
   it('returns 400 VALIDATION_ERROR when amount is not positive', async () => {
     const sender = { userId: 'U001', username: 'alice' };
     const receiver = { userId: 'U002', username: 'bob' };
-    handler._setDdb(transferDdb(sender, receiver));
+    const token = 'tok-U001';
+    handler._setDdb(transferDdb('U001', token, sender, receiver));
     const event = makeEvent({
       httpMethod: 'POST',
       path: '/transactions/transfer',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
       body: JSON.stringify({ userId: 'U001', recipientId: 'U002', amount: -10 }),
     });
     const res = await handler.main(event);
@@ -739,19 +835,20 @@ describe('GET /offers', () => {
       tier: 'platinum',
       profileCompletion: 1.0,
     };
+    const token = 'tok-U001';
     handler._setDdb(
-      makeDdb({
+      withAccessRow('U001', token, {
         GetCommand: (cmd) => {
           if (cmd.input.TableName === 'UserProfile') return { Item: profile };
           return { Item: undefined };
         },
-        UpdateCommand: () => ({}),
         PutCommand: () => ({}),
       })
     );
     const event = makeEvent({
       httpMethod: 'GET',
       path: '/offers',
+      headers: { authorization: bearer(token) },
       queryStringParameters: { userId: 'U001' },
     });
     const res = await handler.main(event);
@@ -762,10 +859,12 @@ describe('GET /offers', () => {
   });
 
   it('returns 404 when user does not exist', async () => {
-    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: undefined }) }));
+    const token = 'tok-MISSING';
+    handler._setDdb(withAccessRow('MISSING', token));
     const event = makeEvent({
       httpMethod: 'GET',
       path: '/offers',
+      headers: { authorization: bearer(token) },
       queryStringParameters: { userId: 'MISSING' },
     });
     const res = await handler.main(event);
@@ -785,19 +884,20 @@ describe('GET /nudges', () => {
       emailVerified: false,
       phoneVerified: false,
     };
+    const token = 'tok-U003';
     handler._setDdb(
-      makeDdb({
+      withAccessRow('U003', token, {
         GetCommand: (cmd) => {
           if (cmd.input.TableName === 'UserProfile') return { Item: profile };
           return { Item: undefined };
         },
-        UpdateCommand: () => ({}),
         PutCommand: () => ({}),
       })
     );
     const event = makeEvent({
       httpMethod: 'GET',
       path: '/nudges',
+      headers: { authorization: bearer(token) },
       queryStringParameters: { userId: 'U003' },
     });
     const res = await handler.main(event);
@@ -1080,5 +1180,82 @@ describe('validateBearer', () => {
     assert.equal(up.Key.sessionId, 'tok-xyz');
     assert.match(up.UpdateExpression, /lastActivityAt/);
     assert.match(up.UpdateExpression, /expiresAt/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /auth/logout
+// ---------------------------------------------------------------------------
+
+describe('POST /auth/logout', () => {
+  it('returns 204 and deletes the access row for a valid bearer', async () => {
+    const token = 'tok-logout-U001';
+    const deletes = [];
+    handler._setDdb(
+      withAccessRow('U001', token, {
+        DeleteCommand: (cmd) => {
+          deletes.push(cmd.input);
+          return {};
+        },
+      })
+    );
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/logout',
+      headers: { authorization: bearer(token) },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 204);
+    assert.equal(deletes.length, 1, 'logout must issue exactly one DeleteCommand');
+    assert.equal(deletes[0].TableName, 'UserSession');
+    assert.equal(deletes[0].Key.sessionId, token);
+  });
+
+  it('returns 401 UNAUTHORIZED when no bearer is presented', async () => {
+    handler._setDdb(makeDdb());
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/logout',
+      headers: { 'content-type': 'application/json' },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /auth/session
+// ---------------------------------------------------------------------------
+
+describe('GET /auth/session', () => {
+  it('returns session metadata for a valid bearer', async () => {
+    const token = 'tok-session-U001';
+    handler._setDdb(withAccessRow('U001', token));
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/auth/session',
+      headers: { authorization: bearer(token) },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.userId, 'U001');
+    assert.equal(typeof body.data.issuedAt, 'number');
+    assert.equal(typeof body.data.expiresAt, 'number');
+    assert.equal(typeof body.data.lastActivityAt, 'number');
+    assert.equal(body.data.mfaVerified, true);
+  });
+
+  it('returns 401 INVALID_TOKEN when bearer is unknown', async () => {
+    handler._setDdb(makeDdb({ GetCommand: () => ({ Item: undefined }) }));
+    const event = makeEvent({
+      httpMethod: 'GET',
+      path: '/auth/session',
+      headers: { authorization: bearer('not-a-real-token') },
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'INVALID_TOKEN');
   });
 });

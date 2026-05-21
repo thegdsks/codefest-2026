@@ -1,6 +1,7 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const {
   DynamoDBDocumentClient,
+  DeleteCommand,
   GetCommand,
   PutCommand,
   UpdateCommand,
@@ -318,6 +319,34 @@ async function validateBearer(event) {
   };
 }
 
+/**
+ * Validate the bearer token and assert the request's userId matches.
+ * Throws a status-bearing error so exports.main converts it to JSON.
+ */
+async function requireBearer(event, expectedUserId) {
+  const principal = await validateBearer(event);
+  if (expectedUserId && principal.userId !== expectedUserId) {
+    throw {
+      status: 403,
+      code: 'FORBIDDEN',
+      message: 'Token does not match userId in request',
+    };
+  }
+  return principal;
+}
+
+/**
+ * Delete an access-token row, idempotently. Used by /auth/logout.
+ */
+async function revokeAccessToken(token) {
+  await ddb.send(
+    new DeleteCommand({
+      TableName: CFG.tUserSession,
+      Key: { sessionId: token },
+    })
+  );
+}
+
 async function putActivity(item) {
   await ddb.send(new PutCommand({ TableName: CFG.tUserActivity, Item: item }));
 }
@@ -490,6 +519,8 @@ async function route(event, correlationId) {
 
   if (method === 'POST' && p === '/auth/login') return login(event, correlationId);
   if (method === 'POST' && p === '/auth/mfa/verify') return mfaVerify(event, correlationId);
+  if (method === 'POST' && p === '/auth/logout') return logout(event, correlationId);
+  if (method === 'GET' && p === '/auth/session') return sessionInfo(event, correlationId);
   if (method === 'POST' && p === '/transactions/transfer') return transfer(event, correlationId);
   if (method === 'GET' && p === '/offers') return getOffers(event, correlationId);
   if (method === 'POST' && p === '/offers/action') return offerAction(event, correlationId);
@@ -712,9 +743,50 @@ async function mfaVerify(event, correlationId) {
   });
 }
 
+/**
+ * POST /auth/logout - revoke the current bearer token. Idempotent: returns
+ * 204 whether the token row existed or not, so a double-click on logout
+ * is harmless. Requires a valid bearer (otherwise 401 from validateBearer).
+ */
+async function logout(event, correlationId) {
+  const principal = await validateBearer(event);
+  await revokeAccessToken(principal.token);
+  return {
+    statusCode: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Methods': '*',
+      'x-correlation-id': correlationId || '',
+    },
+    body: '',
+  };
+}
+
+/**
+ * GET /auth/session - return metadata about the current bearer's session
+ * row. Used by the FE to render the "session expires in 12m" indicator.
+ * Calling this slides the expiry forward via validateBearer (same as any
+ * other authenticated call) so just polling /auth/session keeps the
+ * session alive.
+ */
+async function sessionInfo(event, correlationId) {
+  const principal = await validateBearer(event);
+  return json(200, correlationId, {
+    data: {
+      userId: principal.userId,
+      issuedAt: principal.issuedAt,
+      expiresAt: principal.expiresAt,
+      lastActivityAt: principal.lastActivityAt,
+      mfaVerified: principal.mfaVerified,
+    },
+  });
+}
+
 async function transfer(event, correlationId) {
   const body = parseBody(event);
   const userId = requireField(body, 'userId');
+  await requireBearer(event, userId);
   const recipientId = requireField(body, 'recipientId');
   const amount = Number(requireField(body, 'amount'));
   const channel = body.channel || 'APP';
@@ -802,6 +874,7 @@ async function transfer(event, correlationId) {
 
 async function getOffers(event, correlationId) {
   const userId = qparam(event, 'userId');
+  await requireBearer(event, userId);
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -851,6 +924,7 @@ async function getOffers(event, correlationId) {
 async function offerAction(event, correlationId) {
   const body = parseBody(event);
   const userId = requireField(body, 'userId');
+  await requireBearer(event, userId);
   const offerId = requireField(body, 'offerId');
   const action = requireField(body, 'action').toUpperCase();
 
@@ -879,6 +953,7 @@ async function offerAction(event, correlationId) {
 
 async function getNudges(event, correlationId) {
   const userId = qparam(event, 'userId');
+  await requireBearer(event, userId);
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -925,6 +1000,7 @@ async function getNudges(event, correlationId) {
 async function nudgeAction(event, correlationId) {
   const body = parseBody(event);
   const userId = requireField(body, 'userId');
+  await requireBearer(event, userId);
   const nudgeId = requireField(body, 'nudgeId');
   const action = requireField(body, 'action').toUpperCase();
 
@@ -953,6 +1029,7 @@ async function nudgeAction(event, correlationId) {
 
 async function getProfile(event, correlationId) {
   const userId = qparam(event, 'userId');
+  await requireBearer(event, userId);
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -970,6 +1047,7 @@ async function getProfile(event, correlationId) {
 
 async function dashboard(event, correlationId) {
   const userId = qparam(event, 'userId');
+  await requireBearer(event, userId);
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -1045,6 +1123,7 @@ async function dashboard(event, correlationId) {
  */
 async function profileCompletenessEndpoint(event, correlationId) {
   const userId = qparam(event, 'userId');
+  await requireBearer(event, userId);
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
@@ -1084,11 +1163,38 @@ exports._setDdb = _setDdb;
 // Exported for unit tests; not part of the HTTP-facing public API.
 exports._validateBearer = validateBearer;
 
+/**
+ * Routes authenticated via a per-user bearer token. For these, exports.main
+ * skips the handler-level Basic Auth gate; the route itself calls
+ * validateBearer/requireBearer and verifies the userId match.
+ *
+ * Auth handshake routes (/auth/login, /auth/mfa/verify), admin, and any
+ * unknown path keep the Basic Auth client-id check.
+ */
+const BEARER_ROUTES = [
+  ['POST', '/transactions/transfer'],
+  ['GET', '/user/profile'],
+  ['GET', '/user/profile-completeness'],
+  ['GET', '/offers'],
+  ['POST', '/offers/action'],
+  ['GET', '/nudges'],
+  ['POST', '/nudges/action'],
+  ['GET', '/dashboard'],
+  ['POST', '/auth/logout'],
+  ['GET', '/auth/session'],
+];
+
+function isBearerRoute(method, path) {
+  for (const [m, p] of BEARER_ROUTES) {
+    if (m === method && p === path) return true;
+  }
+  return false;
+}
+
 exports.main = async (event) => {
   const correlationId = getHeader(event.headers, 'x-correlation-id') || '';
 
   try {
-    // /health is intentionally unauthenticated - resolve it before the auth gate.
     const method =
       (event.requestContext && event.requestContext.http && event.requestContext.http.method) ||
       event.httpMethod;
@@ -1096,11 +1202,19 @@ exports.main = async (event) => {
       (event.requestContext && event.requestContext.http && event.requestContext.http.path) ||
       event.path ||
       '/';
+
+    // /health is intentionally unauthenticated.
     if (method === 'GET' && rawP === '/health') return healthEndpoint();
 
-    if (!basicAuthOk(event)) {
-      return err(401, correlationId, 'UNAUTHORIZED_CLIENT', 'Missing/invalid Basic Auth');
+    // Bearer routes carry their own auth via validateBearer in the route
+    // handler. Skip the handler-level Basic Auth gate so a client that
+    // already has a bearer doesn't need to also present Basic credentials.
+    if (!isBearerRoute(method, rawP)) {
+      if (!basicAuthOk(event)) {
+        return err(401, correlationId, 'UNAUTHORIZED_CLIENT', 'Missing/invalid Basic Auth');
+      }
     }
+
     return await route(event, correlationId);
   } catch (e) {
     if (e && e.status) return err(e.status, correlationId, e.code || 'ERROR', e.message || 'Error');
