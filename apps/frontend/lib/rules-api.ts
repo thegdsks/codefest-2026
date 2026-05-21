@@ -73,10 +73,16 @@ export interface RulesFilter {
   status?: RuleStatus;
 }
 
-export type CreateRulePayload = Omit<
-  EngagementRule,
-  'ruleId' | 'createdAt' | 'updatedAt' | 'firesLast24h'
->;
+export interface CreateRulePayload {
+  name: string;
+  status: RuleStatus;
+  /** Backend json-rules-engine shape. Generated from form state via toDefinition(). */
+  definition: Record<string, unknown>;
+  /** Frontend display state. Kept for the live preview and disclaimers. NOT sent to the API. */
+  whenConditions: RuleConditionGroup;
+  whoConditions: RuleConditionGroup;
+  action: RuleAction;
+}
 export type UpdateRulePayload = Partial<CreateRulePayload>;
 
 function authHeader(): string {
@@ -156,9 +162,13 @@ export function getRule(id: string): Promise<ApiResult<EngagementRule>> {
 }
 
 export function createRule(rule: CreateRulePayload): Promise<ApiResult<EngagementRule>> {
+  // Strip frontend-only display fields before sending. Backend expects
+  // { name, status, definition }; legacy whenConditions/whoConditions/action
+  // would be persisted into DDB if forwarded.
+  const body = { name: rule.name, status: rule.status, definition: rule.definition };
   return adminFetch<EngagementRule>('/admin/rules', {
     method: 'POST',
-    body: JSON.stringify(rule),
+    body: JSON.stringify(body),
   });
 }
 

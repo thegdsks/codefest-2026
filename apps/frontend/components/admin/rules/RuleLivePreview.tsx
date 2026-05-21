@@ -109,10 +109,7 @@ export default function RuleLivePreview({ payload }: RuleLivePreviewProps) {
   const runTest = useCallback(async () => {
     const myReq = ++reqIdRef.current;
     setState({ kind: 'loading' });
-    const res = await testRule(
-      payloadRef.current as unknown as Record<string, unknown>,
-      WINDOW_24H_SEC
-    );
+    const res = await testRule(payloadRef.current.definition, WINDOW_24H_SEC);
     if (myReq !== reqIdRef.current) return;
     if (res.error) {
       setState({ kind: 'error', message: res.error.message });
