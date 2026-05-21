@@ -11,6 +11,8 @@ export type RuleStatus = 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
 
 export type SurfaceType = 'banner' | 'modal' | 'tooltip';
 
+export type ActionType = 'HINT' | 'NUDGE' | 'OFFER' | 'CUSTOM';
+
 export interface RuleCondition {
   field: string;
   operator: string;
@@ -27,6 +29,27 @@ export interface RuleAction {
   useAI: boolean;
   fallbackCopy: string;
   maxPerUserPerDay: number;
+  actionType?: ActionType;
+  score?: number;
+}
+
+export interface SampleMatch {
+  decisionId: string;
+  signal: string;
+  userId: string;
+  timestamp: string;
+}
+
+export interface RuleTestResult {
+  count: number;
+  samples: SampleMatch[];
+}
+
+export interface AiSuggestResult {
+  name: string;
+  conditions: RuleConditionGroup;
+  event?: string;
+  explanation: string;
 }
 
 export interface EngagementRule {
@@ -152,5 +175,24 @@ export function updateRule(
 export function archiveRule(id: string): Promise<ApiResult<EngagementRule>> {
   return adminFetch<EngagementRule>(`/admin/rules/${encodeURIComponent(id)}/archive`, {
     method: 'POST',
+  });
+}
+
+export function aiSuggest(description: string): Promise<ApiResult<AiSuggestResult>> {
+  return adminFetch<AiSuggestResult>('/admin/rules/ai-suggest', {
+    method: 'POST',
+    body: JSON.stringify({ description }),
+  });
+}
+
+export function testRule(
+  definition: Record<string, unknown>,
+  windowSec?: number
+): Promise<ApiResult<RuleTestResult>> {
+  const body: Record<string, unknown> = { definition };
+  if (typeof windowSec === 'number') body.windowSec = windowSec;
+  return adminFetch<RuleTestResult>('/admin/rules/test', {
+    method: 'POST',
+    body: JSON.stringify(body),
   });
 }
