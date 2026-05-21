@@ -1,4 +1,5 @@
 import { apiFetch } from '@/lib/api';
+import type { LoginContext } from '@/lib/hotel/demo-context';
 import type { ApiResult, DashboardResponse } from '@/lib/types';
 
 export interface LoginSuccessData {
@@ -55,15 +56,19 @@ const DEMO_DEVICE_ID = 'device-web-demo';
 // Recipient that stands in for the loyalty partner in the user-to-user transfer model.
 export const DEMO_RECIPIENT_ID = 'USER#002';
 
-export function login(username: string, password: string): Promise<ApiResult<LoginData>> {
+export function login(
+  username: string,
+  password: string,
+  ctx?: LoginContext
+): Promise<ApiResult<LoginData>> {
   return apiFetch<LoginData>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({
       username,
       password,
-      location: DEMO_LOCATION,
-      deviceId: DEMO_DEVICE_ID,
-      deviceType: 'desktop',
+      location: ctx?.location ?? DEMO_LOCATION,
+      deviceId: ctx?.deviceId ?? DEMO_DEVICE_ID,
+      deviceType: ctx?.deviceType ?? 'desktop',
     }),
   });
 }
