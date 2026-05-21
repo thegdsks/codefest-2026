@@ -4,7 +4,7 @@ interface ProgressBarProps {
 }
 
 const TONE: Record<NonNullable<ProgressBarProps['tone']>, string> = {
-  indigo: 'bg-gradient-to-r from-indigo-500 to-fuchsia-500',
+  indigo: 'bg-indigo-500',
   emerald: 'bg-emerald-500/70',
   amber: 'bg-amber-500/70',
   rose: 'bg-rose-500/70',

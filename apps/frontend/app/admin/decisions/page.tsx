@@ -1,6 +1,12 @@
 'use client';
 
-import { ChevronRight, Download, RefreshCcw, Search, X } from 'lucide-react';
+import {
+  ArrowClockwise,
+  CaretRight,
+  DownloadSimple,
+  MagnifyingGlass,
+  X,
+} from '@phosphor-icons/react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ActionPill from '@/components/admin/ActionPill';
@@ -135,7 +141,7 @@ export default function DecisionsListPage() {
     <div className="mx-auto max-w-7xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-100">Decisions</h1>
+          <h1 className="text-2xl font-semibold text-zinc-100">Decision feed</h1>
           <p className="mt-1 text-sm text-zinc-500">
             Newest first. Filter, click a row for the audit trail.
           </p>
@@ -147,7 +153,7 @@ export default function DecisionsListPage() {
               onClick={handleExport}
               className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             >
-              <Download size={12} />
+              <DownloadSimple size={12} />
               Export CSV
             </button>
             <button
@@ -155,7 +161,7 @@ export default function DecisionsListPage() {
               onClick={load}
               className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             >
-              <RefreshCcw size={12} />
+              <ArrowClockwise size={12} />
               Refresh
             </button>
           </div>
@@ -210,7 +216,7 @@ export default function DecisionsListPage() {
             User ID
           </label>
           <div className="flex items-center rounded-md border border-zinc-800 bg-zinc-900 px-2">
-            <Search size={12} className="text-zinc-500" />
+            <MagnifyingGlass size={12} className="text-zinc-500" />
             <input
               id="user-id-filter"
               type="text"
@@ -318,7 +324,7 @@ export default function DecisionsListPage() {
                       <span className="truncate text-[11px]" title={reasonOf(row)}>
                         {reasonOf(row).slice(0, 18)}
                       </span>
-                      <ChevronRight size={14} />
+                      <CaretRight size={14} />
                     </div>
                   </Link>
                 </li>

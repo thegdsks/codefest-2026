@@ -1,6 +1,13 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, MailCheck, MailX, PhoneCall, PhoneOff } from 'lucide-react';
+import {
+  CaretLeft,
+  CaretRight,
+  EnvelopeSimple,
+  EnvelopeSimpleOpen,
+  Phone,
+  PhoneSlash,
+} from '@phosphor-icons/react';
 import { useCallback, useEffect, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
 import ProgressBar from '@/components/admin/ProgressBar';
@@ -27,14 +34,14 @@ function VerifyIcons({ user }: { user: AdminUser }) {
   return (
     <div className="flex items-center gap-2 text-zinc-500">
       {user.emailVerified ? (
-        <MailCheck size={14} className="text-emerald-400" aria-label="Email verified" />
+        <EnvelopeSimple size={14} className="text-emerald-400" aria-label="Email verified" />
       ) : (
-        <MailX size={14} className="text-zinc-600" aria-label="Email unverified" />
+        <EnvelopeSimpleOpen size={14} className="text-zinc-600" aria-label="Email unverified" />
       )}
       {user.phoneVerified ? (
-        <PhoneCall size={14} className="text-emerald-400" aria-label="Phone verified" />
+        <Phone size={14} className="text-emerald-400" aria-label="Phone verified" />
       ) : (
-        <PhoneOff size={14} className="text-zinc-600" aria-label="Phone unverified" />
+        <PhoneSlash size={14} className="text-zinc-600" aria-label="Phone unverified" />
       )}
     </div>
   );
@@ -119,7 +126,11 @@ export default function UsersPage() {
             ))}
           </div>
         ) : users.length === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-zinc-500">No users to show.</div>
+          <div className="px-4 py-10 text-center text-sm text-zinc-500">
+            No user profiles found. Seed the table with{' '}
+            <code className="font-mono text-zinc-400">seed_data/UserProfile.json</code> and run the
+            DynamoDB BatchWrite script.
+          </div>
         ) : (
           <ul className="divide-y divide-zinc-800">
             {users.map((user) => (
@@ -154,7 +165,7 @@ export default function UsersPage() {
           disabled={cursorStack.length === 0 || loading}
           className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
         >
-          <ChevronLeft size={14} />
+          <CaretLeft size={14} />
           Previous
         </button>
         <button
@@ -164,7 +175,7 @@ export default function UsersPage() {
           className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
         >
           Next
-          <ChevronRight size={14} />
+          <CaretRight size={14} />
         </button>
       </div>
     </div>

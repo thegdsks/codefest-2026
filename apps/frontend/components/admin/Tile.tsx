@@ -1,10 +1,10 @@
-import type { LucideIcon } from 'lucide-react';
+import type { Icon } from '@phosphor-icons/react';
 
 interface TileProps {
   label: string;
   value: string | number;
   hint?: string;
-  icon?: LucideIcon;
+  icon?: Icon;
   accent?: 'default' | 'green' | 'amber' | 'rose' | 'indigo';
   loading?: boolean;
 }
