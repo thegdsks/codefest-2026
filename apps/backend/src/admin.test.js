@@ -293,6 +293,82 @@ describe('getMetrics', () => {
     const resp = await admin.getMetrics(event, 'cid-009');
     assert.equal(resp.statusCode, 403);
   });
+
+  test('budget sub-object has correct shape with default 250 cap', async () => {
+    const ts = nowSec();
+    const items = [
+      makeDecision({ engineLayer: 'L1+L2', timestamp: ts }),
+      makeDecision({ engineLayer: 'L1+L2', timestamp: ts - 1 }),
+    ];
+    loadAdmin(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.getMetrics(event, 'cid-budget-1');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    const { budget } = body.data;
+    assert.ok(budget, 'budget sub-object must be present');
+    assert.equal(budget.llmDailyUsd, 250);
+    // 2 L1+L2 calls * 0.0006 = 0.0012
+    assert.ok(
+      Math.abs(budget.usedUsd - 0.0012) < 0.00001,
+      `usedUsd should be ~0.0012, got ${budget.usedUsd}`
+    );
+    assert.ok(Math.abs(budget.remainingUsd - (250 - 0.0012)) < 0.00001);
+    assert.ok(budget.percentUsed >= 0 && budget.percentUsed <= 100);
+  });
+
+  test('budget percentUsed has at most one decimal place', async () => {
+    const ts = nowSec();
+    const items = [makeDecision({ engineLayer: 'L1+L2', timestamp: ts })];
+    loadAdmin(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.getMetrics(event, 'cid-budget-2');
+    const body = JSON.parse(resp.body);
+    const { budget } = body.data;
+    assert.ok(isFinite(budget.percentUsed), 'percentUsed must be a finite number');
+    const decimals = (String(budget.percentUsed).split('.')[1] || '').length;
+    assert.ok(decimals <= 1, `expected at most 1 decimal, got "${budget.percentUsed}"`);
+  });
+
+  test('budget remainingUsd floors at 0 when over budget', async () => {
+    const original = process.env.LLM_DAILY_BUDGET_USD;
+    process.env.LLM_DAILY_BUDGET_USD = '0.0001';
+
+    const ts = nowSec();
+    const items = [makeDecision({ engineLayer: 'L1+L2', timestamp: ts })];
+
+    const key = require.resolve('./admin');
+    delete require.cache[key];
+    admin = require('./admin');
+    admin._setDdb(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.getMetrics(event, 'cid-budget-3');
+    const body = JSON.parse(resp.body);
+    const { budget } = body.data;
+    assert.equal(budget.remainingUsd, 0, 'remainingUsd must floor at 0 when over budget');
+    assert.ok(
+      budget.percentUsed > 100,
+      `percentUsed should exceed 100 when over budget, got ${budget.percentUsed}`
+    );
+
+    if (original === undefined) {
+      delete process.env.LLM_DAILY_BUDGET_USD;
+    } else {
+      process.env.LLM_DAILY_BUDGET_USD = original;
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

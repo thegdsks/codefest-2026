@@ -78,12 +78,23 @@ async function getMetrics(event, correlationId) {
   const total = items.length;
   const costEstimateUsd = l1plus_l2 * estLlmUnitUsd();
 
+  const llmDailyBudgetUsd = CFG.llmDailyBudgetUsd;
+  const remainingUsd = Math.max(0, llmDailyBudgetUsd - costEstimateUsd);
+  const percentUsed =
+    llmDailyBudgetUsd > 0 ? Math.round((costEstimateUsd / llmDailyBudgetUsd) * 1000) / 10 : 0;
+
   return json(200, correlationId, {
     data: {
       totals: { total, l1, l1plus_l2, by_type, by_action },
       costEstimateUsd,
       asOf: nowSec(),
       guard: getBudgetStats(),
+      budget: {
+        llmDailyUsd: llmDailyBudgetUsd,
+        usedUsd: costEstimateUsd,
+        remainingUsd,
+        percentUsed,
+      },
     },
   });
 }
