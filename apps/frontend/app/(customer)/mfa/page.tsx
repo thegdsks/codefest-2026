@@ -1,8 +1,8 @@
 'use client';
 
 import { ArrowRight, ShieldAlert } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { type FormEvent, type KeyboardEvent, Suspense, useEffect, useRef, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { verifyMfa } from '@/lib/hotel/customer-api';
 
@@ -10,8 +10,10 @@ import { verifyMfa } from '@/lib/hotel/customer-api';
 // judges-without-a-phone demo path works when MFA_MODE=static.
 const DEMO_OTP = '123456';
 
-export default function MfaScreen() {
+function MfaScreenInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get('next') ?? '/profile';
   const { pendingSessionId, completeLogin } = useCustomer();
   const [code, setCode] = useState<string[]>(Array(6).fill(''));
   const [verifying, setVerifying] = useState(false);
@@ -77,7 +79,7 @@ export default function MfaScreen() {
     setDone(true);
     const ok = await completeLogin(res.data.token);
     if (ok) {
-      router.push('/profile');
+      router.push(nextPath);
     } else {
       setError('Verification succeeded but the session could not be established.');
       setVerifying(false);
@@ -179,5 +181,13 @@ export default function MfaScreen() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MfaScreen() {
+  return (
+    <Suspense>
+      <MfaScreenInner />
+    </Suspense>
   );
 }

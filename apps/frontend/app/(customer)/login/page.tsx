@@ -1,8 +1,8 @@
 'use client';
 
 import { Clock, Eye, EyeOff, Lock, Mail, Shield, ShieldCheck, Star, User } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { type FormEvent, Suspense, useEffect, useRef, useState } from 'react';
 import BlockBanner from '@/components/hotel/BlockBanner';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { clearUserBlock, getDevConfig } from '@/lib/admin-api';
@@ -164,8 +164,10 @@ interface LoginBlockData {
   userId: string;
 }
 
-export default function LoginScreen() {
+function LoginScreenInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get('next') ?? '/profile';
   const { completeLogin, setPendingSessionId } = useCustomer();
   const [username, setUsername] = useState('user001');
   const [password, setPassword] = useState('Password1');
@@ -218,13 +220,15 @@ export default function LoginScreen() {
 
     if (res.data.status === 'MFA_REQUIRED') {
       setPendingSessionId(res.data.sessionId);
-      router.push('/mfa');
+      const mfaTarget =
+        nextPath !== '/profile' ? `/mfa?next=${encodeURIComponent(nextPath)}` : '/mfa';
+      router.push(mfaTarget);
       return;
     }
 
     const ok = await completeLogin(res.data.token);
     if (ok) {
-      router.push('/profile');
+      router.push(nextPath);
     } else {
       setError('Sign-in succeeded but the session could not be established.');
       setSubmitting(false);
@@ -440,5 +444,13 @@ export default function LoginScreen() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginScreen() {
+  return (
+    <Suspense>
+      <LoginScreenInner />
+    </Suspense>
   );
 }

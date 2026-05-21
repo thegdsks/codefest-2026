@@ -12,6 +12,8 @@ import SurfaceBubble from '@/components/hotel/SurfaceBubble';
 import { mutateDemoUser } from '@/lib/hotel/customer-api';
 import { PARTNERS } from '@/lib/hotel/data';
 import { dismiss, isDismissed } from '@/lib/hotel/surface-dismissal';
+import type { CatalystElevateContext } from '@/lib/hotel/surface-types';
+import { useRequireAuth } from '@/lib/hotel/use-require-auth';
 import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
@@ -29,15 +31,14 @@ const COMM_CHANNELS = ['Email', 'SMS/Text Message', 'Postal Mail'];
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, pastStays, isLoggedIn, session } = useCustomer();
+  const { user, pastStays, session } = useCustomer();
   const { trackEvent } = useTrackedEngagement();
   const { surfaces, refetch } = useSurfaceEligibility();
   const catalystSurface = surfaces['PROFILE_CATALYST_ELEVATE'];
   const [inlineDismissed, setInlineDismissed] = useState(false);
-
-  useEffect(() => {
-    if (!isLoggedIn) router.replace('/login');
-  }, [isLoggedIn, router]);
+  // useRequireAuth replaces the prior manual redirect with hydration-safe
+  // guard logic that also handles ?next= round-trip via the login page.
+  const isAuthenticated = useRequireAuth();
 
   // Points balance stare: user lingers on the points balance element.
   // The balance element carries data-stare-target="points" which the global
@@ -48,6 +49,8 @@ export default function ProfileScreen() {
     const detach = attachPointsBalanceStareDetector((signal) => trackEvent(signal), 5_000);
     return detach;
   }, [trackEvent]);
+
+  if (!isAuthenticated) return null;
 
   const coreFields = [
     user.country,

@@ -21,6 +21,8 @@ export interface Session {
 
 interface CustomerContextValue {
   isLoggedIn: boolean;
+  /** True once the initial sessionStorage check has resolved (with or without a session). */
+  isHydrated: boolean;
   user: UserProfile;
   pastStays: PastStay[];
   session: Session | null;
@@ -38,6 +40,7 @@ const CustomerContext = createContext<CustomerContextValue | null>(null);
 
 export function CustomerProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [user, setUser] = useState<UserProfile>(MOCK_USER);
   const [pastStays] = useState<PastStay[]>(PAST_STAYS);
   const [session, setSession] = useState<Session | null>(null);
@@ -101,16 +104,27 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+      setIsHydrated(true);
+      return;
+    }
     const stored = sessionStorage.getItem('sf.session');
-    if (!stored) return;
+    if (!stored) {
+      setIsHydrated(true);
+      return;
+    }
     try {
       const parsed = JSON.parse(stored) as { token: string; userId: string };
       if (parsed.token) {
-        completeLogin(parsed.token);
+        completeLogin(parsed.token).finally(() => {
+          setIsHydrated(true);
+        });
+      } else {
+        setIsHydrated(true);
       }
     } catch {
       sessionStorage.removeItem('sf.session');
+      setIsHydrated(true);
     }
   }, [completeLogin]);
 
@@ -143,6 +157,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CustomerContextValue>(
     () => ({
       isLoggedIn,
+      isHydrated,
       user,
       pastStays,
       session,
@@ -157,6 +172,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     }),
     [
       isLoggedIn,
+      isHydrated,
       user,
       pastStays,
       session,
