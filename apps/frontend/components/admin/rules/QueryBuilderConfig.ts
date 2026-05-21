@@ -1,3 +1,14 @@
+import {
+  Award,
+  Eye,
+  Hourglass,
+  LogOut,
+  type LucideIcon,
+  MailCheck,
+  MousePointerClick,
+  Search,
+  Sparkles,
+} from 'lucide-react';
 import type { Field } from 'react-querybuilder';
 
 export const fields: Field[] = [
@@ -118,4 +129,48 @@ export const fields: Field[] = [
 export const defaultQuery = {
   combinator: 'and' as const,
   rules: [],
+};
+
+// Signal field names used to drive UX (icons, color, plain-English copy).
+export const SIGNAL_FIELDS = new Set<string>([
+  'rage_click_count',
+  'rage_click_window',
+  'dwell_no_action_threshold_ms',
+  'abandoned_flow_step',
+  'abandoned_flow_id',
+  'repeated_query_count',
+  'repeated_query_term',
+  'points_balance_stare_threshold_ms',
+]);
+
+export const USER_FIELDS = new Set<string>(['tier', 'loyaltyScore', 'emailVerified']);
+
+// Per-field Lucide icon used to render the badge above each query row.
+export const SIGNAL_ICONS: Record<string, LucideIcon> = {
+  rage_click_count: MousePointerClick,
+  rage_click_window: MousePointerClick,
+  dwell_no_action_threshold_ms: Hourglass,
+  abandoned_flow_step: LogOut,
+  abandoned_flow_id: LogOut,
+  repeated_query_count: Search,
+  repeated_query_term: Search,
+  points_balance_stare_threshold_ms: Eye,
+  tier: Award,
+  loyaltyScore: Sparkles,
+  emailVerified: MailCheck,
+};
+
+// Per-field one-line help shown below each query row.
+export const FIELD_HINTS: Record<string, string> = {
+  rage_click_count: 'clicks in a short window, 5 is the typical floor for rage',
+  rage_click_window: 'window length in seconds, 3 is a tight burst',
+  dwell_no_action_threshold_ms: 'milliseconds, 8000 = 8 seconds of staring',
+  abandoned_flow_step: 'flow step name, e.g. confirm or review',
+  abandoned_flow_id: 'flow identifier, e.g. transfer or redeem',
+  repeated_query_count: 'how many times the same query was issued',
+  repeated_query_term: 'the literal search term the user retried',
+  points_balance_stare_threshold_ms: 'milliseconds spent looking at the balance widget',
+  tier: 'Silver, Gold, Platinum, or Ambassador',
+  loyaltyScore: 'fraud-adjusted score, 0 to 100',
+  emailVerified: 'true if the email has been confirmed',
 };
