@@ -324,7 +324,7 @@ function SingleRow({ row, expandedId, onToggleExpand, onOpenDrawer }: SingleRowP
           {/* Engine badge */}
           <div className="hidden w-16 shrink-0 md:block">
             {isL2 ? (
-              <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-400/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
+              <span className="inline-flex items-center gap-0.5 rounded-full border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--warning-fg)]">
                 <Sparkle size={9} />
                 L1+L2
               </span>

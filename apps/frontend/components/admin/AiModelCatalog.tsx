@@ -12,9 +12,10 @@ const TIER_LABEL: Record<AiModel['tier'], string> = {
 };
 
 const TIER_STYLE: Record<AiModel['tier'], string> = {
-  budget: 'text-emerald-400 bg-emerald-400/10 ring-emerald-400/20',
-  standard: 'text-indigo-400 bg-indigo-400/10 ring-indigo-400/20',
-  premium: 'text-rose-400 bg-rose-400/10 ring-rose-400/20',
+  budget:
+    'text-[color:var(--success-fg)] bg-[color:var(--success-bg)] ring-[color:var(--success-border)]',
+  standard: 'text-indigo-700 dark:text-indigo-400 bg-indigo-400/10 ring-indigo-400/20',
+  premium: 'text-rose-700 dark:text-rose-400 bg-rose-400/10 ring-rose-400/20',
 };
 
 const FAMILY_LABEL: Record<AiModel['family'], string> = {
@@ -77,7 +78,7 @@ function ModelRow({ m, onSelect }: { m: AiModel; onSelect: () => void }) {
           </span>
           <TierChip tier={m.tier} />
           {m.recommended && (
-            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-amber-300 bg-amber-400/10 ring-1 ring-inset ring-amber-400/20">
+            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--warning-fg)] bg-[color:var(--warning-bg)] ring-1 ring-inset ring-[color:var(--warning-border)]">
               Recommended
             </span>
           )}
@@ -164,13 +165,13 @@ export default function AiModelCatalog() {
           <span
             className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium ring-1 ring-inset ${
               data.proxyConfigured
-                ? 'text-emerald-400 bg-emerald-400/10 ring-emerald-400/20'
-                : 'text-amber-300 bg-amber-400/10 ring-amber-400/20'
+                ? 'text-[color:var(--success-fg)] bg-[color:var(--success-bg)] ring-[color:var(--success-border)]'
+                : 'text-[color:var(--warning-fg)] bg-[color:var(--warning-bg)] ring-[color:var(--warning-border)]'
             }`}
           >
             <span
               aria-hidden="true"
-              className={`h-1.5 w-1.5 rounded-full ${data.proxyConfigured ? 'bg-emerald-400' : 'bg-amber-400'}`}
+              className={`h-1.5 w-1.5 rounded-full ${data.proxyConfigured ? 'bg-[color:var(--success-fg)]' : 'bg-[color:var(--warning-fg)]'}`}
             />
             {data.proxyConfigured ? 'LiteLLM connected' : 'AI Assist degraded'}
           </span>
@@ -196,7 +197,7 @@ export default function AiModelCatalog() {
         {data && (
           <>
             {!data.activeModelKnown && (
-              <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-400/20 bg-amber-400/5 p-3 text-[12px] text-amber-300">
+              <div className="mb-3 flex items-start gap-2 rounded-md border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-3 text-[12px] text-[color:var(--warning-fg)]">
                 <Info size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
                 <span>
                   Active model id{' '}

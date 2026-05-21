@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Sparkles, TriangleAlert, X } from 'lucide-react';
+import { Check, Sparkle, Warning, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { type AiSuggestResult, aiSuggest, type RuleConditionGroup } from '@/lib/rules-api';
@@ -15,6 +15,15 @@ type SuggestStatus =
   | { kind: 'ok'; result: AiSuggestResult }
   | { kind: 'offline' }
   | { kind: 'error'; message: string };
+
+const PROMPT_TEMPLATES = [
+  'When a user clicks the same button 5+ times in 3 seconds, show a help tooltip explaining the next step.',
+  'When a Silver-tier user views the same property 3 times without booking, send a personalized 2x points offer.',
+  'When a user abandons a points transfer mid-flow, show a banner with a one-tap resume button.',
+  'When a Gold-tier user has not enrolled MFA, nudge them with a security reminder on the profile page.',
+  'When a user dwells on the points balance for more than 8 seconds, show a redemption modal.',
+  'When a transfer over 50000 SFC is initiated from a new device, force MFA verification.',
+] as const;
 
 export default function RuleAiAssistTab({ onApply }: RuleAiAssistTabProps) {
   const [description, setDescription] = useState('');
@@ -46,9 +55,42 @@ export default function RuleAiAssistTab({ onApply }: RuleAiAssistTabProps) {
     setStatus({ kind: 'idle' });
   }
 
+  function applyTemplate(template: string) {
+    setDescription(template);
+    const el = document.getElementById('ai-rule-description');
+    el?.focus();
+  }
+
   return (
     <div className="space-y-4">
       <div>
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-xs font-medium text-[color:var(--text-muted)]">
+            Describe your rule
+          </span>
+          <span className="inline-flex items-center rounded border border-[color:var(--info-border)] bg-[color:var(--info-bg)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--info-fg)]">
+            BETA
+          </span>
+          <span className="text-[10px] text-[color:var(--text-dim)]">
+            Falls back to manual when LLM is unreachable
+          </span>
+        </div>
+
+        <fieldset className="mb-2 flex flex-wrap gap-1.5 border-0 p-0">
+          <legend className="sr-only">Prompt templates</legend>
+          {PROMPT_TEMPLATES.map((tpl) => (
+            <button
+              key={tpl}
+              type="button"
+              onClick={() => applyTemplate(tpl)}
+              className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-strong)] bg-[color:var(--bg-elevated)] px-2.5 py-1 text-[11px] text-[color:var(--text-muted)] transition-colors hover:border-indigo-400/50 hover:bg-indigo-500/10 hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+            >
+              <Sparkle size={10} weight="fill" className="shrink-0 text-indigo-400" />
+              <span className="max-w-[220px] truncate">{tpl}</span>
+            </button>
+          ))}
+        </fieldset>
+
         <label htmlFor="ai-rule-description" className="sr-only">
           Rule description
         </label>
@@ -73,7 +115,7 @@ export default function RuleAiAssistTab({ onApply }: RuleAiAssistTabProps) {
           loading={status.kind === 'loading'}
           disabled={!description.trim()}
         >
-          <Sparkles className="size-4" />
+          <Sparkle size={16} />
           Suggest a rule
         </Button>
       </div>
@@ -86,8 +128,8 @@ export default function RuleAiAssistTab({ onApply }: RuleAiAssistTabProps) {
       ) : null}
 
       {status.kind === 'error' ? (
-        <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+        <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-200">
+          <Warning size={16} className="mt-0.5 shrink-0" />
           <span>{status.message}</span>
         </div>
       ) : null}
@@ -115,8 +157,8 @@ function SuggestionCard({ result, onApply, onDiscard }: SuggestionCardProps) {
   return (
     <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4">
       <div className="mb-2 flex items-center gap-2">
-        <Sparkles className="size-4 text-indigo-300" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300">
+        <Sparkle size={16} className="text-indigo-400" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
           AI suggestion
         </span>
       </div>
@@ -134,11 +176,11 @@ function SuggestionCard({ result, onApply, onDiscard }: SuggestionCardProps) {
 
       <div className="mt-4 flex items-center justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={onDiscard}>
-          <X className="size-3.5" />
+          <X size={14} />
           Discard
         </Button>
         <Button variant="primary" size="sm" onClick={onApply}>
-          <Check className="size-3.5" />
+          <Check size={14} />
           Apply to draft
         </Button>
       </div>

@@ -11,12 +11,15 @@ interface BadgeProps {
 }
 
 const VARIANT_CLASSES: Record<BadgeVariant, string> = {
-  neutral: 'bg-zinc-800 text-zinc-300 border-zinc-700',
-  success: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  warning: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  danger: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-  info: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
-  accent: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+  neutral:
+    'bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)] border-[color:var(--border-strong)]',
+  success:
+    'bg-[color:var(--success-bg)] text-[color:var(--success-fg)] border-[color:var(--success-border)]',
+  warning:
+    'bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] border-[color:var(--warning-border)]',
+  danger: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+  info: 'bg-[color:var(--info-bg)] text-[color:var(--info-fg)] border-[color:var(--info-border)]',
+  accent: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
 };
 
 const SIZE_CLASSES: Record<BadgeSize, string> = {
