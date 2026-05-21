@@ -986,6 +986,344 @@ describe('POST /transactions/transfer', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Transfer MFA gate: POST /transactions/transfer returning action=MFA
+// and POST /transactions/mfa/verify completing it
+// ---------------------------------------------------------------------------
+
+describe('POST /transactions/transfer -> MFA gate', () => {
+  /**
+   * DDB stub that sets up:
+   *   - bearer ACCESS row for token
+   *   - sender UserProfile with optional demo.knownDevicesLast30d list
+   *   - receiver UserProfile
+   *   - UserState with given tc1h
+   * Written session rows are captured in sessionStore array (if provided).
+   */
+  function mfaTransferDdb(senderUserId, token, senderItem, receiverItem, stateItem, sessionStore) {
+    let userProfileGetCount = 0;
+    const now = Math.floor(Date.now() / 1000);
+    const accessRow = {
+      sessionId: token,
+      recordType: 'ACCESS',
+      userId: senderUserId,
+      token,
+      issuedAt: now - 60,
+      expiresAt: now + 1800,
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
+    return makeDdb({
+      GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession' && cmd.input.Key.sessionId === token)
+          return { Item: accessRow };
+        if (cmd.input.TableName === 'UserProfile') {
+          userProfileGetCount++;
+          return { Item: userProfileGetCount === 1 ? senderItem : receiverItem };
+        }
+        if (cmd.input.TableName === 'UserState') return { Item: stateItem };
+        return { Item: undefined };
+      },
+      UpdateCommand: () => ({}),
+      PutCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession' && sessionStore) {
+          sessionStore.push(cmd.input.Item);
+        }
+        return {};
+      },
+    });
+  }
+
+  it('returns action=MFA for large amount with unseen device (not in knownDevicesLast30d)', async () => {
+    const origMode = process.env.MFA_MODE;
+    process.env.MFA_MODE = 'static';
+    const token = 'tok-MFA001';
+    const sender = { userId: 'U001', username: 'alice' }; // no demo field
+    const receiver = { userId: 'U002', username: 'bob' };
+    const state = { transferCount1h: 0 };
+    const sessions = [];
+    handler._setDdb(mfaTransferDdb('U001', token, sender, receiver, state, sessions));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/transactions/transfer',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        userId: 'U001',
+        recipientId: 'U002',
+        amount: 7500,
+        channel: 'APP',
+        deviceFingerprint: 'browser-unknown-xyz',
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.action, 'MFA');
+    assert.ok(body.data.challengeId, 'challengeId must be present');
+    assert.equal(body.data.mfaPath, 'TRANSFER_RISK');
+    assert.ok(body.data.expiresInSec > 0);
+    const challengeRow = sessions.find((s) => s.recordType === 'MFA_CHALLENGE');
+    assert.ok(challengeRow, 'MFA_CHALLENGE session row must be written');
+    assert.equal(challengeRow.challengeType, 'TRANSFER');
+
+    if (origMode !== undefined) process.env.MFA_MODE = origMode;
+    else delete process.env.MFA_MODE;
+  });
+
+  it('returns SUCCESS (not MFA) for large amount when device is in knownDevicesLast30d', async () => {
+    const token = 'tok-MFA002';
+    const sender = {
+      userId: 'U001',
+      username: 'alice',
+      demo: { knownDevicesLast30d: ['browser-known-abc'] },
+    };
+    const receiver = { userId: 'U002', username: 'bob' };
+    const state = { transferCount1h: 0 };
+    handler._setDdb(mfaTransferDdb('U001', token, sender, receiver, state, []));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/transactions/transfer',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        userId: 'U001',
+        recipientId: 'U002',
+        amount: 7500,
+        channel: 'APP',
+        deviceFingerprint: 'browser-known-abc',
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.notEqual(body.data.action, 'MFA');
+    assert.ok(body.data.status === 'SUCCESS' || body.data.status === 'UNDER_REVIEW');
+  });
+
+  it('returns action=MFA for small amount when forceHighRisk=true', async () => {
+    const origMode = process.env.MFA_MODE;
+    process.env.MFA_MODE = 'static';
+    const token = 'tok-MFA003';
+    const sender = { userId: 'U001', username: 'alice' };
+    const receiver = { userId: 'U002', username: 'bob' };
+    const state = { transferCount1h: 0 };
+    const sessions = [];
+    handler._setDdb(mfaTransferDdb('U001', token, sender, receiver, state, sessions));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/transactions/transfer',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        userId: 'U001',
+        recipientId: 'U002',
+        amount: 50,
+        channel: 'APP',
+        deviceFingerprint: 'known-device',
+        forceHighRisk: true,
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.action, 'MFA', 'forceHighRisk must trigger MFA even on small amount');
+    assert.ok(body.data.challengeId);
+
+    if (origMode !== undefined) process.env.MFA_MODE = origMode;
+    else delete process.env.MFA_MODE;
+  });
+
+  it('does NOT return MFA for small amount below threshold with unknown device', async () => {
+    const token = 'tok-MFA004';
+    const sender = { userId: 'U001', username: 'alice' };
+    const receiver = { userId: 'U002', username: 'bob' };
+    const state = { transferCount1h: 0 };
+    handler._setDdb(mfaTransferDdb('U001', token, sender, receiver, state, []));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/transactions/transfer',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        userId: 'U001',
+        recipientId: 'U002',
+        amount: 100,
+        channel: 'APP',
+        deviceFingerprint: 'brand-new-device',
+      }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.notEqual(body.data.action, 'MFA');
+  });
+});
+
+describe('POST /transactions/mfa/verify', () => {
+  function verifyDdb(token, challengeRow, profileItem, recipientItem) {
+    const now = Math.floor(Date.now() / 1000);
+    const accessRow = {
+      sessionId: token,
+      recordType: 'ACCESS',
+      userId: challengeRow ? challengeRow.userId : 'U001',
+      token,
+      issuedAt: now - 60,
+      expiresAt: now + 1800,
+      lastActivityAt: now - 60,
+      mfaVerified: true,
+    };
+    let profileGetCount = 0;
+    return makeDdb({
+      GetCommand: (cmd) => {
+        if (cmd.input.TableName === 'UserSession') {
+          const key = cmd.input.Key.sessionId;
+          if (key === token) return { Item: accessRow };
+          if (challengeRow && key === challengeRow.sessionId) return { Item: challengeRow };
+          return { Item: undefined };
+        }
+        if (cmd.input.TableName === 'UserProfile') {
+          profileGetCount++;
+          return { Item: profileGetCount === 1 ? profileItem : recipientItem };
+        }
+        return { Item: undefined };
+      },
+      UpdateCommand: () => ({}),
+      PutCommand: () => ({}),
+    });
+  }
+
+  function makeChallenge(userId, overrides = {}) {
+    const now = Math.floor(Date.now() / 1000);
+    return {
+      sessionId: 'TXMFA#testchal',
+      recordType: 'MFA_CHALLENGE',
+      challengeType: 'TRANSFER',
+      userId,
+      pendingTransfer: { userId, recipientId: 'U002', amount: 7500, deviceFingerprint: '' },
+      decisionId: 'DEC#testdec',
+      issuedAt: now - 60,
+      expiresAt: now + 300,
+      mfaPath: 'TRANSFER_RISK',
+      ...overrides,
+    };
+  }
+
+  it('returns action=ALLOW with transferId on valid static OTP', async () => {
+    const origMode = process.env.MFA_MODE;
+    process.env.MFA_MODE = 'static';
+    const token = 'tok-VERIFY001';
+    const challenge = makeChallenge('U001');
+    const profile = { userId: 'U001', username: 'alice' };
+    const recipient = { userId: 'U002', username: 'bob' };
+    handler._setDdb(verifyDdb(token, challenge, profile, recipient));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/transactions/mfa/verify',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ challengeId: 'TXMFA#testchal', otp: '123456' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.action, 'ALLOW');
+    assert.ok(body.data.transferId, 'transferId must be returned');
+    assert.equal(body.data.mfaPath, 'TRANSFER_RISK');
+
+    if (origMode !== undefined) process.env.MFA_MODE = origMode;
+    else delete process.env.MFA_MODE;
+  });
+
+  it('returns 401 OTP_INVALID on wrong OTP', async () => {
+    const origMode = process.env.MFA_MODE;
+    process.env.MFA_MODE = 'static';
+    const token = 'tok-VERIFY002';
+    const challenge = makeChallenge('U001');
+    handler._setDdb(verifyDdb(token, challenge, { userId: 'U001' }, { userId: 'U002' }));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/transactions/mfa/verify',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ challengeId: 'TXMFA#testchal', otp: '999999' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'OTP_INVALID');
+
+    if (origMode !== undefined) process.env.MFA_MODE = origMode;
+    else delete process.env.MFA_MODE;
+  });
+
+  it('returns 400 MFA_CHALLENGE_INVALID when challenge row is missing', async () => {
+    const origMode = process.env.MFA_MODE;
+    process.env.MFA_MODE = 'static';
+    const token = 'tok-VERIFY003';
+    handler._setDdb(verifyDdb(token, null, null, null));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/transactions/mfa/verify',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ challengeId: 'TXMFA#notexist', otp: '123456' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'MFA_CHALLENGE_INVALID');
+
+    if (origMode !== undefined) process.env.MFA_MODE = origMode;
+    else delete process.env.MFA_MODE;
+  });
+
+  it('returns 400 MFA_CHALLENGE_INVALID when challenge is expired', async () => {
+    const origMode = process.env.MFA_MODE;
+    process.env.MFA_MODE = 'static';
+    const token = 'tok-VERIFY004';
+    const now = Math.floor(Date.now() / 1000);
+    const challenge = makeChallenge('U001', { expiresAt: now - 1 });
+    handler._setDdb(verifyDdb(token, challenge, { userId: 'U001' }, { userId: 'U002' }));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/transactions/mfa/verify',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ challengeId: 'TXMFA#testchal', otp: '123456' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'MFA_CHALLENGE_INVALID');
+
+    if (origMode !== undefined) process.env.MFA_MODE = origMode;
+    else delete process.env.MFA_MODE;
+  });
+
+  it('returns 400 MFA_CHALLENGE_INVALID when challenge already consumed (MFA_VERIFIED)', async () => {
+    const origMode = process.env.MFA_MODE;
+    process.env.MFA_MODE = 'static';
+    const token = 'tok-VERIFY005';
+    const challenge = makeChallenge('U001', { recordType: 'MFA_VERIFIED' });
+    handler._setDdb(verifyDdb(token, challenge, { userId: 'U001' }, { userId: 'U002' }));
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/transactions/mfa/verify',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ challengeId: 'TXMFA#testchal', otp: '123456' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'MFA_CHALLENGE_INVALID');
+
+    if (origMode !== undefined) process.env.MFA_MODE = origMode;
+    else delete process.env.MFA_MODE;
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Happy-path: GET /offers
 // ---------------------------------------------------------------------------
 

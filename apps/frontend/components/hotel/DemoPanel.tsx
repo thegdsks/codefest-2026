@@ -2,7 +2,7 @@
 
 import { Bug, LogOut, MapPin, Radio, RefreshCw, Smartphone, User, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import {
   type EngagementEventResponse,
@@ -82,6 +82,31 @@ export default function DemoPanel() {
   const [location, setLocation] = useState(initial.location ?? 'New York');
   const [deviceType, setDeviceType] = useState(initial.deviceType ?? 'desktop');
   const [deviceId, setDeviceId] = useState(initial.deviceId ?? 'device-web-demo');
+  // Known device ids for the currently logged-in user. Populated by fetching the
+  // UserProfile demo sub-object from the backend. Used for the device preview label.
+  const [knownDevices, setKnownDevices] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!session?.token || !session?.userId) {
+      setKnownDevices([]);
+      return;
+    }
+    const apiBase =
+      typeof window !== 'undefined'
+        ? window.location.origin.replace(/:\d+$/, ':3000')
+        : 'http://localhost:3000';
+    fetch(`${apiBase}/user/profile?userId=${encodeURIComponent(session.userId)}`, {
+      headers: { Authorization: `Bearer ${session.token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        const devices = body?.data?.demo?.knownDevicesLast30d;
+        if (Array.isArray(devices)) setKnownDevices(devices);
+      })
+      .catch(() => {
+        // Best-effort; the label falls back to showing the raw id.
+      });
+  }, [session?.token, session?.userId]);
 
   function applyContext() {
     setDemoLoginContext({ location, deviceId, deviceType });
@@ -295,6 +320,24 @@ export default function DemoPanel() {
                     onChange={(e) => setDeviceId(e.target.value)}
                     className="w-full text-xs font-sans border-b border-gray-200 focus:border-[#775a19] focus:outline-none bg-transparent py-1.5"
                   />
+                  {isLoggedIn && deviceId && (
+                    <p className="mt-1 text-[9px] font-sans">
+                      {knownDevices.includes(deviceId) ? (
+                        <span className="text-green-600">
+                          Device: {deviceId} (known) - transfers will not trigger MFA
+                        </span>
+                      ) : (
+                        <span className="text-amber-600">
+                          Device: {deviceId} (unseen) - large transfer will trigger MFA
+                        </span>
+                      )}
+                    </p>
+                  )}
+                  {isLoggedIn && !deviceId && (
+                    <p className="mt-1 text-[9px] text-amber-600 font-sans">
+                      To trigger MFA: pick any device id NOT in user001's known list.
+                    </p>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -318,9 +361,12 @@ export default function DemoPanel() {
                 >
                   {forcedHighRisk ? 'Flag set - submit transfer' : 'Force next transfer high-risk'}
                 </button>
+                <p className="mt-1.5 text-[9px] text-gray-500 font-sans">
+                  Forces MFA on the next transfer regardless of amount.
+                </p>
                 {forcedHighRisk && (
-                  <p className="mt-1.5 text-[9px] text-gray-500 font-sans text-center">
-                    Go to Transfer page and submit any transfer to trigger review.
+                  <p className="mt-1 text-[9px] text-[#775a19] font-sans font-semibold text-center">
+                    Go to Transfer page and submit any transfer to trigger MFA.
                   </p>
                 )}
               </section>

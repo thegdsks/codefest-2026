@@ -86,16 +86,17 @@ Optional env vars:
   ADMIN_PASSWORD      Admin password for Basic Auth. Default: same as DEMO_PASSWORD
 
 Steps executed:
-  1  env check         - confirm env vars are resolved
-  2  reseed            - POST /admin/dev/reseed  (skipped with --no-reseed)
-  3  ai-config         - GET  /admin/ai-config
-  4  login             - POST /auth/login  (forceMfa: true)
-  5  mfa verify        - POST /auth/mfa/verify
-  6  warm-up transfer  - POST /transactions/transfer  amount=100
-  7  big transfer      - POST /transactions/transfer  amount=7500
-  8  list decisions    - GET  /admin/decisions?userId=USER%23001&limit=5
-  9  trace             - GET  /admin/decisions/{id}
-  10 budget            - GET  /admin/metrics?window=1h
+  1    env check            - confirm env vars are resolved
+  2    reseed               - POST /admin/dev/reseed  (skipped with --no-reseed)
+  3    ai-config            - GET  /admin/ai-config
+  4    login                - POST /auth/login  (forceMfa: true)
+  5    mfa verify           - POST /auth/mfa/verify
+  6    warm-up transfer     - POST /transactions/transfer  amount=100
+  7    big transfer         - POST /transactions/transfer  amount=7500  -> asserts action=MFA
+  7.5  transfer mfa verify  - POST /transactions/mfa/verify  -> asserts action=ALLOW + transferId
+  8    list decisions       - GET  /admin/decisions?userId=USER%23001&limit=10  -> asserts MFA+ALLOW rows
+  9    trace                - GET  /admin/decisions/{id}  -> FAIL if trace=null
+  10   budget               - GET  /admin/metrics?window=1h
 
 Exit codes:
   0  all steps OK (or OK+warnings)
@@ -238,7 +239,7 @@ const rehearsalStart = Date.now();
  *
  * The fn may return:
  *   - a string: used as the notes for an OK result
- *   - null: means warnStep was already called inside fn - skip pushing OK result
+ *   - null: skip pushing OK result (used for no-op steps)
  *   - throw: hard fail
  *
  * @param {number} num
@@ -250,7 +251,6 @@ async function step(num, name, fn) {
   try {
     const notes = await fn();
     const durationMs = Date.now() - start;
-    // null signals that warnStep() was already called inside fn
     if (notes !== null) {
       results.push({ num, name, durationMs, status: 'OK', notes: notes || '' });
     }
@@ -261,18 +261,6 @@ async function step(num, name, fn) {
     printSummary();
     process.exit(1);
   }
-}
-
-/**
- * Record a soft warning (step ran, non-blocking issue found).
- *
- * @param {number} num
- * @param {string} name
- * @param {number} durationMs
- * @param {string} notes
- */
-function warnStep(num, name, durationMs, notes) {
-  results.push({ num, name, durationMs, status: 'WARN', notes });
 }
 
 /**
@@ -359,17 +347,22 @@ if (DRY_RUN) {
     {
       num: 7,
       action: 'big transfer',
-      detail: `POST /transactions/transfer  amount=${BIG_TRANSFER_AMOUNT} recipientId=${DEMO_RECIPIENT}`,
+      detail: `POST /transactions/transfer  amount=${BIG_TRANSFER_AMOUNT} -> assert action=MFA`,
+    },
+    {
+      num: 7.5,
+      action: 'transfer mfa verify',
+      detail: `POST /transactions/mfa/verify  otp=${DEMO_MFA_OTP} -> assert action=ALLOW + transferId`,
     },
     {
       num: 8,
       action: 'list decisions',
-      detail: `GET /admin/decisions?userId=${encodeURIComponent(DEMO_USER_ID)}&limit=5&type=FRAUD_TRANSFER`,
+      detail: `GET /admin/decisions?userId=${encodeURIComponent(DEMO_USER_ID)}&limit=10 -> assert MFA+ALLOW rows`,
     },
     {
       num: 9,
       action: 'trace',
-      detail: 'GET /admin/decisions/{id} -> assert trace.engineLayer, trace.matched',
+      detail: 'GET /admin/decisions/{id} -> assert trace.engineLayer, trace.matched (FAIL if null)',
     },
     {
       num: 10,
@@ -415,6 +408,9 @@ let bearerToken = '';
 
 /** @type {string} */
 let targetDecisionId = '';
+
+/** @type {string} - transfer MFA challengeId from step 7 */
+let transferChallengeId = '';
 
 // ---------------------------------------------------------------------------
 // Step 1: env check
@@ -666,7 +662,7 @@ await step(6, 'warm-up xfer', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Step 7: big transfer (should trigger MFA / REVIEW path)
+// Step 7: big transfer - must return action=MFA (unseen device rule)
 // ---------------------------------------------------------------------------
 
 await step(7, 'big transfer', async () => {
@@ -681,46 +677,82 @@ await step(7, 'big transfer', async () => {
       recipientId: DEMO_RECIPIENT,
       amount: BIG_TRANSFER_AMOUNT,
       channel: 'APP',
+      // rehearsal-device is not in user001's knownDevicesLast30d seed list,
+      // so deviceFingerprintSeenDays resolves to 90 and triggers the MFA rule.
+      deviceFingerprint: 'rehearsal-device-001',
     }),
   });
 
   const body = await res.json();
   const data = body.data || body;
-
-  // The backend currently returns HTTP 200 with action=REVIEW for gray-zone,
-  // or HTTP 403 with code=TRANSFER_BLOCKED for BLOCK action.
-  // The demo story targets the gray zone -> REVIEW path.
-  const status = data.status || '';
   const action = data.action || '';
-  const errorCode = body.error?.code || '';
 
-  const isReview = status === 'UNDER_REVIEW' || action === 'REVIEW';
-  const isBlock = res.status === 403 || action === 'BLOCK' || errorCode === 'TRANSFER_BLOCKED';
-  const isMfaRequired = errorCode === 'MFA_REQUIRED' || action === 'MFA';
-
-  if (!isReview && !isBlock && !isMfaRequired) {
-    // Transfer succeeded (ALLOW) - warn that the demo beat won't land as intended
-    // but don't hard-fail since data state may differ post-reseed
+  if (action !== 'MFA') {
     throw new Error(
-      `Big transfer returned ALLOW (status=${status}). ` +
-        'Expected REVIEW or BLOCK to trigger the demo fraud beat. ' +
-        'The warm-up transfer may not have incremented tc1h into the gray zone. ' +
-        `Check UserState for ${DEMO_USER_ID} and the scoreTransfer L1 thresholds in rules/transfer.js.`
+      `Expected action=MFA from big transfer, got action=${action || 'none'} ` +
+        `(status=${data.status || '?'} http=${res.status}). ` +
+        'Check that DEMO_HIGH_VALUE_UNSEEN_DEVICE rule fires: ' +
+        `amount >= LARGE_TRANSFER_AMOUNT_USD (${BIG_TRANSFER_AMOUNT} >= 5000) ` +
+        'AND deviceFingerprintSeenDays > UNSEEN_DEVICE_DAYS_THRESHOLD (90 > 30). ' +
+        `Full response: ${JSON.stringify(body)}`
     );
   }
 
-  const result = isMfaRequired ? 'MFA_REQUIRED' : isBlock ? 'BLOCKED' : 'UNDER_REVIEW';
-  return `result=${result}  http=${res.status}  code=${errorCode || status}`;
+  transferChallengeId = data.challengeId || '';
+  if (!transferChallengeId) {
+    throw new Error(`action=MFA but challengeId missing. Response: ${JSON.stringify(body)}`);
+  }
+
+  return `action=MFA  challengeId=${transferChallengeId}  mfaPath=${data.mfaPath}`;
 });
 
 // ---------------------------------------------------------------------------
-// Step 8: list decisions for demo user, find FRAUD_TRANSFER
+// Step 7.5: complete the transfer MFA via /transactions/mfa/verify
+// ---------------------------------------------------------------------------
+
+await step(7.5, 'transfer mfa verify', async () => {
+  const res = await fetchWithTimeout(`${BASE_URL}/transactions/mfa/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: JSON.stringify({ challengeId: transferChallengeId, otp: DEMO_MFA_OTP }),
+  });
+
+  const body = await res.json();
+
+  if (res.status !== 200) {
+    throw new Error(
+      `Expected 200 from /transactions/mfa/verify, got ${res.status}: ` +
+        `${body?.error?.message || JSON.stringify(body)}`
+    );
+  }
+
+  const data = body.data || body;
+
+  if (data.action !== 'ALLOW') {
+    throw new Error(
+      `Expected action=ALLOW after MFA verify, got action=${data.action}. ` +
+        `Full response: ${JSON.stringify(body)}`
+    );
+  }
+
+  if (!data.transferId) {
+    throw new Error(`action=ALLOW but transferId missing. Response: ${JSON.stringify(body)}`);
+  }
+
+  return `action=ALLOW  transferId=${data.transferId}  mfaPath=${data.mfaPath}`;
+});
+
+// ---------------------------------------------------------------------------
+// Step 8: list decisions - must find both MFA challenge row and ALLOW verify row
 // ---------------------------------------------------------------------------
 
 await step(8, 'list decisions', async () => {
   const qs = new URLSearchParams({
     userId: DEMO_USER_ID,
-    limit: '5',
+    limit: '10',
     type: 'FRAUD_TRANSFER',
     window: '1h',
   });
@@ -740,19 +772,37 @@ await step(8, 'list decisions', async () => {
     throw new Error(`Expected decisions array in response. Actual shape: ${JSON.stringify(body)}`);
   }
 
-  // Find most recent FRAUD_TRANSFER decision
-  const fraudTransferDecisions = decisions.filter((d) => d.decisionType === 'FRAUD_TRANSFER');
-  if (fraudTransferDecisions.length === 0) {
+  const fraudRows = decisions.filter((d) => d.decisionType === 'FRAUD_TRANSFER');
+  if (fraudRows.length === 0) {
     throw new Error(
       `No FRAUD_TRANSFER decisions found for userId=${DEMO_USER_ID} in the last 1h. ` +
         `Got ${decisions.length} total decisions. ` +
-        `Decisions returned: ${JSON.stringify(decisions.map((d) => d.decisionType))}`
+        `Types: ${JSON.stringify(decisions.map((d) => d.decisionType))}`
     );
   }
 
-  // Most recent is first (sorted desc by timestamp in the backend)
-  targetDecisionId = fraudTransferDecisions[0].decisionId;
-  return `latest=${targetDecisionId}  count=${fraudTransferDecisions.length}`;
+  const mfaRow = fraudRows.find((d) => d.action === 'MFA');
+  const allowRow = fraudRows.find((d) => d.action === 'ALLOW');
+
+  if (!mfaRow) {
+    throw new Error(
+      'Expected a FRAUD_TRANSFER row with action=MFA (the challenge). ' +
+        `Actions found: ${JSON.stringify(fraudRows.map((d) => d.action))}. ` +
+        'Run step 7 again to generate the MFA challenge row.'
+    );
+  }
+
+  if (!allowRow) {
+    throw new Error(
+      'Expected a FRAUD_TRANSFER row with action=ALLOW (the verified transfer). ' +
+        `Actions found: ${JSON.stringify(fraudRows.map((d) => d.action))}. ` +
+        'Step 7.5 (transfer mfa verify) may have failed.'
+    );
+  }
+
+  // Use the MFA challenge row for the trace step - it has the full rule trace.
+  targetDecisionId = mfaRow.decisionId;
+  return `MFA=${mfaRow.decisionId}  ALLOW=${allowRow.decisionId}  total=${fraudRows.length}`;
 });
 
 // ---------------------------------------------------------------------------
@@ -760,8 +810,6 @@ await step(8, 'list decisions', async () => {
 // ---------------------------------------------------------------------------
 
 await step(9, 'trace', async () => {
-  const start9 = Date.now();
-
   const res = await fetchWithTimeout(
     `${BASE_URL}/admin/decisions/${encodeURIComponent(targetDecisionId)}`,
     {
@@ -781,15 +829,14 @@ await step(9, 'trace', async () => {
   const trace = data.trace;
 
   if (trace === null || trace === undefined) {
-    // Soft warning - the engine may not have captured trace on this specific live decision.
-    // The DEC#DEMO seed row in DecisionStore already has trace fields for the drawer demo.
-    warnStep(
-      9,
-      'trace',
-      Date.now() - start9,
-      'trace=null (DEC#DEMO seed row available as fallback)'
+    // Hard fail: the MFA challenge decision must have a full trace because
+    // scoreTransfer always populates ruleId, ruleName, matched on the MFA path.
+    throw new Error(
+      'trace=null on the MFA challenge decision. ' +
+        'scoreTransfer should have populated ruleId/ruleName/matched for action=MFA. ' +
+        `Decision id: ${targetDecisionId}. ` +
+        'Check that the decision was written with the l1Draft trace fields via putDecision.'
     );
-    return null; // signal to step() to not push a duplicate result
   }
 
   const validLayers = ['L1', 'L1+L2'];

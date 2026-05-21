@@ -1,5 +1,10 @@
 import { apiFetch } from '@/lib/api';
 import type { LoginContext } from '@/lib/hotel/demo-context';
+import {
+  getDemoLoginContext,
+  getForceHighRiskTransfer,
+  setForceHighRiskTransfer,
+} from '@/lib/hotel/demo-context';
 import type { ApiResult, DashboardResponse } from '@/lib/types';
 
 export interface LoginSuccessData {
@@ -47,7 +52,22 @@ export interface TransferReviewData {
   reason: string;
 }
 
-export type TransferData = TransferSuccessData | TransferReviewData;
+export interface TransferMfaChallenge {
+  action: 'MFA';
+  challengeId: string;
+  mfaPath: 'TRANSFER_RISK';
+  decisionId: string;
+  expiresInSec: number;
+}
+
+export interface TransferMfaVerifyResponse {
+  action: 'ALLOW';
+  transferId: string;
+  completedAt: number;
+  mfaPath: 'TRANSFER_RISK';
+}
+
+export type TransferData = TransferSuccessData | TransferReviewData | TransferMfaChallenge;
 
 // Stable demo context the prototype never collected. The backend records these
 // in the activity log and feeds them to the login-risk engine.
@@ -132,15 +152,67 @@ export function fetchSession(token: string): Promise<ApiResult<SessionData>> {
   return apiFetch<SessionData>('/auth/session', { headers: bearer(token) });
 }
 
+/**
+ * Submit a points transfer.
+ *
+ * Reads deviceFingerprint from the DemoPanel context (falls back to a
+ * sessionStorage-persisted stable id). Reads forceHighRisk from the demo
+ * context and clears it after reading so the flag only fires once.
+ */
 export function transferPoints(
   token: string,
   userId: string,
   amount: number
 ): Promise<ApiResult<TransferData>> {
+  const ctx = getDemoLoginContext();
+
+  // Stable per-browser fingerprint: use whatever the DemoPanel set, or fall
+  // back to a value stored in sessionStorage so it stays consistent across
+  // page navigations within a session.
+  let deviceFingerprint = ctx.deviceId ?? DEMO_DEVICE_ID;
+  if (typeof window !== 'undefined') {
+    const stored = sessionStorage.getItem('sf_device_fp');
+    if (!ctx.deviceId && stored) {
+      deviceFingerprint = stored;
+    } else if (!stored) {
+      sessionStorage.setItem('sf_device_fp', deviceFingerprint);
+    }
+  }
+
+  const forceHighRisk = getForceHighRiskTransfer();
+  // Clear the flag immediately so it only affects this single transfer.
+  setForceHighRiskTransfer(false);
+
+  const body: Record<string, unknown> = {
+    userId,
+    recipientId: DEMO_RECIPIENT_ID,
+    amount,
+    channel: 'APP',
+    deviceFingerprint,
+  };
+  if (forceHighRisk) {
+    body.forceHighRisk = true;
+  }
+
   return apiFetch<TransferData>('/transactions/transfer', {
     method: 'POST',
     headers: bearer(token),
-    body: JSON.stringify({ userId, recipientId: DEMO_RECIPIENT_ID, amount, channel: 'APP' }),
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Complete a pending transfer MFA challenge.
+ */
+export function confirmTransferMfa(
+  token: string,
+  challengeId: string,
+  otp: string
+): Promise<ApiResult<TransferMfaVerifyResponse>> {
+  return apiFetch<TransferMfaVerifyResponse>('/transactions/mfa/verify', {
+    method: 'POST',
+    headers: bearer(token),
+    body: JSON.stringify({ challengeId, otp }),
   });
 }
 

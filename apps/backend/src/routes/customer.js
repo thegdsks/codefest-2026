@@ -2,6 +2,7 @@
 
 const { randomUUID } = require('node:crypto');
 
+const { CFG } = require('../lib/config');
 const { nowSec, json, err, parseBody, requireField, qparam } = require('../lib/http');
 const {
   getUserById,
@@ -13,6 +14,8 @@ const {
   putActivity,
   recentActivity,
   putDecision,
+  putSession,
+  getSession,
   requireBearer,
 } = require('../lib/ddb');
 const {
@@ -26,6 +29,24 @@ const { scoreOffer } = require('../rules/offers');
 const { scoreNudge } = require('../rules/nudges');
 const { profileCompleteness } = require('../rules/profile');
 const { route: engineRoute } = require('../engine/router');
+const { evaluateMfaCode } = require('./auth');
+
+/**
+ * Resolve how many days ago the given device fingerprint was last seen by
+ * comparing it against the user's demo.knownDevicesLast30d array stored on
+ * their UserProfile.
+ *
+ * Returns 7 when the device is in the known list (recent enough to pass),
+ * or 90 when it is not found (very stale, triggers the unseen-device rule).
+ */
+function resolveDeviceSeenDays(profile, deviceFingerprint) {
+  if (!deviceFingerprint) return 90;
+  const known =
+    profile && profile.demo && Array.isArray(profile.demo.knownDevicesLast30d)
+      ? profile.demo.knownDevicesLast30d
+      : [];
+  return known.includes(deviceFingerprint) ? 7 : 90;
+}
 
 async function transfer(event, correlationId) {
   const body = parseBody(event);
@@ -34,6 +55,8 @@ async function transfer(event, correlationId) {
   const recipientId = requireField(body, 'recipientId');
   const amount = Number(requireField(body, 'amount'));
   const channel = body.channel || 'APP';
+  const deviceFingerprint = body.deviceFingerprint || '';
+  const forceHighRisk = body.forceHighRisk === true;
 
   if (!Number.isFinite(amount) || amount <= 0)
     return err(400, correlationId, 'VALIDATION_ERROR', 'amount must be > 0');
@@ -53,7 +76,9 @@ async function transfer(event, correlationId) {
   const st = await getState(userId);
   const tc1h = st && st.transferCount1h ? st.transferCount1h : 0;
 
-  const l1Draft = scoreTransfer({ tc1h });
+  const deviceFingerprintSeenDays = resolveDeviceSeenDays(sender, deviceFingerprint);
+
+  const l1Draft = scoreTransfer({ tc1h, amount, deviceFingerprintSeenDays, forceHighRisk });
   const final = await engineRoute(l1Draft, { userId, category: 'EARN_REDEEM' });
 
   const transferId = `XFER#${randomUUID().slice(0, 8)}`;
@@ -75,6 +100,46 @@ async function transfer(event, correlationId) {
       )
     );
     return err(403, correlationId, 'TRANSFER_BLOCKED', 'Transfer blocked due to high fraud risk');
+  }
+
+  if (final.action === 'MFA') {
+    const decRow = decision(
+      userId,
+      'FRAUD_TRANSFER',
+      final.score,
+      final.riskLevel,
+      'MFA',
+      final.reasonCode,
+      final.reasonText,
+      'EARN_REDEEM',
+      correlationId,
+      final
+    );
+    await putDecision(decRow);
+
+    const challengeId = `TXMFA#${randomUUID().slice(0, 8)}`;
+    const expiresAt = now + CFG.transferMfaTtlSec;
+    await putSession({
+      sessionId: challengeId,
+      recordType: 'MFA_CHALLENGE',
+      challengeType: 'TRANSFER',
+      userId,
+      pendingTransfer: { userId, recipientId, amount, deviceFingerprint },
+      decisionId: decRow.decisionId,
+      issuedAt: now,
+      expiresAt,
+      mfaPath: 'TRANSFER_RISK',
+    });
+
+    return json(200, correlationId, {
+      data: {
+        action: 'MFA',
+        challengeId,
+        mfaPath: 'TRANSFER_RISK',
+        decisionId: decRow.decisionId,
+        expiresInSec: CFG.transferMfaTtlSec,
+      },
+    });
   }
 
   if (final.action === 'REVIEW') {
@@ -397,8 +462,104 @@ async function profileCompletenessEndpoint(event, correlationId) {
   });
 }
 
+/**
+ * POST /transactions/mfa/verify
+ *
+ * Completes a pending transfer MFA challenge. On valid OTP:
+ *   - executes the pending transfer
+ *   - writes a FRAUD_TRANSFER ALLOW decision
+ *   - marks the challenge row as MFA_VERIFIED
+ *   - returns { action: "ALLOW", transferId, completedAt, mfaPath }
+ */
+async function transferMfaVerify(event, correlationId) {
+  const body = parseBody(event);
+  const challengeId = requireField(body, 'challengeId');
+  const otp = requireField(body, 'otp');
+
+  const row = await getSession(challengeId);
+  const now = nowSec();
+
+  if (
+    !row ||
+    row.recordType !== 'MFA_CHALLENGE' ||
+    row.challengeType !== 'TRANSFER' ||
+    row.expiresAt <= now
+  ) {
+    return err(
+      400,
+      correlationId,
+      'MFA_CHALLENGE_INVALID',
+      'Transfer MFA challenge not found, expired, or already consumed'
+    );
+  }
+
+  const userId = row.userId;
+  const profile = await getUserById(userId);
+  const path = evaluateMfaCode(otp, profile);
+
+  if (!path) {
+    await putDecision(
+      decision(
+        userId,
+        'MFA_EVENT',
+        0.0,
+        'LOW',
+        'BLOCK',
+        'OTP_INVALID',
+        'Transfer MFA code invalid',
+        'EARN_REDEEM',
+        correlationId
+      )
+    );
+    return err(401, correlationId, 'OTP_INVALID', 'OTP invalid');
+  }
+
+  // Mark the challenge row consumed before executing so a replay gets INVALID.
+  await putSession({
+    ...row,
+    recordType: 'MFA_VERIFIED',
+    verifiedAt: now,
+  });
+
+  const pending = row.pendingTransfer;
+  const transferId = `XFER#${randomUUID().slice(0, 8)}`;
+  const recipientProfile = await getUserById(pending.recipientId);
+  if (!recipientProfile) {
+    return err(404, correlationId, 'USER_NOT_FOUND', 'Recipient no longer found');
+  }
+
+  await putActivity(
+    activityTransfer(pending.userId, now, pending.amount, pending.recipientId, 'APP', correlationId)
+  );
+
+  await putDecision(
+    decision(
+      userId,
+      'FRAUD_TRANSFER',
+      0.0,
+      'LOW',
+      'ALLOW',
+      path === 'TOTP' ? 'TOTP_VALID' : 'STATIC_OTP_VALID',
+      `Transfer MFA verified via ${path}`,
+      'EARN_REDEEM',
+      correlationId,
+      { mfaPath: 'TRANSFER_RISK' }
+    )
+  );
+
+  return json(200, correlationId, {
+    data: {
+      action: 'ALLOW',
+      transferId,
+      completedAt: now,
+      mfaPath: 'TRANSFER_RISK',
+    },
+  });
+}
+
 module.exports = {
   transfer,
+  transferMfaVerify,
   getOffers,
   offerAction,
   getNudges,

@@ -9,10 +9,14 @@ const { CFG } = require('../lib/config');
  *   tc1h {number}                    - transfer count in the past hour for this user
  *   amount {number}                  - transfer amount in USD (optional)
  *   deviceFingerprintSeenDays {number} - how many days ago the device was last seen (optional)
+ *   forceHighRisk {boolean}          - DemoPanel override: forces MFA regardless of amount (optional)
  *
  * Returns an L1 draft decision object (score 0..100).
  *
- * MFA fast path (checked first, before velocity):
+ * MFA fast path (highest precedence, checked first):
+ *   forceHighRisk === true
+ *   -> action: "MFA", ruleId: "DEMO_HIGH_VALUE_UNSEEN_DEVICE", matched contains forceHighRisk
+ *
  *   amount >= LARGE_TRANSFER_AMOUNT_USD AND deviceFingerprintSeenDays > UNSEEN_DEVICE_DAYS_THRESHOLD
  *   -> action: "MFA", ruleId: "DEMO_HIGH_VALUE_UNSEEN_DEVICE"
  *
@@ -23,12 +27,29 @@ const { CFG } = require('../lib/config');
  *   tc1h 2..3  -> score 60, MEDIUM, REVIEW (gray zone)
  *   tc1h 0..1  -> score 10, LOW, ALLOW
  */
-function scoreTransfer({ tc1h, amount, deviceFingerprintSeenDays } = {}) {
+function scoreTransfer({ tc1h, amount, deviceFingerprintSeenDays, forceHighRisk } = {}) {
   const count = Number.isFinite(Number(tc1h)) ? Number(tc1h) : 0;
   const amt = Number.isFinite(Number(amount)) ? Number(amount) : 0;
   const seenDays = Number.isFinite(Number(deviceFingerprintSeenDays))
     ? Number(deviceFingerprintSeenDays)
     : 0;
+
+  // MFA fast path: DemoPanel override wins unconditionally.
+  if (forceHighRisk === true) {
+    return {
+      score: 75,
+      riskLevel: 'HIGH',
+      action: 'MFA',
+      reasonCode: 'HIGH_VALUE_UNSEEN_DEVICE',
+      reasonText: 'High-risk transfer forced by demo panel override.',
+      category: 'EARN_REDEEM',
+      needsExplanation: false,
+      ruleId: 'DEMO_HIGH_VALUE_UNSEEN_DEVICE',
+      ruleName: 'High-value transfer from unseen device',
+      engineLayer: 'L1+L2',
+      matched: [{ field: 'forceHighRisk', op: 'eq', threshold: true, value: true }],
+    };
+  }
 
   // MFA fast path: large transfer from an unseen (or very stale) device.
   if (amt >= CFG.largeTransferAmountUsd && seenDays > CFG.unseenDeviceDaysThreshold) {
@@ -42,6 +63,7 @@ function scoreTransfer({ tc1h, amount, deviceFingerprintSeenDays } = {}) {
       needsExplanation: false,
       ruleId: 'DEMO_HIGH_VALUE_UNSEEN_DEVICE',
       ruleName: 'High-value transfer from unseen device',
+      engineLayer: 'L1+L2',
       matched: [
         { field: 'amount', op: 'gte', threshold: CFG.largeTransferAmountUsd, value: amt },
         {

@@ -14,6 +14,7 @@ const {
 } = require('./routes/auth');
 const {
   transfer,
+  transferMfaVerify,
   getOffers,
   offerAction,
   getNudges,
@@ -48,6 +49,7 @@ function _setDdb(client) {
  */
 const BEARER_ROUTES = [
   ['POST', '/transactions/transfer'],
+  ['POST', '/transactions/mfa/verify'],
   ['GET', '/user/profile'],
   ['GET', '/user/profile-completeness'],
   ['GET', '/offers'],
@@ -89,6 +91,8 @@ async function route(event, correlationId) {
   if (method === 'POST' && p === '/auth/logout') return logout(event, correlationId);
   if (method === 'GET' && p === '/auth/session') return sessionInfo(event, correlationId);
   if (method === 'POST' && p === '/transactions/transfer') return transfer(event, correlationId);
+  if (method === 'POST' && p === '/transactions/mfa/verify')
+    return transferMfaVerify(event, correlationId);
   if (method === 'GET' && p === '/offers') return getOffers(event, correlationId);
   if (method === 'POST' && p === '/offers/action') return offerAction(event, correlationId);
   if (method === 'GET' && p === '/nudges') return getNudges(event, correlationId);
