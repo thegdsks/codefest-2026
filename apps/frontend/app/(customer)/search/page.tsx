@@ -1,11 +1,12 @@
 'use client';
 
 import { createRepeatedQueryTracker } from '@signal-force/engagement-sdk';
-import { BadgePercent, Calendar, Gift, MapPin, Search, ShieldCheck, Users } from 'lucide-react';
+import { BadgePercent, Gift, MapPin, Search, ShieldCheck, Users } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useCallback, useRef, useState } from 'react';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
+import { DateRangePicker } from './DateRangePicker';
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function SearchScreen() {
 
   const runSearch = (query: string) => {
     trackSearch(query);
-    router.push(`/results?q=${encodeURIComponent(query)}`);
+    router.push(`/results?q=${encodeURIComponent(query)}&dates=${encodeURIComponent(dates)}`);
   };
 
   const handleSearchSubmit = (e: FormEvent) => {
@@ -95,26 +96,7 @@ export default function SearchScreen() {
 
           <div className="w-px bg-gray-200 hidden md:block my-4 shrink-0" />
 
-          <button
-            type="button"
-            onClick={() => {
-              const newD = prompt('Change Sanctuary Dates:', dates);
-              if (newD) setDates(newD);
-            }}
-            className="flex-1 p-4 rounded-lg hover:bg-gray-100/50 transition-all duration-300 cursor-pointer text-left bg-transparent border-none"
-          >
-            <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2 font-sans">
-              Check-In / Out
-            </span>
-            <div className="flex items-center gap-3">
-              <Calendar size={18} className="text-[#775a19]" />
-              <div className="flex flex-col text-left">
-                <span className="font-serif text-lg md:text-xl font-medium text-black">
-                  {dates}
-                </span>
-              </div>
-            </div>
-          </button>
+          <DateRangePicker value={dates} onChange={setDates} />
 
           <div className="w-px bg-gray-200 hidden md:block my-4 shrink-0" />
 
@@ -179,7 +161,7 @@ export default function SearchScreen() {
       </div>
 
       {/* Secondary Loyalty Feature Ribbon */}
-      <div className="relative z-10 w-full bg-white/60 border-t border-gray-100 py-10">
+      <div className="relative z-1 w-full bg-white/60 border-t border-gray-100 py-10">
         <div className="max-w-[1440px] mx-auto px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-[#efeded]/60 rounded-full flex items-center justify-center text-[#775a19] shrink-0">
