@@ -21,6 +21,40 @@
 - `DEMO_MODE=1` - enables the `/admin/dev/reseed` endpoint
 - `MFA_MODE=static` (optional) - accepts `123456` as the TOTP code for frictionless demo
 
+## One-button verification
+
+Run this before going on stage:
+
+```bash
+npm run rehearsal
+```
+
+It executes the full demo story end-to-end (reseed, login, MFA, warm-up transfer, big
+transfer, decisions, trace, budget) and prints a pass/warn/fail table. Exit 0 means
+demo-ready. Exit 1 prints the failing step and the exact error so you can fix it fast.
+
+Useful flags:
+- `--dry-run`   show what would run without making network calls
+- `--no-reseed` skip reseed when repeating back-to-back
+- `--verbose`   print request and response bodies for each step
+
+Expected run time against a warm Lambda is under 3 seconds.
+
+```bash
+# Minimal - uses defaults (localhost, user001 / Password1 / 123456)
+npm run rehearsal
+
+# Against the deployed API
+BASE_URL=https://your-api-id.execute-api.us-east-1.amazonaws.com \
+  DEMO_MODE_EXPECTED=1 \
+  npm run rehearsal
+
+# Skip reseed on consecutive runs
+npm run rehearsal -- --no-reseed
+```
+
+See `scripts/rehearsal.mjs` for the full env var reference and `--help`.
+
 ## Engine note
 
 The `scoreTransfer` L1 rule scores on velocity (`tc1h`). A single transfer at tc1h=1
@@ -28,3 +62,6 @@ scores 10 (LOW, ALLOW) and skips the LLM. To ensure L2 fires and returns MFA dur
 the demo, perform one prior transfer first to bring tc1h to 2 (gray-zone score 60),
 then attempt the $7500 transfer. The `DEC#DEMO` seed record in DecisionStore already
 shows the expected outcome in the admin drawer regardless of the live call result.
+
+The rehearsal script automates the warm-up transfer (step 6) then the big transfer
+(step 7) in the correct order, so the velocity counter is always in the right state.

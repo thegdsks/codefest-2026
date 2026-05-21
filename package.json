@@ -20,7 +20,8 @@
     "build:frontend": "npm --workspace=apps/frontend run build",
     "seed:reset": "node scripts/seed-ddb.js",
     "snapshot:demo": "bash scripts/snapshot-demo.sh",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "rehearsal": "node scripts/rehearsal.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
