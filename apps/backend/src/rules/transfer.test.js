@@ -88,3 +88,55 @@ test('scoreTransfer result includes all required L1 draft fields', () => {
   assert.equal(result.category, 'EARN_REDEEM');
   assert.ok(typeof result.needsExplanation === 'boolean');
 });
+
+// --- MFA fast path: high amount + unseen device ---
+test('scoreTransfer returns MFA when amount >= threshold and device is unseen', () => {
+  const result = scoreTransfer({ tc1h: 0, amount: 7500, deviceFingerprintSeenDays: 90 });
+  assert.equal(result.action, 'MFA');
+  assert.equal(result.ruleId, 'DEMO_HIGH_VALUE_UNSEEN_DEVICE');
+  assert.equal(result.ruleName, 'High-value transfer from unseen device');
+  assert.ok(Array.isArray(result.matched) && result.matched.length === 2);
+  assert.equal(result.needsExplanation, false);
+  assert.equal(result.category, 'EARN_REDEEM');
+});
+
+// --- MFA fast path: exactly at thresholds ---
+test('scoreTransfer returns MFA at exact threshold values (5000 amount, 31 days)', () => {
+  const result = scoreTransfer({ tc1h: 1, amount: 5000, deviceFingerprintSeenDays: 31 });
+  assert.equal(result.action, 'MFA');
+  assert.equal(result.ruleId, 'DEMO_HIGH_VALUE_UNSEEN_DEVICE');
+});
+
+// --- MFA fast path does NOT fire: known device (seenDays <= threshold) ---
+test('scoreTransfer does not fire MFA when device is known (seenDays = 7)', () => {
+  const result = scoreTransfer({ tc1h: 0, amount: 7500, deviceFingerprintSeenDays: 7 });
+  assert.notEqual(result.action, 'MFA');
+  assert.equal(result.action, 'ALLOW');
+});
+
+// --- MFA fast path does NOT fire: amount below threshold ---
+test('scoreTransfer does not fire MFA when amount is below threshold', () => {
+  const result = scoreTransfer({ tc1h: 0, amount: 100, deviceFingerprintSeenDays: 90 });
+  assert.notEqual(result.action, 'MFA');
+  assert.equal(result.action, 'ALLOW');
+});
+
+// --- MFA fast path: velocity check is skipped when MFA rule fires ---
+test('scoreTransfer MFA path fires even when tc1h is low (device rule takes priority)', () => {
+  const result = scoreTransfer({ tc1h: 1, amount: 7500, deviceFingerprintSeenDays: 90 });
+  assert.equal(result.action, 'MFA');
+});
+
+// --- Velocity still fires for tc1h >= 4 when device is known ---
+test('scoreTransfer returns BLOCK for high velocity even with known device', () => {
+  const result = scoreTransfer({ tc1h: 5, amount: 100, deviceFingerprintSeenDays: 7 });
+  assert.equal(result.action, 'BLOCK');
+  assert.equal(result.reasonCode, 'HIGH_VELOCITY');
+});
+
+// --- Missing amount/seenDays fields do not trigger MFA ---
+test('scoreTransfer with no amount or deviceFingerprintSeenDays fields behaves as before', () => {
+  const result = scoreTransfer({ tc1h: 1 });
+  assert.equal(result.action, 'ALLOW');
+  assert.equal(result.score, 10);
+});

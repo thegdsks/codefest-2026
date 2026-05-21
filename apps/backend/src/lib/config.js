@@ -104,6 +104,18 @@ const CFG = {
   get riskSparklineLimit() {
     return Number(process.env.RISK_SPARKLINE_LIMIT || 20);
   },
+  // Transfer MFA gate: transfers at or above this amount trigger the unseen-device check.
+  get largeTransferAmountUsd() {
+    return Number(process.env.LARGE_TRANSFER_AMOUNT_USD || 5000);
+  },
+  // Transfer MFA gate: device must have been seen within this many days, else the rule fires.
+  get unseenDeviceDaysThreshold() {
+    return Number(process.env.UNSEEN_DEVICE_DAYS_THRESHOLD || 30);
+  },
+  // TTL for a transfer MFA challenge row in UserSession (default 5 min).
+  get transferMfaTtlSec() {
+    return Number(process.env.TRANSFER_MFA_TTL_SEC || 300);
+  },
 };
 
 module.exports = { CFG };
