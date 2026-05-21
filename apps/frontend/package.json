@@ -18,6 +18,7 @@
     "@signal-force/engagement-sdk": "*",
     "@tanstack/react-query": "^5",
     "@tanstack/react-virtual": "^3",
+    "@vercel/analytics": "^2.0.1",
     "@xyflow/react": "^12.10.2",
     "lucide-react": "^0.441.0",
     "next": "^15.3.2",
