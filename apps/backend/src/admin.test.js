@@ -21,11 +21,21 @@ const assert = require('node:assert/strict');
  * queryItems - array of items returned from Query
  * getItem    - single item returned from Get (or null)
  */
-function fakeDdb({ scanItems = [], queryItems = [], getItem = null, putCapture = [] } = {}) {
+function fakeDdb({
+  scanItems = [],
+  queryItems = [],
+  getItem = null,
+  putCapture = [],
+  deleteCapture = [],
+  scanByTable = null,
+} = {}) {
   return {
     send: async (cmd) => {
       const name = cmd.constructor.name;
       if (name === 'ScanCommand') {
+        if (scanByTable && Object.hasOwn(scanByTable, cmd.input.TableName)) {
+          return { Items: scanByTable[cmd.input.TableName], LastEvaluatedKey: null };
+        }
         return { Items: scanItems, LastEvaluatedKey: null };
       }
       if (name === 'QueryCommand') {
@@ -39,6 +49,10 @@ function fakeDdb({ scanItems = [], queryItems = [], getItem = null, putCapture =
         return {};
       }
       if (name === 'UpdateCommand') {
+        return {};
+      }
+      if (name === 'DeleteCommand') {
+        deleteCapture.push(cmd.input);
         return {};
       }
       throw new Error(`Unexpected command: ${name}`);
@@ -677,6 +691,213 @@ describe('exportDecisions', () => {
     };
     loadAdmin(fakeDdb({}));
     const resp = await admin.exportDecisions(event, 'cid-027');
+    assert.equal(resp.statusCode, 403);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getSessions
+// ---------------------------------------------------------------------------
+
+const ADMIN_AUTH = { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' };
+
+describe('getSessions', () => {
+  const now = nowSec();
+  const sessions = [
+    {
+      sessionId: 'tok-A',
+      recordType: 'ACCESS',
+      userId: 'U001',
+      issuedAt: now - 60,
+      expiresAt: now + 1800,
+      lastActivityAt: now - 10,
+      mfaVerified: true,
+      token: 'tok-A',
+      location: 'NYC',
+    },
+    {
+      sessionId: 'tok-B',
+      recordType: 'ACCESS',
+      userId: 'U002',
+      issuedAt: now - 7200,
+      expiresAt: now - 60, // expired
+      lastActivityAt: now - 7000,
+      mfaVerified: false,
+      token: 'tok-B',
+    },
+    {
+      // Legacy MFA challenge row, NOT an access row.
+      sessionId: 'SESSION#xyz',
+      userId: 'U001',
+    },
+  ];
+
+  test('returns ACCESS rows only, sorted most-recent first, stripped of token', async () => {
+    loadAdmin(fakeDdb({ scanItems: sessions.filter((s) => s.recordType === 'ACCESS') }));
+    const resp = await admin.getSessions(
+      { headers: ADMIN_AUTH, queryStringParameters: {} },
+      'cid-sessions-1'
+    );
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.count, 2);
+    assert.equal(body.data.sessions[0].sessionId, 'tok-A');
+    assert.equal(body.data.sessions[1].sessionId, 'tok-B');
+    // Token must not leak through the admin projection.
+    assert.equal(body.data.sessions[0].token, undefined);
+    assert.equal(body.data.sessions[0].active, true);
+    assert.equal(body.data.sessions[1].active, false);
+  });
+
+  test('active=true filters to non-expired sessions', async () => {
+    loadAdmin(fakeDdb({ scanItems: sessions.filter((s) => s.recordType === 'ACCESS') }));
+    const resp = await admin.getSessions(
+      { headers: ADMIN_AUTH, queryStringParameters: { active: 'true' } },
+      'cid-sessions-2'
+    );
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.count, 1);
+    assert.equal(body.data.sessions[0].sessionId, 'tok-A');
+  });
+
+  test('active=false filters to expired sessions', async () => {
+    loadAdmin(fakeDdb({ scanItems: sessions.filter((s) => s.recordType === 'ACCESS') }));
+    const resp = await admin.getSessions(
+      { headers: ADMIN_AUTH, queryStringParameters: { active: 'false' } },
+      'cid-sessions-3'
+    );
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.count, 1);
+    assert.equal(body.data.sessions[0].sessionId, 'tok-B');
+  });
+
+  test('returns 400 when active is not true|false', async () => {
+    loadAdmin(fakeDdb({ scanItems: [] }));
+    const resp = await admin.getSessions(
+      { headers: ADMIN_AUTH, queryStringParameters: { active: 'maybe' } },
+      'cid-sessions-4'
+    );
+    assert.equal(resp.statusCode, 400);
+  });
+
+  test('returns 403 for a non-admin caller', async () => {
+    const token = Buffer.from('nobody:x').toString('base64');
+    loadAdmin(fakeDdb({ scanItems: [] }));
+    const resp = await admin.getSessions(
+      { headers: { authorization: `Basic ${token}` }, queryStringParameters: {} },
+      'cid-sessions-5'
+    );
+    assert.equal(resp.statusCode, 403);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// revokeSession
+// ---------------------------------------------------------------------------
+
+describe('revokeSession', () => {
+  test('returns 204 and issues a DeleteCommand keyed by sessionId from the path', async () => {
+    const deletes = [];
+    loadAdmin(fakeDdb({ deleteCapture: deletes }));
+    const event = {
+      headers: ADMIN_AUTH,
+      queryStringParameters: {},
+      requestContext: { http: { method: 'POST', path: '/admin/sessions/tok-xyz/revoke' } },
+    };
+    const resp = await admin.revokeSession(event, 'cid-revoke-1');
+    assert.equal(resp.statusCode, 204);
+    assert.equal(deletes.length, 1);
+    assert.equal(deletes[0].TableName, 'UserSession');
+    assert.equal(deletes[0].Key.sessionId, 'tok-xyz');
+  });
+
+  test('URL-decodes the path segment so SESSION%23abc resolves to SESSION#abc', async () => {
+    const deletes = [];
+    loadAdmin(fakeDdb({ deleteCapture: deletes }));
+    const event = {
+      headers: ADMIN_AUTH,
+      queryStringParameters: {},
+      requestContext: {
+        http: { method: 'POST', path: '/admin/sessions/SESSION%23abc/revoke' },
+      },
+    };
+    const resp = await admin.revokeSession(event, 'cid-revoke-2');
+    assert.equal(resp.statusCode, 204);
+    assert.equal(deletes[0].Key.sessionId, 'SESSION#abc');
+  });
+
+  test('returns 400 when sessionId is missing from the path', async () => {
+    loadAdmin(fakeDdb({}));
+    const event = {
+      headers: ADMIN_AUTH,
+      queryStringParameters: {},
+      requestContext: { http: { method: 'POST', path: '/admin/sessions//revoke' } },
+    };
+    const resp = await admin.revokeSession(event, 'cid-revoke-3');
+    assert.equal(resp.statusCode, 400);
+  });
+
+  test('returns 403 for a non-admin caller', async () => {
+    const token = Buffer.from('nobody:x').toString('base64');
+    loadAdmin(fakeDdb({}));
+    const event = {
+      headers: { authorization: `Basic ${token}` },
+      requestContext: { http: { method: 'POST', path: '/admin/sessions/tok-xyz/revoke' } },
+    };
+    const resp = await admin.revokeSession(event, 'cid-revoke-4');
+    assert.equal(resp.statusCode, 403);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getMfaStatus
+// ---------------------------------------------------------------------------
+
+describe('getMfaStatus', () => {
+  test('counts enrolled, pending, and not-enrolled users and returns percent', async () => {
+    const profiles = [
+      { userId: 'U001', mfaEnabled: true },
+      { userId: 'U002', mfaEnabled: true },
+      { userId: 'U003', pendingMfaSecret: 'SEED' },
+      { userId: 'U004' },
+      { userId: 'U005' },
+    ];
+    loadAdmin(fakeDdb({ scanItems: profiles }));
+    const resp = await admin.getMfaStatus(
+      { headers: ADMIN_AUTH, queryStringParameters: {} },
+      'cid-mfa-1'
+    );
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.total, 5);
+    assert.equal(body.data.enrolled, 2);
+    assert.equal(body.data.pending, 1);
+    assert.equal(body.data.notEnrolled, 2);
+    assert.equal(body.data.enrolledPercent, 40);
+  });
+
+  test('returns zeroes when there are no users', async () => {
+    loadAdmin(fakeDdb({ scanItems: [] }));
+    const resp = await admin.getMfaStatus(
+      { headers: ADMIN_AUTH, queryStringParameters: {} },
+      'cid-mfa-2'
+    );
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.total, 0);
+    assert.equal(body.data.enrolled, 0);
+    assert.equal(body.data.enrolledPercent, 0);
+  });
+
+  test('returns 403 for a non-admin caller', async () => {
+    const token = Buffer.from('nobody:x').toString('base64');
+    loadAdmin(fakeDdb({ scanItems: [] }));
+    const resp = await admin.getMfaStatus(
+      { headers: { authorization: `Basic ${token}` }, queryStringParameters: {} },
+      'cid-mfa-3'
+    );
     assert.equal(resp.statusCode, 403);
   });
 });
