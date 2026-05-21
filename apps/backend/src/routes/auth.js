@@ -23,6 +23,7 @@ const {
 const { activityLogin, decision } = require('../lib/activity');
 const { scoreLogin } = require('../rules/login');
 const { route: engineRoute } = require('../engine/router');
+const { explain: aiExplain } = require('../engine/ai-fraud-explainer');
 const totp = require('../lib/totp');
 
 /**
@@ -130,6 +131,17 @@ async function login(event, correlationId) {
   });
 
   if (final.action === 'BLOCK') {
+    // Generate AI explanation inline (2s timeout; decision proceeds if LLM is slow)
+    const blockExplanation = await aiExplain({
+      decisionType: 'FRAUD_LOGIN',
+      action: 'BLOCK',
+      score: final.score,
+      reasonCode: final.reasonCode,
+      reasonText: final.reasonText,
+      context: { location, deviceId, deviceType, ip, browser },
+      priorDecisions: [],
+    });
+
     await putDecision(
       decision(
         userId,
@@ -141,7 +153,7 @@ async function login(event, correlationId) {
         final.reasonText,
         'AUTH',
         correlationId,
-        final
+        { ...final, aiExplanation: blockExplanation || undefined }
       )
     );
     return err(
@@ -153,6 +165,17 @@ async function login(event, correlationId) {
   }
 
   if (final.action === 'MFA') {
+    // Generate AI explanation inline (2s timeout)
+    const mfaExplanation = await aiExplain({
+      decisionType: 'FRAUD_LOGIN',
+      action: 'MFA',
+      score: final.score,
+      reasonCode: final.reasonCode,
+      reasonText: final.reasonText,
+      context: { location, deviceId, deviceType, ip, browser },
+      priorDecisions: [],
+    });
+
     await putDecision(
       decision(
         userId,
@@ -164,7 +187,7 @@ async function login(event, correlationId) {
         final.reasonText,
         'AUTH',
         correlationId,
-        final
+        { ...final, aiExplanation: mfaExplanation || undefined }
       )
     );
     await upsertLoginState(userId, now, location, true);
