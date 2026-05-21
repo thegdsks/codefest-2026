@@ -208,8 +208,62 @@ describe('evaluateSurfaces', () => {
     assert.equal(s.state, 'COMPLETED');
   });
 
-  test('returns all 6 surfaces in every call', () => {
+  test('returns all 7 surfaces in every call', () => {
     const result = evaluateSurfaces({ profile: baseProfile(), state: baseState(), nowSec: NOW });
-    assert.equal(result.length, 6);
+    assert.equal(result.length, 7);
+  });
+
+  test('PROPERTY_PERSONALIZED_OFFER is PENDING when dwell < 5s and Gold', () => {
+    const result = evaluateSurfaces({
+      profile: baseProfile({ tier: 'Gold' }),
+      state: baseState({ propertyDwellMs: 2000, currentPropertyId: 'prop-001' }),
+      nowSec: NOW,
+    });
+    const s = result.find((r) => r.surfaceId === 'PROPERTY_PERSONALIZED_OFFER');
+    assert.equal(s.state, 'PENDING');
+    assert.equal(s.context.propertyId, 'prop-001');
+  });
+
+  test('PROPERTY_PERSONALIZED_OFFER is SHOWN when dwell > 5s and Gold', () => {
+    const result = evaluateSurfaces({
+      profile: baseProfile({ tier: 'Gold' }),
+      state: baseState({ propertyDwellMs: 8000, currentPropertyId: 'prop-001' }),
+      nowSec: NOW,
+    });
+    const s = result.find((r) => r.surfaceId === 'PROPERTY_PERSONALIZED_OFFER');
+    assert.equal(s.state, 'SHOWN');
+  });
+
+  test('PROPERTY_PERSONALIZED_OFFER is HIDDEN when booking flow active', () => {
+    const result = evaluateSurfaces({
+      profile: baseProfile({ tier: 'Gold' }),
+      state: baseState({ propertyDwellMs: 8000, bookingFlowActive: true }),
+      nowSec: NOW,
+    });
+    const s = result.find((r) => r.surfaceId === 'PROPERTY_PERSONALIZED_OFFER');
+    assert.equal(s.state, 'HIDDEN');
+    assert.ok(s.reason.includes('booking flow'));
+  });
+
+  test('PROPERTY_PERSONALIZED_OFFER is HIDDEN when recently booked', () => {
+    const result = evaluateSurfaces({
+      profile: baseProfile({ tier: 'Gold' }),
+      state: baseState({ propertyDwellMs: 8000, recentBookingAt: NOW - 60 }),
+      nowSec: NOW,
+    });
+    const s = result.find((r) => r.surfaceId === 'PROPERTY_PERSONALIZED_OFFER');
+    assert.equal(s.state, 'HIDDEN');
+    assert.ok(s.reason.includes('recently booked'));
+  });
+
+  test('PROPERTY_PERSONALIZED_OFFER is HIDDEN for Silver tier', () => {
+    const result = evaluateSurfaces({
+      profile: baseProfile({ tier: 'Silver' }),
+      state: baseState({ propertyDwellMs: 8000 }),
+      nowSec: NOW,
+    });
+    const s = result.find((r) => r.surfaceId === 'PROPERTY_PERSONALIZED_OFFER');
+    assert.equal(s.state, 'HIDDEN');
+    assert.ok(s.reason.includes('eligible'));
   });
 });
