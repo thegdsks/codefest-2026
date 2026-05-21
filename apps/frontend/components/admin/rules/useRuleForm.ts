@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type {
+  AiSuggestResult,
   CreateRulePayload,
   RuleAction,
   RuleConditionGroup,
@@ -47,6 +48,11 @@ export function useRuleForm(initial?: Partial<RuleFormState>) {
     setAction((prev) => ({ ...prev, ...patch }));
   }
 
+  function applyAiSuggestion(result: AiSuggestResult) {
+    if (result.name && !name.trim()) setName(result.name);
+    setWhenConditions(result.conditions);
+  }
+
   function toPayload(): CreateRulePayload {
     return { name, status, whenConditions, whoConditions, action };
   }
@@ -62,6 +68,7 @@ export function useRuleForm(initial?: Partial<RuleFormState>) {
     setWhoConditions,
     action,
     updateAction,
+    applyAiSuggestion,
     saving,
     setSaving,
     saveError,
