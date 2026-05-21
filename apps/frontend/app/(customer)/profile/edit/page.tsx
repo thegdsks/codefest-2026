@@ -17,6 +17,7 @@ import { useCustomer } from '@/components/hotel/CustomerProvider';
 import CheckboxGrid from '@/components/hotel/edit/CheckboxGrid';
 import DobPicker from '@/components/hotel/edit/DobPicker';
 import { LabeledInput, LabeledSelect, toOptions } from '@/components/hotel/edit/LabeledField';
+import { updateCustomerProfile } from '@/lib/hotel/customer-api';
 import {
   ALCOHOL_OPTIONS,
   BEVERAGE_OPTIONS,
@@ -55,7 +56,7 @@ function toggle(list: string[], opt: string): string[] {
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user, updateProfile, isLoggedIn } = useCustomer();
+  const { user, session, updateProfile, isLoggedIn } = useCustomer();
 
   useEffect(() => {
     if (!isLoggedIn) router.replace('/login');
@@ -103,9 +104,10 @@ export default function EditProfileScreen() {
   );
 
   const [isSuccessToastVisible, setIsSuccessToastVisible] = useState(false);
+  const [crossed90Toast, setCrossed90Toast] = useState(false);
   const [emailError, setEmailError] = useState('');
 
-  const handleFormSubmit = (e: FormEvent) => {
+  const handleFormSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setEmailError('');
 
@@ -114,8 +116,13 @@ export default function EditProfileScreen() {
       return;
     }
 
+    const cleanEmail = email.toLowerCase().trim();
+    const dob =
+      dobMonth && dobDay ? `${dobMonth.padStart(2, '0')}-${dobDay.padStart(2, '0')}` : undefined;
+
+    // Optimistic local update immediately so the profile page reflects changes.
     updateProfile({
-      email: email.toLowerCase().trim(),
+      email: cleanEmail,
       country,
       zipCode,
       addressLine1,
@@ -148,6 +155,22 @@ export default function EditProfileScreen() {
       },
     });
 
+    // Persist the editable fields to the backend so profileCompletion is
+    // recomputed and PROFILE_CATALYST_ELEVATE can flip to COMPLETED.
+    if (session) {
+      const res = await updateCustomerProfile(session.token, session.userId, {
+        mobilePhone: mobilePhone || undefined,
+        email: cleanEmail,
+        marketingOptIn: communicationPreferences.includes('Email'),
+        dob,
+        language: undefined,
+      });
+      if (res.data?.crossed90) {
+        setCrossed90Toast(true);
+        setTimeout(() => setCrossed90Toast(false), 4000);
+      }
+    }
+
     setIsSuccessToastVisible(true);
     setTimeout(() => {
       setIsSuccessToastVisible(false);
@@ -162,6 +185,14 @@ export default function EditProfileScreen() {
           <CheckCircle2 className="text-[#ffdea5]" size={18} />
           <span className="font-sans text-xs uppercase tracking-widest font-bold">
             Sanctuary Registry Successfully Updated
+          </span>
+        </div>
+      )}
+      {crossed90Toast && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-[#775a19] text-white px-6 py-4 flex items-center gap-3 shadow-xl animate-fade-in">
+          <CheckCircle2 className="text-white" size={18} />
+          <span className="font-sans text-xs uppercase tracking-widest font-bold">
+            Profile updated, thanks! Catalyst Elevate unlocked.
           </span>
         </div>
       )}
