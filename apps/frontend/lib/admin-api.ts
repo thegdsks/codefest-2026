@@ -341,6 +341,25 @@ export const adminApiConfig = {
   authMode: AUTH_MODE,
 } as const;
 
+export interface ReseedResponse {
+  ok: true;
+  tablesReset: string[];
+  itemsWritten: number;
+  durationMs: number;
+}
+
+export interface DevConfigResponse {
+  demoMode: boolean;
+}
+
+export function getDevConfig(): Promise<ApiResult<DevConfigResponse>> {
+  return adminFetch<DevConfigResponse>('/admin/dev/config');
+}
+
+export function reseedDemo(): Promise<ApiResult<ReseedResponse>> {
+  return adminFetch<ReseedResponse>('/admin/dev/reseed', { method: 'POST' });
+}
+
 export function setAdminBearerToken(token: string | null): void {
   if (typeof window === 'undefined') return;
   if (token === null) {
