@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import EngagementWrapper from '@/components/engagement-wrapper';
 import Nav from '@/components/nav';
 import './globals.css';
 
@@ -17,7 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Nav />
           </div>
         </header>
-        <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>
+        <main className="max-w-5xl mx-auto px-4 py-8">
+          <EngagementWrapper>{children}</EngagementWrapper>
+        </main>
       </body>
     </html>
   );
