@@ -247,13 +247,13 @@ async function mutateDemoUser(event, correlationId) {
     new PutCommand({
       TableName: CFG.tUserActivity,
       Item: {
-        activityId,
         userId,
+        activityTime: now,
+        activityId,
         activityType: 'DEMO_EVENT',
         type: 'USER_MUTATION',
         actor: 'demo-panel',
         payload: { userId, mutation, touched },
-        timestamp: now,
         createdAt: now,
       },
     })
