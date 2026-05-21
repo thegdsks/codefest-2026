@@ -76,11 +76,11 @@ export default function TransferScreen() {
 
     setTransferDetails({ id: res.data.transferId, partner: partnerName, amount: cost, date });
 
-    if (res.data.status === 'UNDER_REVIEW') {
-      router.push('/transfer/review');
-    } else {
+    if (res.data.status === 'SUCCESS') {
       deductPoints(cost);
       router.push('/transfer/success');
+    } else {
+      router.push('/transfer/review');
     }
   };
 
