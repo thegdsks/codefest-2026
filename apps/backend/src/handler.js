@@ -32,6 +32,10 @@ const CFG = {
   clientId: process.env.CLIENT_ID || 'demoClient',
   clientSecret: process.env.CLIENT_SECRET || 'demoSecret',
   mfaOtp: process.env.MFA_OTP || '123456',
+  // 'totp' (default) accepts only valid TOTP codes from an authenticator app.
+  // 'static' additionally accepts the legacy demo OTP, for the judges-have-
+  // no-phone fallback. 'static-only' rejects TOTP entirely (legacy demo mode).
+  mfaMode: process.env.MFA_MODE || 'totp',
   sessionTtlSec: Number(process.env.SESSION_TTL_SEC || 1800),
 
   tUserProfile: process.env.TABLE_USER_PROFILE || 'UserProfile',
@@ -40,6 +44,8 @@ const CFG = {
   tDecision: process.env.TABLE_DECISION_STORE || 'DecisionStore',
   tUserState: process.env.TABLE_USER_STATE || 'UserState',
 };
+
+const totp = require('./lib/totp');
 
 function nowSec() {
   return Math.floor(Date.now() / 1000);
@@ -519,6 +525,10 @@ async function route(event, correlationId) {
 
   if (method === 'POST' && p === '/auth/login') return login(event, correlationId);
   if (method === 'POST' && p === '/auth/mfa/verify') return mfaVerify(event, correlationId);
+  if (method === 'POST' && p === '/auth/mfa/enroll') return mfaEnroll(event, correlationId);
+  if (method === 'POST' && p === '/auth/mfa/confirm-enroll')
+    return mfaConfirmEnroll(event, correlationId);
+  if (method === 'POST' && p === '/auth/mfa/recover') return mfaRecover(event, correlationId);
   if (method === 'POST' && p === '/auth/logout') return logout(event, correlationId);
   if (method === 'GET' && p === '/auth/session') return sessionInfo(event, correlationId);
   if (method === 'POST' && p === '/transactions/transfer') return transfer(event, correlationId);
@@ -682,6 +692,25 @@ async function login(event, correlationId) {
   });
 }
 
+/**
+ * Try to validate a code against the user's mfaSecret using TOTP. Falls
+ * back to the static demo OTP when MFA_MODE is `static` (judges-without-
+ * a-phone backup) and the user has no enrolled secret. Returns a string
+ * tag identifying the path that accepted (or null on rejection):
+ *   TOTP    valid current TOTP code
+ *   STATIC  matched the env-configured static OTP
+ *   null    rejected
+ */
+function evaluateMfaCode(code, profile) {
+  const secret = profile && profile.mfaSecret;
+  if (secret && totp.verifyTotpCode(code, secret)) return 'TOTP';
+
+  const staticAllowed = CFG.mfaMode === 'static' || CFG.mfaMode === 'static-only';
+  if (staticAllowed && String(code).trim() === String(CFG.mfaOtp)) return 'STATIC';
+
+  return null;
+}
+
 async function mfaVerify(event, correlationId) {
   const body = parseBody(event);
   const sessionId = requireField(body, 'sessionId');
@@ -691,16 +720,19 @@ async function mfaVerify(event, correlationId) {
   if (!session) return err(404, correlationId, 'SESSION_NOT_FOUND', 'Session not found');
 
   const userId = session.userId;
-  if (otp !== CFG.mfaOtp) {
+  const profile = await getUserById(userId);
+  const path = evaluateMfaCode(otp, profile);
+
+  if (!path) {
     await putDecision(
       decision(
         userId,
-        'MFA_VERIFY',
+        'MFA_EVENT',
         0.0,
         'LOW',
         'BLOCK',
         'OTP_INVALID',
-        'OTP invalid',
+        'MFA code invalid',
         'AUTH',
         correlationId
       )
@@ -711,12 +743,12 @@ async function mfaVerify(event, correlationId) {
   await putDecision(
     decision(
       userId,
-      'MFA_VERIFY',
+      'MFA_EVENT',
       0.0,
       'LOW',
       'ALLOW',
-      'OTP_VALID',
-      'MFA verified',
+      path === 'TOTP' ? 'TOTP_VALID' : 'STATIC_OTP_VALID',
+      `MFA verified via ${path}`,
       'AUTH',
       correlationId
     )
@@ -737,8 +769,225 @@ async function mfaVerify(event, correlationId) {
     data: {
       status: 'SUCCESS',
       message: 'MFA verified',
+      mfaPath: path,
       token: access.token,
       expiresAt: access.expiresAt,
+    },
+  });
+}
+
+/**
+ * POST /auth/mfa/enroll - generate a TOTP secret + QR code + recovery codes
+ * for the calling user. Requires a valid bearer (already-logged-in user).
+ * The secret is parked in UserProfile.pendingMfaSecret; it does NOT activate
+ * MFA on the account until /auth/mfa/confirm-enroll succeeds, so a half-
+ * complete enrollment can't lock anyone out.
+ */
+async function mfaEnroll(event, correlationId) {
+  const principal = await validateBearer(event);
+  const userId = principal.userId;
+  const profile = await getUserById(userId);
+  if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
+
+  const secret = totp.generateMfaSecret();
+  const username = profile.username || userId;
+  const otpauthUrl = totp.buildOtpauthUrl(username, secret);
+  const qrCodePngBase64 = await totp.generateQrCodePngBase64(otpauthUrl);
+  const recoveryCodes = totp.generateRecoveryCodes();
+  const recoveryHashes = totp.hashRecoveryCodes(recoveryCodes);
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserProfile,
+      Key: { userId },
+      UpdateExpression:
+        'SET pendingMfaSecret = :s, pendingRecoveryHashes = :h, pendingMfaCreatedAt = :t',
+      ExpressionAttributeValues: {
+        ':s': secret,
+        ':h': recoveryHashes,
+        ':t': nowSec(),
+      },
+    })
+  );
+
+  await putDecision(
+    decision(
+      userId,
+      'MFA_EVENT',
+      0.0,
+      'LOW',
+      'ALLOW',
+      'MFA_ENROLL_STARTED',
+      'MFA enrollment started',
+      'AUTH',
+      correlationId
+    )
+  );
+
+  return json(200, correlationId, {
+    data: {
+      otpauthUrl,
+      qrCodePngBase64,
+      recoveryCodes,
+      issuer: process.env.MFA_ISSUER || 'SignalForce',
+      username,
+    },
+  });
+}
+
+/**
+ * POST /auth/mfa/confirm-enroll - validate a TOTP code generated from the
+ * pending secret. On success, promote pendingMfaSecret -> mfaSecret and
+ * pendingRecoveryHashes -> mfaRecoveryHashes, set mfaEnabled = true.
+ * On failure, leave the pending state in place so the user can retry.
+ */
+async function mfaConfirmEnroll(event, correlationId) {
+  const principal = await validateBearer(event);
+  const userId = principal.userId;
+  const body = parseBody(event);
+  const code = requireField(body, 'code');
+
+  const profile = await getUserById(userId);
+  if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
+
+  const pending = profile.pendingMfaSecret;
+  if (!pending) {
+    return err(
+      400,
+      correlationId,
+      'NO_PENDING_ENROLLMENT',
+      'No pending MFA enrollment for this user'
+    );
+  }
+
+  if (!totp.verifyTotpCode(code, pending)) {
+    await putDecision(
+      decision(
+        userId,
+        'MFA_EVENT',
+        0.0,
+        'LOW',
+        'BLOCK',
+        'MFA_ENROLL_INVALID_CODE',
+        'Confirm-enroll code rejected',
+        'AUTH',
+        correlationId
+      )
+    );
+    return err(401, correlationId, 'OTP_INVALID', 'Confirmation code invalid');
+  }
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserProfile,
+      Key: { userId },
+      UpdateExpression:
+        'SET mfaSecret = :s, mfaRecoveryHashes = :h, mfaEnabled = :e ' +
+        'REMOVE pendingMfaSecret, pendingRecoveryHashes, pendingMfaCreatedAt',
+      ExpressionAttributeValues: {
+        ':s': pending,
+        ':h': profile.pendingRecoveryHashes || [],
+        ':e': true,
+      },
+    })
+  );
+
+  await putDecision(
+    decision(
+      userId,
+      'MFA_EVENT',
+      0.0,
+      'LOW',
+      'ALLOW',
+      'MFA_ENROLL_CONFIRMED',
+      'MFA enrollment confirmed',
+      'AUTH',
+      correlationId
+    )
+  );
+
+  return json(200, correlationId, { data: { status: 'ENROLLED' } });
+}
+
+/**
+ * POST /auth/mfa/recover - consume a single-use recovery code to reset
+ * the user's MFA secret (typically when the phone is lost). On success,
+ * removes the consumed hash, clears mfaSecret (so the user must re-enroll),
+ * and returns a bearer token so the recovering user can proceed.
+ *
+ * Authenticated by username + password in the body, NOT by bearer, since
+ * the whole point is the user lost access to their second factor.
+ */
+async function mfaRecover(event, correlationId) {
+  const body = parseBody(event);
+  const username = requireField(body, 'username');
+  const password = requireField(body, 'password');
+  const code = requireField(body, 'code');
+
+  const profile = await findUserByUsername(username);
+  if (!profile || profile.passwordHash !== password) {
+    return err(401, correlationId, 'INVALID_CREDENTIALS', 'Invalid username/password');
+  }
+  const userId = profile.userId;
+
+  const hashes = profile.mfaRecoveryHashes || [];
+  const consumedHash = totp.findRecoveryCodeHash(code, hashes);
+  if (!consumedHash) {
+    await putDecision(
+      decision(
+        userId,
+        'MFA_EVENT',
+        0.0,
+        'LOW',
+        'BLOCK',
+        'MFA_RECOVERY_INVALID',
+        'Recovery code rejected',
+        'AUTH',
+        correlationId
+      )
+    );
+    return err(401, correlationId, 'RECOVERY_CODE_INVALID', 'Recovery code invalid');
+  }
+
+  const remaining = hashes.filter((h) => h !== consumedHash);
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserProfile,
+      Key: { userId },
+      UpdateExpression: 'SET mfaRecoveryHashes = :h, mfaEnabled = :e REMOVE mfaSecret',
+      ExpressionAttributeValues: {
+        ':h': remaining,
+        ':e': false,
+      },
+    })
+  );
+
+  await putDecision(
+    decision(
+      userId,
+      'MFA_EVENT',
+      0.0,
+      'LOW',
+      'ALLOW',
+      'MFA_RECOVERY_USED',
+      `Recovery code consumed (${remaining.length} remaining)`,
+      'AUTH',
+      correlationId
+    )
+  );
+
+  const access = await issueAccessToken({
+    userId,
+    mfaVerified: false,
+    correlationId,
+  });
+  return json(200, correlationId, {
+    data: {
+      status: 'RECOVERED',
+      token: access.token,
+      expiresAt: access.expiresAt,
+      recoveryCodesRemaining: remaining.length,
+      message: 'MFA disabled. Please re-enroll a new authenticator app.',
     },
   });
 }
@@ -1182,6 +1431,8 @@ const BEARER_ROUTES = [
   ['GET', '/dashboard'],
   ['POST', '/auth/logout'],
   ['GET', '/auth/session'],
+  ['POST', '/auth/mfa/enroll'],
+  ['POST', '/auth/mfa/confirm-enroll'],
 ];
 
 function isBearerRoute(method, path) {

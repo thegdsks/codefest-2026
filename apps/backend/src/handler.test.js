@@ -630,7 +630,10 @@ describe('POST /auth/login', () => {
 // ---------------------------------------------------------------------------
 
 describe('POST /auth/mfa/verify', () => {
-  it('issues a bearer token on valid OTP and writes an ACCESS row marked mfaVerified=true', async () => {
+  const { authenticator } = require('otplib');
+  const { generateMfaSecret } = require('./lib/totp');
+
+  it('issues a bearer token on a valid TOTP code and writes an ACCESS row marked mfaVerified=true', async () => {
     const challengeRow = {
       sessionId: 'SESSION#abcd1234',
       userId: 'U001',
@@ -639,11 +642,14 @@ describe('POST /auth/mfa/verify', () => {
       deviceId: 'dev-1',
       loginTime: Math.floor(Date.now() / 1000) - 30,
     };
+    const secret = generateMfaSecret();
+    const profile = { userId: 'U001', username: 'alice', mfaSecret: secret, mfaEnabled: true };
 
     const sessionPuts = [];
     const stub = makeDdb({
       GetCommand: (cmd) => {
         if (cmd.input.TableName === 'UserSession') return { Item: challengeRow };
+        if (cmd.input.TableName === 'UserProfile') return { Item: profile };
         return { Item: undefined };
       },
       PutCommand: (cmd) => {
@@ -653,15 +659,17 @@ describe('POST /auth/mfa/verify', () => {
     });
     handler._setDdb(stub);
 
+    const code = authenticator.generate(secret);
     const event = makeEvent({
       httpMethod: 'POST',
       path: '/auth/mfa/verify',
-      body: JSON.stringify({ sessionId: 'SESSION#abcd1234', otp: '123456' }),
+      body: JSON.stringify({ sessionId: 'SESSION#abcd1234', otp: code }),
     });
     const res = await handler.main(event);
-    assert.equal(res.statusCode, 200);
+    assert.equal(res.statusCode, 200, `body: ${res.body}`);
     const body = JSON.parse(res.body);
     assert.equal(body.data.status, 'SUCCESS');
+    assert.equal(body.data.mfaPath, 'TOTP');
     assert.ok(body.data.token, 'token missing from mfa/verify response');
     assert.equal(typeof body.data.expiresAt, 'number');
 
@@ -672,6 +680,42 @@ describe('POST /auth/mfa/verify', () => {
     assert.equal(accessRow.mfaVerified, true);
     assert.equal(accessRow.location, 'Tokyo', 'access row should inherit login-challenge location');
     assert.equal(accessRow.deviceId, 'dev-1');
+  });
+
+  it('accepts the static OTP fallback when MFA_MODE=static (no enrolled secret)', async () => {
+    const origMode = process.env.MFA_MODE;
+    process.env.MFA_MODE = 'static';
+    const handlerPath = require.resolve('./handler');
+    delete require.cache[handlerPath];
+    const freshHandler = require('./handler');
+
+    const challengeRow = { sessionId: 'SESSION#sssss', userId: 'U001' };
+    const profile = { userId: 'U001', username: 'alice' }; // no mfaSecret
+    freshHandler._setDdb(
+      makeDdb({
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserSession') return { Item: challengeRow };
+          if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+          return { Item: undefined };
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/verify',
+      body: JSON.stringify({ sessionId: 'SESSION#sssss', otp: '123456' }),
+    });
+    const res = await freshHandler.main(event);
+
+    if (origMode !== undefined) process.env.MFA_MODE = origMode;
+    else delete process.env.MFA_MODE;
+    delete require.cache[handlerPath];
+
+    assert.equal(res.statusCode, 200, `body: ${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.mfaPath, 'STATIC');
   });
 
   it('returns 401 OTP_INVALID on wrong code and does NOT issue a token', async () => {
@@ -1257,5 +1301,305 @@ describe('GET /auth/session', () => {
     assert.equal(res.statusCode, 401);
     const body = JSON.parse(res.body);
     assert.equal(body.error.code, 'INVALID_TOKEN');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /auth/mfa/enroll, /auth/mfa/confirm-enroll, /auth/mfa/recover
+// ---------------------------------------------------------------------------
+
+describe('POST /auth/mfa/enroll', () => {
+  it('returns otpauthUrl, QR PNG base64, and recovery codes and parks a pending secret', async () => {
+    const token = 'tok-enroll-U001';
+    const profile = { userId: 'U001', username: 'alice' };
+    const updates = [];
+    handler._setDdb(
+      withAccessRow('U001', token, {
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+          return { Item: undefined };
+        },
+        UpdateCommand: (cmd) => {
+          updates.push(cmd.input);
+          return {};
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/enroll',
+      headers: { authorization: bearer(token) },
+      body: '',
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200, `body: ${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.match(body.data.otpauthUrl, /^otpauth:\/\/totp\//);
+    assert.ok(body.data.qrCodePngBase64 && body.data.qrCodePngBase64.length > 100);
+    assert.equal(body.data.recoveryCodes.length, 10);
+    assert.equal(body.data.username, 'alice');
+
+    // A SET on pendingMfaSecret + pendingRecoveryHashes happened against
+    // UserProfile, NOT a flip of mfaEnabled.
+    const profileUpdate = updates.find((u) => u.TableName === 'UserProfile');
+    assert.ok(profileUpdate, 'expected a UserProfile UpdateCommand');
+    assert.match(profileUpdate.UpdateExpression, /pendingMfaSecret/);
+    assert.match(profileUpdate.UpdateExpression, /pendingRecoveryHashes/);
+    assert.doesNotMatch(profileUpdate.UpdateExpression, /mfaEnabled/);
+  });
+
+  it('returns 401 UNAUTHORIZED when no bearer is presented', async () => {
+    handler._setDdb(makeDdb());
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/enroll',
+      headers: { 'content-type': 'application/json' },
+      body: '',
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+  });
+});
+
+describe('POST /auth/mfa/confirm-enroll', () => {
+  const { authenticator } = require('otplib');
+  const { generateMfaSecret } = require('./lib/totp');
+
+  it('promotes pending secret to mfaSecret and sets mfaEnabled=true on a correct code', async () => {
+    const token = 'tok-confirm-U001';
+    const pending = generateMfaSecret();
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      pendingMfaSecret: pending,
+      pendingRecoveryHashes: ['h1', 'h2'],
+    };
+    const updates = [];
+    handler._setDdb(
+      withAccessRow('U001', token, {
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+          return { Item: undefined };
+        },
+        UpdateCommand: (cmd) => {
+          updates.push(cmd.input);
+          return {};
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const code = authenticator.generate(pending);
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/confirm-enroll',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200, `body: ${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.status, 'ENROLLED');
+
+    const profileUpdate = updates.find((u) => u.TableName === 'UserProfile');
+    assert.ok(profileUpdate);
+    assert.match(profileUpdate.UpdateExpression, /mfaSecret/);
+    assert.match(profileUpdate.UpdateExpression, /mfaRecoveryHashes/);
+    assert.match(profileUpdate.UpdateExpression, /mfaEnabled/);
+    assert.match(profileUpdate.UpdateExpression, /REMOVE pendingMfaSecret/);
+    assert.equal(profileUpdate.ExpressionAttributeValues[':e'], true);
+  });
+
+  it('returns 401 OTP_INVALID on wrong code and leaves pending in place', async () => {
+    const token = 'tok-confirm-U001';
+    const pending = generateMfaSecret();
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      pendingMfaSecret: pending,
+      pendingRecoveryHashes: [],
+    };
+    const updates = [];
+    handler._setDdb(
+      withAccessRow('U001', token, {
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+          return { Item: undefined };
+        },
+        UpdateCommand: (cmd) => {
+          updates.push(cmd.input);
+          return {};
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/confirm-enroll',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ code: '000000' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'OTP_INVALID');
+
+    // No UserProfile flip happened.
+    const profileUpdate = updates.find((u) => u.TableName === 'UserProfile');
+    assert.equal(profileUpdate, undefined);
+  });
+
+  it('returns 400 NO_PENDING_ENROLLMENT when user has no pending secret', async () => {
+    const token = 'tok-confirm-U001';
+    const profile = { userId: 'U001', username: 'alice' }; // no pendingMfaSecret
+    handler._setDdb(
+      withAccessRow('U001', token, {
+        GetCommand: (cmd) => {
+          if (cmd.input.TableName === 'UserProfile') return { Item: profile };
+          return { Item: undefined };
+        },
+        PutCommand: () => ({}),
+      })
+    );
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/confirm-enroll',
+      headers: { authorization: bearer(token), 'content-type': 'application/json' },
+      body: JSON.stringify({ code: '123456' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'NO_PENDING_ENROLLMENT');
+  });
+});
+
+describe('POST /auth/mfa/recover', () => {
+  const { hashRecoveryCodes } = require('./lib/totp');
+
+  it('consumes a valid recovery code, clears mfaSecret, returns a token, leaves other codes', async () => {
+    const codes = ['abcd1234', 'wxyz5678', 'mnop2233'];
+    const hashes = hashRecoveryCodes(codes);
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      passwordHash: 'pw',
+      mfaSecret: 'OLDSECRET',
+      mfaRecoveryHashes: hashes,
+    };
+    const updates = [];
+    handler._setDdb(
+      makeDdb({
+        QueryCommand: () => ({ Items: [profile] }),
+        UpdateCommand: (cmd) => {
+          updates.push(cmd.input);
+          return {};
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/recover',
+      body: JSON.stringify({ username: 'alice', password: 'pw', code: 'wxyz5678' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200, `body: ${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body.data.status, 'RECOVERED');
+    assert.ok(body.data.token);
+    assert.equal(body.data.recoveryCodesRemaining, 2);
+
+    const profileUpdate = updates.find((u) => u.TableName === 'UserProfile');
+    assert.match(profileUpdate.UpdateExpression, /REMOVE mfaSecret/);
+    assert.equal(profileUpdate.ExpressionAttributeValues[':h'].length, 2);
+    assert.ok(!profileUpdate.ExpressionAttributeValues[':h'].includes(hashes[1]));
+  });
+
+  it('returns 401 RECOVERY_CODE_INVALID when the code is not in the stored set', async () => {
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      passwordHash: 'pw',
+      mfaRecoveryHashes: hashRecoveryCodes(['real-code-1']),
+    };
+    handler._setDdb(
+      makeDdb({
+        QueryCommand: () => ({ Items: [profile] }),
+        UpdateCommand: () => ({}),
+        PutCommand: () => ({}),
+      })
+    );
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/recover',
+      body: JSON.stringify({ username: 'alice', password: 'pw', code: 'wrong-code' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'RECOVERY_CODE_INVALID');
+  });
+
+  it('returns 401 INVALID_CREDENTIALS when password is wrong', async () => {
+    const profile = { userId: 'U001', username: 'alice', passwordHash: 'correct' };
+    handler._setDdb(
+      makeDdb({
+        QueryCommand: () => ({ Items: [profile] }),
+      })
+    );
+    const event = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/recover',
+      body: JSON.stringify({ username: 'alice', password: 'wrong', code: 'anything' }),
+    });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 401);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'INVALID_CREDENTIALS');
+  });
+
+  it('rejects re-use of a previously-consumed recovery code', async () => {
+    const codes = ['singleuse'];
+    const profile = {
+      userId: 'U001',
+      username: 'alice',
+      passwordHash: 'pw',
+      mfaRecoveryHashes: hashRecoveryCodes(codes),
+    };
+    let stored = [...profile.mfaRecoveryHashes];
+    handler._setDdb(
+      makeDdb({
+        QueryCommand: () => ({ Items: [{ ...profile, mfaRecoveryHashes: stored }] }),
+        UpdateCommand: (cmd) => {
+          stored = cmd.input.ExpressionAttributeValues[':h'];
+          return {};
+        },
+        PutCommand: () => ({}),
+      })
+    );
+
+    const event1 = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/recover',
+      body: JSON.stringify({ username: 'alice', password: 'pw', code: 'singleuse' }),
+    });
+    const res1 = await handler.main(event1);
+    assert.equal(res1.statusCode, 200);
+
+    // Second use of the same code must now fail because stored is empty.
+    const event2 = makeEvent({
+      httpMethod: 'POST',
+      path: '/auth/mfa/recover',
+      body: JSON.stringify({ username: 'alice', password: 'pw', code: 'singleuse' }),
+    });
+    const res2 = await handler.main(event2);
+    assert.equal(res2.statusCode, 401);
+    const body = JSON.parse(res2.body);
+    assert.equal(body.error.code, 'RECOVERY_CODE_INVALID');
   });
 });
