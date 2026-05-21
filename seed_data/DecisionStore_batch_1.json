@@ -41,6 +41,41 @@
           },
           "timestamp": {
             "N": "1779011178"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "impossible-travel"
+          },
+          "ruleName": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "latencyMs": {
+            "N": "19"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "geoDistanceKm"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "1400"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -86,6 +121,41 @@
           },
           "timestamp": {
             "N": "1779011058"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "impossible-travel"
+          },
+          "ruleName": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "latencyMs": {
+            "N": "27"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "geoDistanceKm"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "900"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -131,6 +201,41 @@
           },
           "timestamp": {
             "N": "1779010938"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "low-risk-transfer"
+          },
+          "ruleName": {
+            "S": "LOW_RISK_TRANSFER"
+          },
+          "latencyMs": {
+            "N": "11"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "transferAmountUsd"
+                  },
+                  "operator": {
+                    "S": "lte"
+                  },
+                  "value": {
+                    "S": "500"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -176,6 +281,41 @@
           },
           "timestamp": {
             "N": "1779010818"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "low-risk-transfer"
+          },
+          "ruleName": {
+            "S": "LOW_RISK_TRANSFER"
+          },
+          "latencyMs": {
+            "N": "14"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "knownDevice"
+                  },
+                  "operator": {
+                    "S": "equals"
+                  },
+                  "value": {
+                    "S": "true"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -221,6 +361,41 @@
           },
           "timestamp": {
             "N": "1779010698"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "impossible-travel"
+          },
+          "ruleName": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "latencyMs": {
+            "N": "22"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "geoDistanceKm"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "1600"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -266,6 +441,41 @@
           },
           "timestamp": {
             "N": "1779010578"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "high-value-loyalty-offer"
+          },
+          "ruleName": {
+            "S": "HIGH_VALUE_LOYALTY_OFFER"
+          },
+          "latencyMs": {
+            "N": "9"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "bookingVelocity30d"
+                  },
+                  "operator": {
+                    "S": "gte"
+                  },
+                  "value": {
+                    "S": "3"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -311,6 +521,41 @@
           },
           "timestamp": {
             "N": "1779010458"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "stale-profile-nudge"
+          },
+          "ruleName": {
+            "S": "STALE_PROFILE_NUDGE"
+          },
+          "latencyMs": {
+            "N": "8"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "profileCompletePct"
+                  },
+                  "operator": {
+                    "S": "lt"
+                  },
+                  "value": {
+                    "S": "60"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -356,6 +601,41 @@
           },
           "timestamp": {
             "N": "1779010338"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "stale-profile-nudge"
+          },
+          "ruleName": {
+            "S": "STALE_PROFILE_NUDGE"
+          },
+          "latencyMs": {
+            "N": "13"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "daysSinceLastUpdate"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "90"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -401,6 +681,41 @@
           },
           "timestamp": {
             "N": "1779010218"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "stale-profile-nudge"
+          },
+          "ruleName": {
+            "S": "STALE_PROFILE_NUDGE"
+          },
+          "latencyMs": {
+            "N": "31"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "profileCompletePct"
+                  },
+                  "operator": {
+                    "S": "lt"
+                  },
+                  "value": {
+                    "S": "40"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -446,6 +761,41 @@
           },
           "timestamp": {
             "N": "1779010098"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "low-risk-transfer"
+          },
+          "ruleName": {
+            "S": "LOW_RISK_TRANSFER"
+          },
+          "latencyMs": {
+            "N": "17"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "transferAmountUsd"
+                  },
+                  "operator": {
+                    "S": "lte"
+                  },
+                  "value": {
+                    "S": "250"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -491,6 +841,41 @@
           },
           "timestamp": {
             "N": "1779009978"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "off-hours-login"
+          },
+          "ruleName": {
+            "S": "OFF_HOURS_LOGIN"
+          },
+          "latencyMs": {
+            "N": "24"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "hourOfDay"
+                  },
+                  "operator": {
+                    "S": "outside"
+                  },
+                  "value": {
+                    "S": "6-22"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -536,6 +921,41 @@
           },
           "timestamp": {
             "N": "1779009858"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "impossible-travel"
+          },
+          "ruleName": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "latencyMs": {
+            "N": "21"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "geoDistanceKm"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "2100"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -581,6 +1001,41 @@
           },
           "timestamp": {
             "N": "1779009738"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "stale-profile-nudge"
+          },
+          "ruleName": {
+            "S": "STALE_PROFILE_NUDGE"
+          },
+          "latencyMs": {
+            "N": "16"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "daysSinceLastUpdate"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "180"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -626,6 +1081,41 @@
           },
           "timestamp": {
             "N": "1779009618"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "low-risk-transfer"
+          },
+          "ruleName": {
+            "S": "LOW_RISK_TRANSFER"
+          },
+          "latencyMs": {
+            "N": "12"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "recipientSeenBefore"
+                  },
+                  "operator": {
+                    "S": "equals"
+                  },
+                  "value": {
+                    "S": "true"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -671,6 +1161,41 @@
           },
           "timestamp": {
             "N": "1779009498"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "high-value-loyalty-offer"
+          },
+          "ruleName": {
+            "S": "HIGH_VALUE_LOYALTY_OFFER"
+          },
+          "latencyMs": {
+            "N": "10"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "lifetimeTierPoints"
+                  },
+                  "operator": {
+                    "S": "gte"
+                  },
+                  "value": {
+                    "S": "50000"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -716,6 +1241,41 @@
           },
           "timestamp": {
             "N": "1779009378"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "low-risk-transfer"
+          },
+          "ruleName": {
+            "S": "LOW_RISK_TRANSFER"
+          },
+          "latencyMs": {
+            "N": "18"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "transferAmountUsd"
+                  },
+                  "operator": {
+                    "S": "lte"
+                  },
+                  "value": {
+                    "S": "750"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -761,6 +1321,41 @@
           },
           "timestamp": {
             "N": "1779009258"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "high-value-loyalty-offer"
+          },
+          "ruleName": {
+            "S": "HIGH_VALUE_LOYALTY_OFFER"
+          },
+          "latencyMs": {
+            "N": "8"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "bookingVelocity30d"
+                  },
+                  "operator": {
+                    "S": "gte"
+                  },
+                  "value": {
+                    "S": "5"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -806,6 +1401,41 @@
           },
           "timestamp": {
             "N": "1779009138"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "off-hours-login"
+          },
+          "ruleName": {
+            "S": "OFF_HOURS_LOGIN"
+          },
+          "latencyMs": {
+            "N": "9"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "hourOfDay"
+                  },
+                  "operator": {
+                    "S": "within"
+                  },
+                  "value": {
+                    "S": "6-22"
+                  },
+                  "satisfied": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -851,6 +1481,41 @@
           },
           "timestamp": {
             "N": "1779009018"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "reward-fraud-burst"
+          },
+          "ruleName": {
+            "S": "REWARD_FRAUD_BURST"
+          },
+          "latencyMs": {
+            "N": "34"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "redemptionCount24h"
+                  },
+                  "operator": {
+                    "S": "lte"
+                  },
+                  "value": {
+                    "S": "2"
+                  },
+                  "satisfied": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -896,6 +1561,41 @@
           },
           "timestamp": {
             "N": "1779008898"
+          },
+          "engineLayer": {
+            "S": "L1"
+          },
+          "ruleId": {
+            "S": "impossible-travel"
+          },
+          "ruleName": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "latencyMs": {
+            "N": "26"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "geoDistanceKm"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "1100"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "NULL": true
           }
         }
       }
@@ -941,6 +1641,73 @@
           },
           "timestamp": {
             "N": "1779008778"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "stale-profile-nudge"
+          },
+          "ruleName": {
+            "S": "STALE_PROFILE_NUDGE"
+          },
+          "latencyMs": {
+            "N": "347"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "profileCompletePct"
+                  },
+                  "operator": {
+                    "S": "lt"
+                  },
+                  "value": {
+                    "S": "50"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "daysSinceLastUpdate"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "120"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "recentLoginCount7d"
+                  },
+                  "operator": {
+                    "S": "gte"
+                  },
+                  "value": {
+                    "S": "3"
+                  },
+                  "satisfied": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Profile is less than half complete and has not been updated in over 120 days. A targeted nudge at sign-in is the most effective re-engagement touchpoint."
           }
         }
       }
@@ -986,6 +1753,57 @@
           },
           "timestamp": {
             "N": "1779008658"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "large-amount-unseen-device"
+          },
+          "ruleName": {
+            "S": "LARGE_AMOUNT_UNSEEN_DEVICE"
+          },
+          "latencyMs": {
+            "N": "412"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "transferAmountUsd"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "5000"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "deviceFingerprintSeenDays"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "30"
+                  },
+                  "satisfied": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Transfer amount is 4x the user 30-day median but originates from a previously seen device. L1 score borderline; LLM recommends allow with monitoring."
           }
         }
       }
@@ -1031,6 +1849,57 @@
           },
           "timestamp": {
             "N": "1779008538"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "stale-profile-nudge"
+          },
+          "ruleName": {
+            "S": "STALE_PROFILE_NUDGE"
+          },
+          "latencyMs": {
+            "N": "289"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "profileCompletePct"
+                  },
+                  "operator": {
+                    "S": "lt"
+                  },
+                  "value": {
+                    "S": "70"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "preferencesMissing"
+                  },
+                  "operator": {
+                    "S": "equals"
+                  },
+                  "value": {
+                    "S": "true"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Preferences section is empty, which limits offer personalisation. Prompting the user during an active session should improve completion rate."
           }
         }
       }
@@ -1076,6 +1945,57 @@
           },
           "timestamp": {
             "N": "1779008418"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "off-hours-login"
+          },
+          "ruleName": {
+            "S": "OFF_HOURS_LOGIN"
+          },
+          "latencyMs": {
+            "N": "263"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "hourOfDay"
+                  },
+                  "operator": {
+                    "S": "outside"
+                  },
+                  "value": {
+                    "S": "6-22"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "ipAsnChangeCount30d"
+                  },
+                  "operator": {
+                    "S": "lte"
+                  },
+                  "value": {
+                    "S": "3"
+                  },
+                  "satisfied": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Off-hours access detected, but the IP ASN is consistent with the user travel history. Risk is low; no step-up needed."
           }
         }
       }
@@ -1121,6 +2041,73 @@
           },
           "timestamp": {
             "N": "1779008298"
+          },
+          "engineLayer": {
+            "S": "L1+L2"
+          },
+          "ruleId": {
+            "S": "impossible-travel"
+          },
+          "ruleName": {
+            "S": "IMPOSSIBLE_TRAVEL"
+          },
+          "latencyMs": {
+            "N": "391"
+          },
+          "matched": {
+            "L": [
+              {
+                "M": {
+                  "field": {
+                    "S": "geoDistanceKm"
+                  },
+                  "operator": {
+                    "S": "gt"
+                  },
+                  "value": {
+                    "S": "800"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "transitTimeHours"
+                  },
+                  "operator": {
+                    "S": "gte"
+                  },
+                  "value": {
+                    "S": "2"
+                  },
+                  "satisfied": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "field": {
+                    "S": "knownDevice"
+                  },
+                  "operator": {
+                    "S": "equals"
+                  },
+                  "value": {
+                    "S": "true"
+                  },
+                  "satisfied": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          },
+          "llmRationale": {
+            "S": "Transit time is plausible for the detected geo-shift and the device is known. Score does not warrant step-up authentication."
           }
         }
       }
