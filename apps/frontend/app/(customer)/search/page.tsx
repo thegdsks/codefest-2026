@@ -1,42 +1,57 @@
-'use client';
+"use client"
 
-import { createRepeatedQueryTracker } from '@signal-force/engagement-sdk';
-import { BadgePercent, Calendar, Gift, MapPin, Search, ShieldCheck, Users } from 'lucide-react';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { type FormEvent, useCallback, useRef, useState } from 'react';
-import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
+import { createRepeatedQueryTracker } from "@signal-force/engagement-sdk"
+import {
+  BadgePercent,
+  Gift,
+  MapPin,
+  Search,
+  ShieldCheck,
+  Users,
+} from "lucide-react"
+import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { type FormEvent, useCallback, useRef, useState } from "react"
+import { useTrackedEngagement } from "@/lib/hotel/use-tracked-engagement"
+import { DateRangePicker } from "./DateRangePicker"
 
 export default function SearchScreen() {
-  const router = useRouter();
-  const { trackEvent } = useTrackedEngagement();
+  const router = useRouter()
+  const { trackEvent } = useTrackedEngagement()
 
   // Wire a repeated query tracker that injects userId via useTrackedEngagement.
   // createRepeatedQueryTracker is stateful (counts queries internally), so we
   // keep a single instance in a ref tied to the trackEvent identity.
-  const trackerRef = useRef<((query: string) => void) | null>(null);
+  const trackerRef = useRef<((query: string) => void) | null>(null)
   if (trackerRef.current === null) {
-    trackerRef.current = createRepeatedQueryTracker((signal) => trackEvent(signal));
+    trackerRef.current = createRepeatedQueryTracker((signal) =>
+      trackEvent(signal),
+    )
   }
-  const trackSearch = useCallback((query: string) => trackerRef.current?.(query), []);
-  const [destinationInput, setDestinationInput] = useState('');
-  const [dates, setDates] = useState('Oct 14 — Oct 21');
-  const [isFocused, setIsFocused] = useState<string | null>(null);
+  const trackSearch = useCallback(
+    (query: string) => trackerRef.current?.(query),
+    [],
+  )
+  const [destinationInput, setDestinationInput] = useState("")
+  const [dates, setDates] = useState("Oct 14 — Oct 21")
+  const [isFocused, setIsFocused] = useState<string | null>(null)
 
   const runSearch = (query: string) => {
-    trackSearch(query);
-    router.push(`/results?q=${encodeURIComponent(query)}`);
-  };
+    trackSearch(query)
+    router.push(
+      `/results?q=${encodeURIComponent(query)}&dates=${encodeURIComponent(dates)}`,
+    )
+  }
 
   const handleSearchSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    runSearch(destinationInput || 'Provence');
-  };
+    e.preventDefault()
+    runSearch(destinationInput || "Provence")
+  }
 
   const handleSuggestedClick = (term: string) => {
-    setDestinationInput(term);
-    runSearch(term);
-  };
+    setDestinationInput(term)
+    runSearch(term)
+  }
 
   return (
     <div className="relative min-h-[90vh] bg-[#fbf9f8] flex flex-col justify-between overflow-hidden font-sans">
@@ -69,7 +84,9 @@ export default function SearchScreen() {
         >
           <div
             className={`flex-1 p-4 rounded-lg transition-all duration-300 relative ${
-              isFocused === 'destination' ? 'bg-[#efeded]/60' : 'hover:bg-gray-100/50'
+              isFocused === "destination"
+                ? "bg-[#efeded]/60"
+                : "hover:bg-gray-100/50"
             }`}
           >
             <label
@@ -85,7 +102,7 @@ export default function SearchScreen() {
                 type="text"
                 value={destinationInput}
                 onChange={(e) => setDestinationInput(e.target.value)}
-                onFocus={() => setIsFocused('destination')}
+                onFocus={() => setIsFocused("destination")}
                 onBlur={() => setIsFocused(null)}
                 placeholder="Find a property or city"
                 className="w-full bg-transparent border-none p-0 focus:ring-0 font-serif text-lg md:text-xl placeholder:text-gray-300 italic text-black font-semibold placeholder:font-light outline-none"
@@ -95,26 +112,7 @@ export default function SearchScreen() {
 
           <div className="w-px bg-gray-200 hidden md:block my-4 shrink-0" />
 
-          <button
-            type="button"
-            onClick={() => {
-              const newD = prompt('Change Sanctuary Dates:', dates);
-              if (newD) setDates(newD);
-            }}
-            className="flex-1 p-4 rounded-lg hover:bg-gray-100/50 transition-all duration-300 cursor-pointer text-left bg-transparent border-none"
-          >
-            <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2 font-sans">
-              Check-In / Out
-            </span>
-            <div className="flex items-center gap-3">
-              <Calendar size={18} className="text-[#775a19]" />
-              <div className="flex flex-col text-left">
-                <span className="font-serif text-lg md:text-xl font-medium text-black">
-                  {dates}
-                </span>
-              </div>
-            </div>
-          </button>
+          <DateRangePicker value={dates} onChange={setDates} />
 
           <div className="w-px bg-gray-200 hidden md:block my-4 shrink-0" />
 
@@ -156,21 +154,21 @@ export default function SearchScreen() {
           </span>
           <button
             type="button"
-            onClick={() => handleSuggestedClick('Provence')}
+            onClick={() => handleSuggestedClick("Provence")}
             className="text-xs font-sans text-gray-700 hover:text-[#775a19] tracking-wider transition-colors underline decoration-gray-200 hover:decoration-black underline-offset-8 cursor-pointer border-none bg-transparent"
           >
             Estates in Provence
           </button>
           <button
             type="button"
-            onClick={() => handleSuggestedClick('Loire Valley')}
+            onClick={() => handleSuggestedClick("Loire Valley")}
             className="text-xs font-sans text-gray-700 hover:text-[#775a19] tracking-wider transition-colors underline decoration-gray-200 hover:decoration-black underline-offset-8 cursor-pointer border-none bg-transparent"
           >
             Loire Valley Manor
           </button>
           <button
             type="button"
-            onClick={() => handleSuggestedClick('Kyoto')}
+            onClick={() => handleSuggestedClick("Kyoto")}
             className="text-xs font-sans text-gray-700 hover:text-[#775a19] tracking-wider transition-colors underline decoration-gray-200 hover:decoration-black underline-offset-8 cursor-pointer border-none bg-transparent"
           >
             Kyoto Serenity Garden
@@ -179,7 +177,7 @@ export default function SearchScreen() {
       </div>
 
       {/* Secondary Loyalty Feature Ribbon */}
-      <div className="relative z-10 w-full bg-white/60 border-t border-gray-100 py-10">
+      <div className="relative z-1 w-full bg-white/60 border-t border-gray-100 py-10">
         <div className="max-w-[1440px] mx-auto px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-[#efeded]/60 rounded-full flex items-center justify-center text-[#775a19] shrink-0">
@@ -225,5 +223,5 @@ export default function SearchScreen() {
         </div>
       </div>
     </div>
-  );
+  )
 }

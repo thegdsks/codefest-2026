@@ -41,6 +41,7 @@ function ResultsInner() {
   const { surfaces } = useSurfaceEligibility();
   const resultsPrestigeSurface = surfaces['RESULTS_PRESTIGE_ADVANCE'];
   const searchQuery = searchParams.get('q') ?? 'Provence';
+  const dateRange = searchParams.get('dates') ?? 'Oct 14 — Oct 21';
 
   // Rage click: user frantically clicking results without booking
   useEffect(() => {
@@ -167,7 +168,7 @@ function ResultsInner() {
             </h1>
             <p className="font-sans text-sm text-gray-500 mt-2">
               Viewing {filteredDestinations.length} exceptional sanctuaries matching your
-              preferences for Oct 14 — Oct 21
+              preferences for {dateRange}
             </p>
           </div>
 
