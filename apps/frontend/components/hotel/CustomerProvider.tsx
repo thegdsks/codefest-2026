@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { fetchDashboard, fetchSession, logout as revokeToken } from '@/lib/hotel/customer-api';
 import { MOCK_USER, PAST_STAYS } from '@/lib/hotel/data';
+import { recordRecentUser } from '@/lib/hotel/recent-users';
 import type { PastStay, TransferDetails, UserProfile } from '@/lib/hotel/types';
 
 export interface Session {
@@ -62,12 +63,21 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     const dash = await fetchDashboard(token, userId);
     const dashUser = dash.data?.user;
     if (dashUser) {
-      setUser((prev) => ({
-        ...prev,
-        points: dashUser.pointsBalance,
-        name: dashUser.name || prev.name,
-        email: dashUser.email || prev.email,
-      }));
+      setUser((prev) => {
+        const updated = {
+          ...prev,
+          points: dashUser.pointsBalance,
+          name: dashUser.name || prev.name,
+          email: dashUser.email || prev.email,
+        };
+        // Persist for the quick-login picker. Uses the resolved name/tier from the dashboard.
+        recordRecentUser({
+          username: userId,
+          name: updated.name,
+          tier: updated.status || 'Silver',
+        });
+        return updated;
+      });
     }
     return true;
   }, []);
