@@ -108,6 +108,22 @@ function decision(
   if (engineMeta && engineMeta.llmModel) {
     base.llmModel = engineMeta.llmModel;
   }
+  // Optional rule trace fields - written when the engine captures them.
+  if (engineMeta && engineMeta.ruleId != null) {
+    base.ruleId = engineMeta.ruleId;
+  }
+  if (engineMeta && engineMeta.ruleName != null) {
+    base.ruleName = engineMeta.ruleName;
+  }
+  if (engineMeta && Array.isArray(engineMeta.matched)) {
+    base.matched = engineMeta.matched;
+  }
+  if (engineMeta && typeof engineMeta.llmRationale === 'string') {
+    base.llmRationale = engineMeta.llmRationale;
+  }
+  if (engineMeta && typeof engineMeta.latencyMs === 'number') {
+    base.latencyMs = engineMeta.latencyMs;
+  }
   return base;
 }
 
