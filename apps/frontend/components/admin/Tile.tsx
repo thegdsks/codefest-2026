@@ -1,5 +1,7 @@
 import type { Icon } from '@phosphor-icons/react';
+import { Info } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 interface TileProps {
   label: string;
@@ -9,6 +11,7 @@ interface TileProps {
   accent?: 'default' | 'green' | 'amber' | 'rose' | 'indigo';
   loading?: boolean;
   trend?: ReactNode;
+  description?: string;
 }
 
 const accentMap: Record<NonNullable<TileProps['accent']>, string> = {
@@ -27,11 +30,25 @@ export default function Tile({
   accent = 'default',
   loading = false,
   trend,
+  description,
 }: TileProps) {
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
       <div className="flex items-center justify-between text-xs uppercase tracking-wider text-zinc-400">
-        <span>{label}</span>
+        <span className="inline-flex items-center gap-1.5">
+          {label}
+          {description ? (
+            <Tooltip content={description}>
+              <button
+                type="button"
+                aria-label={`What is ${label}`}
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+              >
+                <Info size={12} weight="bold" />
+              </button>
+            </Tooltip>
+          ) : null}
+        </span>
         {Icon ? <Icon size={14} className="text-zinc-500" /> : null}
       </div>
       <div className="mt-2 flex items-end justify-between gap-3">

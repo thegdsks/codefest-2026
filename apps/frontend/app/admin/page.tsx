@@ -1,6 +1,13 @@
 'use client';
 
-import { ArrowClockwise, Cpu, CurrencyCircleDollar, Pulse, Stack } from '@phosphor-icons/react';
+import {
+  ArrowClockwise,
+  Cpu,
+  CurrencyCircleDollar,
+  Info,
+  Pulse,
+  Stack,
+} from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
@@ -16,6 +23,7 @@ import {
 import LiveActivityFeed from '@/components/admin/LiveActivityFeed';
 import ProgressBar from '@/components/admin/ProgressBar';
 import Tile from '@/components/admin/Tile';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { getDecisions, getMetrics, type Window } from '@/lib/admin-api';
 
 const WINDOWS: Window[] = ['1h', '24h', '7d'];
@@ -146,6 +154,7 @@ export default function AdminDashboardPage() {
               icon={Pulse}
               loading={loading}
               trend={<Sparkline data={sparkTotal} color="#6366F1" />}
+              description="Every decision the engine produced in this window: fraud checks, MFA outcomes, offers, nudges, engagement signals."
             />
             <Tile
               label="L1 only"
@@ -155,6 +164,7 @@ export default function AdminDashboardPage() {
               accent="green"
               loading={loading}
               trend={<Sparkline data={sparkL1} color="#34D399" />}
+              description="Decisions resolved by deterministic rules alone (no LLM). Fast and free. The base of the cost pyramid."
             />
             <Tile
               label="L1 + L2"
@@ -164,6 +174,7 @@ export default function AdminDashboardPage() {
               accent="indigo"
               loading={loading}
               trend={<Sparkline data={sparkL2Block} color="#F43F5E" />}
+              description="Decisions where the L1 score landed in the 40 to 70 gray zone and escalated to the LLM for a judgment + explanation."
             />
             <Tile
               label="LLM spend"
@@ -173,20 +184,39 @@ export default function AdminDashboardPage() {
               accent="amber"
               loading={loading}
               trend={<Sparkline data={sparkTotal} color="#FBBF24" />}
+              description="Estimated USD cost for LLM calls this window. The engine guard caps this in a rolling window so spikes cannot run away."
             />
           </div>
 
           {/* Chart row: decisions over time (2/3) + donut (1/3) */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <section className="lg:col-span-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-zinc-400">
                 Decisions over time
+                <Tooltip content="Stacked area chart bucketed by action. Each color is one action (ALLOW, BLOCK, MFA, REVIEW, OFFER, NUDGE). Taller band means more decisions of that action in the bucket.">
+                  <button
+                    type="button"
+                    aria-label="What is this chart?"
+                    className="text-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
+                  >
+                    <Info size={12} weight="bold" />
+                  </button>
+                </Tooltip>
               </h2>
               <DecisionsOverTimeChart window={activeWindow} height={260} />
             </section>
             <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-zinc-400">
                 By type
+                <Tooltip content="Donut breakdown by decision type (FRAUD_LOGIN, FRAUD_TRANSFER, ENGAGEMENT, MFA_VERIFY, etc). Center number is the total across all types in this window.">
+                  <button
+                    type="button"
+                    aria-label="What is this chart?"
+                    className="text-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
+                  >
+                    <Info size={12} weight="bold" />
+                  </button>
+                </Tooltip>
               </h2>
               <TypeDonutChart window={activeWindow} height={240} />
             </section>
@@ -277,8 +307,17 @@ export default function AdminDashboardPage() {
               </div>
             </section>
             <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+              <h2 className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-zinc-400">
                 Engine guard
+                <Tooltip content="Live state of the LLM cost guardrail. Radial fill shows how much of the spend cap has been consumed in the rolling window. The breaker trips and stops L2 calls when it hits 100 percent.">
+                  <button
+                    type="button"
+                    aria-label="What is the engine guard?"
+                    className="text-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-full"
+                  >
+                    <Info size={12} weight="bold" />
+                  </button>
+                </Tooltip>
               </h2>
               <EngineGuardRadial window={activeWindow} height={200} />
             </section>
