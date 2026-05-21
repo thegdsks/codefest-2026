@@ -32,6 +32,7 @@ const admin = require('./admin');
 const { reseed, devConfig } = require('./routes/dev');
 const {
   trackEvent,
+  trackEvents,
   listRules,
   getRule: getEngagementRule,
   putRule,
@@ -67,6 +68,7 @@ const BEARER_ROUTES = [
   ['POST', '/auth/mfa/enroll'],
   ['POST', '/auth/mfa/confirm-enroll'],
   ['POST', '/engagement/event'],
+  ['POST', '/engagement/events'],
   ['GET', '/customer/surface-eligibility'],
   ['POST', '/customer/transfers/draft'],
   ['PUT', '/customer/profile'],
@@ -149,6 +151,7 @@ async function route(event, correlationId) {
 
   // Engagement routes
   if (method === 'POST' && p === '/engagement/event') return trackEvent(event, correlationId);
+  if (method === 'POST' && p === '/engagement/events') return trackEvents(event, correlationId);
   if (method === 'GET' && p === '/admin/rules') return listRules(event, correlationId);
   if (method === 'POST' && p === '/admin/rules') return putRule(event, correlationId);
   if (method === 'POST' && p === '/admin/rules/ai-suggest')

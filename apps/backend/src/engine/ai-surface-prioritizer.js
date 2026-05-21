@@ -55,8 +55,21 @@ function _hashSurfaces(surfaces) {
     .join('|');
 }
 
-function _cacheKey(userId, surfaces) {
-  return `${userId}::${_hashSurfaces(surfaces)}`;
+/**
+ * Incorporate trust score (rounded to nearest 5) and recent event types so the
+ * cache invalidates when meaningful session state changes.
+ * @param {object|null} signalContext
+ * @returns {string}
+ */
+function _hashContext(signalContext) {
+  if (!signalContext) return 'no-ctx';
+  const trust = Math.round((signalContext.trustScore || 70) / 5) * 5;
+  const events = (signalContext.recentEventTypes || []).slice(0, 5).join(',');
+  return `t${trust}:${events}`;
+}
+
+function _cacheKey(userId, surfaces, signalContext) {
+  return `${userId}::${_hashSurfaces(surfaces)}::${_hashContext(signalContext)}`;
 }
 
 function _evict() {
@@ -107,9 +120,10 @@ function buildModel(cfg, modelId) {
  * @param {object} profile
  * @param {object[]} recentSignals - last 10 UserActivity rows
  * @param {number} nowSec
+ * @param {object|null} signalContext - enriched context from SDK (trust score, scroll, device, flow)
  * @returns {string}
  */
-function buildPrompt(surfaces, profile, recentSignals, nowSec) {
+function buildPrompt(surfaces, profile, recentSignals, nowSec, signalContext) {
   const surfaceLines = surfaces
     .map(
       (s) =>
@@ -136,12 +150,44 @@ function buildPrompt(surfaces, profile, recentSignals, nowSec) {
   const hour = new Date(nowSec * 1000).getUTCHours();
   const tod = hour < 6 ? 'night' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
 
+  // Build the enriched SDK context block when available
+  let contextBlock = '';
+  if (signalContext) {
+    const trust = signalContext.trustScore ?? 70;
+    const scroll = signalContext.scrollDepthPct ?? 0;
+    const clicks = signalContext.clickCountInSession ?? 0;
+    const routes = signalContext.routeChangesInSession ?? 0;
+    const recentEvents = (signalContext.recentEventTypes || []).join(', ') || 'none';
+    const timeOnPage = Math.round((signalContext.pageTimeSinceMountMs || 0) / 1000);
+    const device = signalContext.device
+      ? `${signalContext.device.viewportWidth}x${signalContext.device.viewportHeight} lang=${signalContext.device.language}`
+      : 'unknown';
+
+    contextBlock =
+      '\nEnriched SDK session context:\n' +
+      `  trustScore=${trust} (0=suspicious, 100=trusted, initial=70)\n` +
+      `  scrollDepth=${scroll}% timeOnPageSec=${timeOnPage} clicks=${clicks} routeChanges=${routes}\n` +
+      `  recentEventTypes=[${recentEvents}]\n` +
+      `  device: ${device}\n`;
+
+    if (signalContext.flowState) {
+      const fs = signalContext.flowState;
+      contextBlock +=
+        `  flowState: page=${fs.page}` +
+        (fs.step ? ` step=${fs.step}` : '') +
+        (fs.amountSfc !== undefined ? ` amountSfc=${fs.amountSfc}` : '') +
+        (fs.recipientId ? ` recipientId=${fs.recipientId}` : '') +
+        '\n';
+    }
+  }
+
   return (
     `You are the personalization brain for a loyalty platform. Given the user's current state and recent behavior, decide which surfaces to PROMOTE, KEEP, DEMOTE, or HIDE so we show the most relevant thing without overwhelming.\n\n` +
     'Output one verdict per surface with a rationale a product manager would write.\n\n' +
     'User context:\n' +
-    `  tier=${tier} loyaltyScore=${loyaltyScore} profileCompletion=${profileCompletion}% mfaEnrolled=${mfaEnrolled} timeOfDay=${tod}\n\n` +
-    'Candidate surfaces (deterministic state is fixed, AI adds ranking only):\n' +
+    `  tier=${tier} loyaltyScore=${loyaltyScore} profileCompletion=${profileCompletion}% mfaEnrolled=${mfaEnrolled} timeOfDay=${tod}\n` +
+    contextBlock +
+    '\nCandidate surfaces (deterministic state is fixed, AI adds ranking only):\n' +
     `${surfaceLines}\n\n` +
     'Recent SDK signals (last 10):\n' +
     `${signalLines}\n\n` +
@@ -151,6 +197,8 @@ function buildPrompt(surfaces, profile, recentSignals, nowSec) {
     '- DEMOTE or HIDE surfaces the user is unlikely to care about given context\n' +
     '- SWAP means show an alternate copy variant (use sparingly)\n' +
     '- aiRationale must be 1-2 sentences, written for a product manager\n' +
+    '- Use the context fields (trustScore, recentEventTypes, scrollDepth, flowState) to justify your verdict. Cite at least one specific signal in the rationale.\n' +
+    '- Do NOT invent facts not present in the context.\n' +
     '- Output a verdict for every surface in the input list'
   );
 }
@@ -167,9 +215,10 @@ function buildPrompt(surfaces, profile, recentSignals, nowSec) {
  * @param {object[]} recentSignals - last 10 UserActivity rows (may be empty)
  * @param {number} nowSec
  * @param {string} userId
+ * @param {object|null} [signalContext] - enriched SDK context (trust, scroll, device, flow)
  * @returns {Promise<object[]|null>} array of SurfaceVerdict or null on failure
  */
-async function prioritize(surfaces, profile, recentSignals, nowSec, userId) {
+async function prioritize(surfaces, profile, recentSignals, nowSec, userId, signalContext) {
   const cfg = readConfig();
   if (!cfg) return null;
 
@@ -180,9 +229,9 @@ async function prioritize(surfaces, profile, recentSignals, nowSec, userId) {
     return null;
   }
 
-  // Cache check
+  // Cache check - key includes context hash so it invalidates on meaningful session changes
   _evict();
-  const key = _cacheKey(userId, surfaces);
+  const key = _cacheKey(userId, surfaces, signalContext);
   const cached = _cache.get(key);
   if (cached && cached.expiresAt > Date.now()) {
     budget.recordResult({
@@ -194,7 +243,7 @@ async function prioritize(surfaces, profile, recentSignals, nowSec, userId) {
     return cached.result;
   }
 
-  const prompt = buildPrompt(surfaces, profile, recentSignals, nowSec);
+  const prompt = buildPrompt(surfaces, profile, recentSignals, nowSec, signalContext);
   const start = Date.now();
   let result = null;
 
@@ -252,4 +301,4 @@ async function prioritize(surfaces, profile, recentSignals, nowSec, userId) {
   }
 }
 
-module.exports = { prioritize, _setProvider };
+module.exports = { prioritize, _setProvider, _buildPrompt: buildPrompt };

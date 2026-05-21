@@ -471,12 +471,12 @@ async function updateCustomerProfile(userId, fields, currentProfile, nowTs) {
   const fieldMap = {};
   if (fields.mobilePhone !== undefined) fieldMap.mobilePhone = String(fields.mobilePhone);
   if (fields.email !== undefined) fieldMap.email = String(fields.email);
-  if (fields.marketingOptIn !== undefined)
-    fieldMap.marketingOptIn = !!fields.marketingOptIn;
+  if (fields.marketingOptIn !== undefined) fieldMap.marketingOptIn = !!fields.marketingOptIn;
   if (fields.dob !== undefined) fieldMap.dob = String(fields.dob);
   if (fields.language !== undefined) fieldMap.language = String(fields.language);
 
-  if (Object.keys(fieldMap).length === 0) return { profileCompletion: currentProfile.profileCompletion || 0 };
+  if (Object.keys(fieldMap).length === 0)
+    return { profileCompletion: currentProfile.profileCompletion || 0 };
 
   // Compute new profileCompletion
   const TRACKED = ['mobilePhone', 'email', 'marketingOptIn', 'dob', 'language'];
@@ -488,18 +488,23 @@ async function updateCustomerProfile(userId, fields, currentProfile, nowTs) {
   for (const f of TRACKED) {
     const v = merged[f];
     if (v === undefined || v === null) continue;
-    if (typeof v === 'boolean') { if (v) filledCount++; continue; }
+    if (typeof v === 'boolean') {
+      if (v) filledCount++;
+      continue;
+    }
     if (String(v).trim() !== '') filledCount++;
   }
   // Start from current profileCompletion, add/replace only tracked fields
   const baseCompletion = Number(currentProfile.profileCompletion || 0);
   // New completion = max of existing and what we just computed from tracked fields
   const trackedScore = Math.min(filledCount * POINTS_PER_FIELD, 60); // max 60 from 5 fields
-  const newCompletion = Math.min(100, Math.max(baseCompletion, trackedScore + baseCompletion - Math.min(baseCompletion, 40)));
+  const newCompletion = Math.min(
+    100,
+    Math.max(baseCompletion, trackedScore + baseCompletion - Math.min(baseCompletion, 40))
+  );
 
   // Build update expression dynamically
   const exprParts = ['profileCompletion = :pc', 'updatedAt = :now'];
-  const exprNames = {};
   const exprValues = { ':pc': newCompletion, ':now': nowTs };
 
   for (const [k, v] of Object.entries(fieldMap)) {
@@ -563,6 +568,28 @@ async function clearMfaSecret(userId, remainingHashes) {
   );
 }
 
+/**
+ * Persist the SDK flow state to UserState so future surface evaluations can
+ * reference "user left mid-transfer at amount=5000" without a new page load.
+ *
+ * @param {string} userId
+ * @param {{ page: string, step?: string, amountSfc?: number, recipientId?: string }} flowState
+ */
+async function upsertFlowState(userId, flowState) {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: CFG.tUserState,
+      Key: { userId },
+      UpdateExpression: 'SET lastFlowState = :fs, #u = :u',
+      ExpressionAttributeNames: { '#u': 'updatedAt' },
+      ExpressionAttributeValues: {
+        ':fs': flowState,
+        ':u': nowSec(),
+      },
+    })
+  );
+}
+
 module.exports = {
   _setDdb,
   getUserById,
@@ -591,6 +618,7 @@ module.exports = {
   clearTransferDraft,
   setRecentBooking,
   updateCustomerProfile,
+  upsertFlowState,
   // Pure helpers exposed for unit tests.
   _riskInternals: { nextRiskScore, applyRiskDecay, RISK_DELTAS, RISK_HALF_LIFE_SEC },
 };

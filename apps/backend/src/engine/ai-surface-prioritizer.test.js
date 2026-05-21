@@ -3,7 +3,7 @@
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const budget = require('./budget');
-const { prioritize, _setProvider } = require('./ai-surface-prioritizer');
+const { prioritize, _setProvider, _buildPrompt } = require('./ai-surface-prioritizer');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -283,5 +283,80 @@ describe('missing verdict fallback', () => {
     assert.ok(booking, 'BOOKING_CONFIRMATION_OFFER must be present');
     assert.equal(booking.aiAction, 'KEEP');
     assert.equal(booking.aiPriority, 3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. Prompt contains trust score and recent events when signalContext provided
+// ---------------------------------------------------------------------------
+
+describe('prompt contains enriched context', () => {
+  test('prompt includes trustScore when signalContext is provided', () => {
+    const surfaces = baseSurfaces();
+    const profile = baseProfile();
+    const signalContext = {
+      trustScore: 45,
+      scrollDepthPct: 72,
+      clickCountInSession: 8,
+      routeChangesInSession: 2,
+      recentEventTypes: ['rage_click', 'dwell_no_action'],
+      pageTimeSinceMountMs: 12000,
+      device: { viewportWidth: 1440, viewportHeight: 900, language: 'en-US' },
+      flowState: { page: 'transfer', step: 'confirm', amountSfc: 5000 },
+    };
+
+    const prompt = _buildPrompt(surfaces, profile, [], 1716300000, signalContext);
+
+    assert.ok(prompt.includes('trustScore=45'), 'prompt must include trustScore from context');
+    assert.ok(
+      prompt.includes('rage_click') && prompt.includes('dwell_no_action'),
+      'prompt must include recentEventTypes from context'
+    );
+    assert.ok(prompt.includes('flowState'), 'prompt must include flowState section');
+    assert.ok(prompt.includes('amountSfc=5000'), 'prompt must include flowState amount');
+  });
+
+  test('prompt without signalContext does not include enriched context block', () => {
+    const surfaces = baseSurfaces();
+    const profile = baseProfile();
+
+    const prompt = _buildPrompt(surfaces, profile, [], 1716300000, null);
+
+    assert.ok(
+      !prompt.includes('trustScore='),
+      'prompt must not include trustScore= when context is null'
+    );
+    // The SDK context block begins with "Enriched SDK session context" - it must not appear
+    assert.ok(
+      !prompt.includes('Enriched SDK session context'),
+      'prompt must not include enriched session context block when signalContext is null'
+    );
+  });
+
+  test('cache key differs when trustScore changes meaningfully', async () => {
+    let callCount = 0;
+    budget._reset({ maxCalls: 50, windowSec: 300 });
+    _setProvider({
+      generateObject: async () => {
+        callCount += 1;
+        return { object: { verdicts: MOCK_VERDICTS }, usage: {} };
+      },
+    });
+    process.env.LITELLM_BASE_URL = 'https://fake-litellm.example.com';
+    process.env.LITELLM_API_KEY = 'sk-test';
+
+    const surfaces = baseSurfaces();
+    const profile = baseProfile();
+    const ctxLowTrust = { trustScore: 30, recentEventTypes: ['rage_click'] };
+    const ctxHighTrust = { trustScore: 90, recentEventTypes: ['search_result_click'] };
+
+    await prioritize(surfaces, profile, [], 1716300000, 'ctx-trust-user', ctxLowTrust);
+    await prioritize(surfaces, profile, [], 1716300000, 'ctx-trust-user', ctxHighTrust);
+
+    assert.equal(callCount, 2, 'different trust scores must produce different cache keys');
+
+    _setProvider(null);
+    delete process.env.LITELLM_BASE_URL;
+    delete process.env.LITELLM_API_KEY;
   });
 });

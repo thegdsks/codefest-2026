@@ -3,7 +3,7 @@
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const budget = require('./budget');
-const { explain, _setProvider } = require('./ai-fraud-explainer');
+const { explain, _setProvider, _buildPrompt } = require('./ai-fraud-explainer');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -226,5 +226,63 @@ describe('minimal params', () => {
     });
     assert.ok(result !== null);
     assert.ok(typeof result.paragraph === 'string');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 6. Prompt contains trust score and recent events when signalContext provided
+// ---------------------------------------------------------------------------
+
+describe('prompt enrichment with signalContext', () => {
+  test('prompt includes trustScore when signalContext is provided', () => {
+    const signalContext = {
+      trustScore: 38,
+      scrollDepthPct: 55,
+      recentEventTypes: ['rage_click', 'abandoned_flow_step'],
+      flowState: { page: 'transfer', amountSfc: 8000 },
+    };
+
+    const prompt = _buildPrompt({
+      decisionType: 'FRAUD_TRANSFER',
+      action: 'BLOCK',
+      score: 88,
+      reasonCode: 'VELOCITY_HIGH',
+      reasonText: 'High velocity',
+      context: { amount: 8000 },
+      priorDecisions: [],
+      signalContext,
+    });
+
+    assert.ok(prompt.includes('trustScore=38'), 'prompt must include trustScore');
+    assert.ok(
+      prompt.includes('rage_click') && prompt.includes('abandoned_flow_step'),
+      'prompt must include recentEventTypes'
+    );
+    assert.ok(prompt.includes('amountSfc=8000'), 'prompt must include flowState amount');
+    assert.ok(
+      prompt.includes('Do not invent signals'),
+      'prompt must include factual constraint instruction'
+    );
+  });
+
+  test('prompt without signalContext excludes enriched context block', () => {
+    const prompt = _buildPrompt({
+      decisionType: 'FRAUD_LOGIN',
+      action: 'MFA',
+      score: 60,
+      reasonCode: 'LOCATION_CHANGE',
+      reasonText: 'New location',
+      context: {},
+      priorDecisions: [],
+    });
+
+    assert.ok(
+      !prompt.includes('trustScore='),
+      'prompt must not include trustScore when no context'
+    );
+    assert.ok(
+      !prompt.includes('Enriched session context'),
+      'prompt must not include enriched context block when signalContext is absent'
+    );
   });
 });
