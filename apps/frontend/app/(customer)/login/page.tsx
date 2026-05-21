@@ -1,6 +1,17 @@
 'use client';
 
-import { Clock, Eye, EyeOff, Lock, Mail, Shield, ShieldCheck, Star, User } from 'lucide-react';
+import {
+  ChevronDown,
+  Clock,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  Shield,
+  ShieldCheck,
+  Star,
+  User,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
@@ -43,7 +54,7 @@ function PersonaCard({ persona, onSelect }: PersonaCardProps) {
     <button
       type="button"
       onClick={() => onSelect(persona)}
-      className="group text-left w-full bg-[#fdfaf6] hover:bg-[#fff8ec] border border-[#e8dfd0] hover:border-[#d4b87a] transition-all duration-150 p-3 cursor-pointer rounded-sm focus:outline-none focus:ring-2 focus:ring-[#775a19]/30"
+      className="group text-left w-full bg-[#fdfaf6] hover:bg-[#fff8ec] border border-[#e8dfd0] hover:border-[#d4b87a] transition-all duration-150 p-3 cursor-pointer rounded-sm focus:outline-none focus:ring-2 focus:ring-[#775a19]/30 hover:-translate-y-0.5"
     >
       <div className="flex items-start justify-between gap-1 mb-1.5">
         <span className="font-sans font-bold text-[12px] text-gray-800 leading-none group-hover:text-[#775a19] transition-colors">
@@ -97,7 +108,7 @@ function RecentUsersBar({ onSelect }: RecentUsersBarProps) {
   if (recents.length === 0) return null;
 
   return (
-    <div className="w-full max-w-[900px] mb-4">
+    <div className="w-full mb-4">
       <div className="flex items-center gap-2 mb-2">
         <Clock size={11} className="text-[#775a19] shrink-0" />
         <span className="font-sans text-[10px] font-bold uppercase tracking-[0.25em] text-gray-400">
@@ -125,33 +136,193 @@ function RecentUsersBar({ onSelect }: RecentUsersBarProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Demo personas bar
-// Rendered only when NEXT_PUBLIC_ENABLE_DEMO_PERSONAS !== 'false'.
+// PersonasPanel - shared between desktop left column and mobile disclosure
 // ---------------------------------------------------------------------------
-interface PersonasBarProps {
+interface PersonasPanelProps {
   onSelect: (p: TestPersona) => void;
 }
 
-function PersonasBar({ onSelect }: PersonasBarProps) {
-  const enabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_PERSONAS !== 'false';
-  if (!enabled) return null;
-
+function PersonasPanel({ onSelect }: PersonasPanelProps) {
   return (
-    /* === DEMO PERSONAS SECTION - relocate as a block if login/page.tsx is rebased === */
-    <div className="w-full max-w-[900px] mb-6">
+    <div className="w-full">
       <div className="flex items-center gap-2 mb-3">
         <Shield size={11} className="text-[#775a19] shrink-0" />
         <span className="font-sans text-[10px] font-bold uppercase tracking-[0.25em] text-gray-400">
-          Demo personas
+          Try a persona
         </span>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {TEST_PERSONAS.map((p) => (
           <PersonaCard key={p.userId} persona={p} onSelect={onSelect} />
         ))}
       </div>
     </div>
-    /* === END DEMO PERSONAS SECTION === */
+  );
+}
+
+// ---------------------------------------------------------------------------
+// LoginForm - extracted to avoid duplication between mobile and desktop
+// ---------------------------------------------------------------------------
+interface LoginFormProps {
+  formRef: React.RefObject<HTMLFormElement | null>;
+  username: string;
+  password: string;
+  showPassword: boolean;
+  submitting: boolean;
+  error: string | null;
+  forceMfa: boolean;
+  demoMode: boolean;
+  onUsernameChange: (v: string) => void;
+  onPasswordChange: (v: string) => void;
+  onTogglePassword: () => void;
+  onForceMfaChange: (v: boolean) => void;
+  onSubmit: (e: FormEvent) => void;
+}
+
+function LoginForm({
+  formRef,
+  username,
+  password,
+  showPassword,
+  submitting,
+  error,
+  forceMfa,
+  demoMode,
+  onUsernameChange,
+  onPasswordChange,
+  onTogglePassword,
+  onForceMfaChange,
+  onSubmit,
+}: LoginFormProps) {
+  return (
+    <div className="w-full max-w-[520px] bg-white silk-shadow p-10 md:p-16 border border-gray-250/30">
+      <div className="mb-12 text-center">
+        <h1 className="font-serif text-3xl font-semibold tracking-wide text-black">Signal Force</h1>
+        <div className="w-8 h-[1px] bg-[#775a19] mx-auto mt-4" />
+      </div>
+
+      <div className="text-center mb-10">
+        <p className="font-sans text-[11px] font-bold text-gray-500 uppercase tracking-[0.3em] block">
+          Sign in to your sanctuary
+        </p>
+      </div>
+
+      <form ref={formRef} onSubmit={onSubmit} className="space-y-8">
+        <div className="relative group text-left">
+          <label
+            htmlFor="username"
+            className="text-[10px] uppercase font-bold tracking-widest text-gray-400 mb-2 block font-sans"
+          >
+            Email Address / Account ID
+          </label>
+          <div className="flex items-center border-b border-gray-200 group-hover:border-black group-focus-within:border-black transition-colors py-1">
+            <Mail size={16} className="text-[#775a19] mr-3 shrink-0" />
+            <input
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => onUsernameChange(e.target.value)}
+              required
+              className="w-full bg-transparent border-none p-0 text-sm font-sans focus:ring-0 outline-none text-gray-800 font-medium py-2 placeholder:text-gray-300"
+              placeholder="user001"
+            />
+          </div>
+        </div>
+
+        <div className="relative group text-left">
+          <div className="flex justify-between items-end mb-2">
+            <label
+              htmlFor="password"
+              className="text-[10px] uppercase font-bold tracking-widest text-gray-400 block font-sans"
+            >
+              Password
+            </label>
+            <button
+              type="button"
+              className="text-[10px] font-bold text-[#775a19] hover:underline uppercase tracking-widest font-sans border-none bg-transparent cursor-pointer"
+            >
+              Forgot Password
+            </button>
+          </div>
+          <div className="flex items-center border-b border-gray-200 group-hover:border-black group-focus-within:border-black transition-colors py-1">
+            <Lock size={16} className="text-[#775a19] mr-3 shrink-0" />
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => onPasswordChange(e.target.value)}
+              required
+              className="w-full bg-transparent border-none p-0 text-sm font-sans focus:ring-0 outline-none text-gray-800 font-medium py-2 placeholder:text-gray-300"
+              placeholder="••••••••"
+            />
+            <button
+              type="button"
+              onClick={onTogglePassword}
+              className="text-gray-400 hover:text-black shrink-0 cursor-pointer p-1"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {demoMode && (
+          <div className="flex items-start gap-3 pt-2">
+            <input
+              id="force-mfa"
+              type="checkbox"
+              checked={forceMfa}
+              onChange={(e) => onForceMfaChange(e.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer accent-[#775a19]"
+            />
+            <div>
+              <label
+                htmlFor="force-mfa"
+                className="text-[10px] uppercase font-bold tracking-widest text-gray-400 cursor-pointer font-sans"
+              >
+                Force MFA challenge (demo)
+              </label>
+              <p className="mt-0.5 text-[10px] text-gray-400 font-sans">
+                Skips the fraud engine and triggers MFA. Only honored when DEMO_MODE is on.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-[#fff4f4] border border-red-200 text-red-700 text-xs font-sans px-4 py-3 rounded-sm animate-fade-in">
+            {error}
+          </div>
+        )}
+
+        <div className="pt-4">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-black hover:bg-[#775a19] text-white py-4.5 px-8 font-sans font-bold text-xs uppercase tracking-[0.2em] transition-all duration-300 cursor-pointer hover:shadow-lg active:scale-[0.98] border-b-2 border-transparent hover:border-[#ffdea5] disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {submitting ? 'Signing In...' : 'Sign In'}
+          </button>
+        </div>
+      </form>
+
+      <div className="mt-12 text-center text-xs">
+        <p className="font-sans text-gray-500 mb-3">New to our luxury collection?</p>
+        <button
+          type="button"
+          className="font-sans text-xs font-bold text-black border-b border-gray-300 hover:text-[#775a19] hover:border-[#775a19] pb-1 uppercase tracking-widest cursor-pointer bg-transparent"
+        >
+          Apply for Membership
+        </button>
+      </div>
+
+      <div className="mt-12 flex justify-center items-center gap-4 text-gray-300 select-none">
+        <div className="h-[1px] w-8 bg-gray-200" />
+        <span className="text-[10px] font-sans uppercase tracking-[0.2em] italic font-light">
+          Since 1922
+        </span>
+        <div className="h-[1px] w-8 bg-gray-200" />
+      </div>
+    </div>
   );
 }
 
@@ -168,7 +339,10 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [forceMfa, setForceMfa] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const [personasOpen, setPersonasOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_PERSONAS !== 'false';
 
   useEffect(() => {
     getDevConfig()
@@ -230,7 +404,6 @@ export default function LoginScreen() {
     }, 0);
   };
 
-  // Auto-fill username from the recent-users bar and submit with the default password.
   const handleRecentUserSelect = (recentUsername: string) => {
     setUsername(recentUsername);
     setPassword('Password1');
@@ -241,146 +414,83 @@ export default function LoginScreen() {
   };
 
   return (
-    <div className="relative min-h-[85vh] bg-[#fbf9f8] flex flex-col items-center justify-center p-8 overflow-hidden font-sans text-black">
-      <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-[#ffdea5]/15 blur-3xl" />
-      <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-[#d6e3ff]/15 blur-3xl" />
+    <div className="relative min-h-[85vh] bg-[#fbf9f8] flex items-center justify-center overflow-hidden font-sans text-black">
+      {/* Background blobs */}
+      <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-[#ffdea5]/10 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-[#d6e3ff]/10 blur-3xl pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col items-center w-full">
-        {/* Recent accounts - sits above the persona grid */}
-        <RecentUsersBar onSelect={handleRecentUserSelect} />
+      <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 py-10 md:px-12 md:py-16">
+        {/* Mobile: form first, then collapsible personas below */}
+        <div className="md:hidden flex flex-col items-center gap-6">
+          {demoEnabled && <RecentUsersBar onSelect={handleRecentUserSelect} />}
 
-        {/* Demo personas quick-fill - sits above the login card */}
-        <PersonasBar onSelect={handlePersonaSelect} />
+          <LoginForm
+            formRef={formRef}
+            username={username}
+            password={password}
+            showPassword={showPassword}
+            submitting={submitting}
+            error={error}
+            forceMfa={forceMfa}
+            demoMode={demoMode}
+            onUsernameChange={setUsername}
+            onPasswordChange={setPassword}
+            onTogglePassword={() => setShowPassword((v) => !v)}
+            onForceMfaChange={setForceMfa}
+            onSubmit={handleSubmit}
+          />
 
-        <div className="w-full max-w-[520px] bg-white silk-shadow p-10 md:p-16 border border-gray-250/30">
-          <div className="mb-12 text-center">
-            <h1 className="font-serif text-3xl font-semibold tracking-wide text-black">
-              Signal Force
-            </h1>
-            <div className="w-8 h-[1px] bg-[#775a19] mx-auto mt-4" />
-          </div>
-
-          <div className="text-center mb-10">
-            <p className="font-sans text-[11px] font-bold text-gray-500 uppercase tracking-[0.3em] block">
-              Sign in to your sanctuary
-            </p>
-          </div>
-
-          <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
-            <div className="relative group text-left">
-              <label
-                htmlFor="username"
-                className="text-[10px] uppercase font-bold tracking-widest text-gray-400 mb-2 block font-sans"
-              >
-                Email Address / Account ID
-              </label>
-              <div className="flex items-center border-b border-gray-200 group-hover:border-black group-focus-within:border-black transition-colors py-1">
-                <Mail size={16} className="text-[#775a19] mr-3 shrink-0" />
-                <input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  className="w-full bg-transparent border-none p-0 text-sm font-sans focus:ring-0 outline-none text-gray-800 font-medium py-2 placeholder:text-gray-300"
-                  placeholder="user001"
-                />
-              </div>
-            </div>
-
-            <div className="relative group text-left">
-              <div className="flex justify-between items-end mb-2">
-                <label
-                  htmlFor="password"
-                  className="text-[10px] uppercase font-bold tracking-widest text-gray-400 block font-sans"
-                >
-                  Password
-                </label>
-                <button
-                  type="button"
-                  className="text-[10px] font-bold text-[#775a19] hover:underline uppercase tracking-widest font-sans border-none bg-transparent cursor-pointer"
-                >
-                  Forgot Password
-                </button>
-              </div>
-              <div className="flex items-center border-b border-gray-200 group-hover:border-black group-focus-within:border-black transition-colors py-1">
-                <Lock size={16} className="text-[#775a19] mr-3 shrink-0" />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full bg-transparent border-none p-0 text-sm font-sans focus:ring-0 outline-none text-gray-800 font-medium py-2 placeholder:text-gray-300"
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-gray-400 hover:text-black shrink-0 cursor-pointer p-1"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {demoMode && (
-              <div className="flex items-start gap-3 pt-2">
-                <input
-                  id="force-mfa"
-                  type="checkbox"
-                  checked={forceMfa}
-                  onChange={(e) => setForceMfa(e.target.checked)}
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer accent-[#775a19]"
-                />
-                <div>
-                  <label
-                    htmlFor="force-mfa"
-                    className="text-[10px] uppercase font-bold tracking-widest text-gray-400 cursor-pointer font-sans"
-                  >
-                    Force MFA challenge (demo)
-                  </label>
-                  <p className="mt-0.5 text-[10px] text-gray-400 font-sans">
-                    Skips the fraud engine and triggers MFA. Only honored when DEMO_MODE is on.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="bg-[#fff4f4] border border-red-200 text-red-700 text-xs font-sans px-4 py-3 rounded-sm animate-fade-in">
-                {error}
-              </div>
-            )}
-
-            <div className="pt-4">
+          {demoEnabled && (
+            <div className="w-full max-w-[520px]">
               <button
-                type="submit"
-                disabled={submitting}
-                className="w-full bg-black hover:bg-[#775a19] text-white py-4.5 px-8 font-sans font-bold text-xs uppercase tracking-[0.2em] transition-all duration-300 cursor-pointer hover:shadow-lg active:scale-[0.98] border-b-2 border-transparent hover:border-[#ffdea5] disabled:bg-gray-400 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => setPersonasOpen((v) => !v)}
+                className="flex items-center gap-2 w-full text-left text-[10px] font-bold uppercase tracking-[0.25em] text-gray-400 font-sans py-2 cursor-pointer bg-transparent border-none"
               >
-                {submitting ? 'Signing In...' : 'Sign In'}
+                <ChevronDown
+                  size={12}
+                  className={`text-[#775a19] shrink-0 transition-transform duration-150 ${personasOpen ? 'rotate-180' : ''}`}
+                />
+                Show demo personas
               </button>
+              {personasOpen && (
+                <div className="mt-2">
+                  <PersonasPanel onSelect={handlePersonaSelect} />
+                </div>
+              )}
             </div>
-          </form>
+          )}
+        </div>
 
-          <div className="mt-12 text-center text-xs">
-            <p className="font-sans text-gray-500 mb-3">New to our luxury collection?</p>
-            <button
-              type="button"
-              className="font-sans text-xs font-bold text-black border-b border-gray-300 hover:text-[#775a19] hover:border-[#775a19] pb-1 uppercase tracking-widest cursor-pointer bg-transparent"
+        {/* Desktop: left column = personas, right column = sign-in form */}
+        <div className="hidden md:flex gap-12 items-start">
+          {demoEnabled && (
+            <aside
+              aria-label="Demo personas"
+              className="flex-1 min-w-0 overflow-y-auto max-h-[80vh] pr-2"
             >
-              Apply for Membership
-            </button>
-          </div>
+              <RecentUsersBar onSelect={handleRecentUserSelect} />
+              <PersonasPanel onSelect={handlePersonaSelect} />
+            </aside>
+          )}
 
-          <div className="mt-12 flex justify-center items-center gap-4 text-gray-300 select-none">
-            <div className="h-[1px] w-8 bg-gray-200" />
-            <span className="text-[10px] font-sans uppercase tracking-[0.2em] italic font-light">
-              Since 1922
-            </span>
-            <div className="h-[1px] w-8 bg-gray-200" />
-          </div>
+          <main id="login-form" className="w-[440px] shrink-0 flex items-center justify-center">
+            <LoginForm
+              formRef={formRef}
+              username={username}
+              password={password}
+              showPassword={showPassword}
+              submitting={submitting}
+              error={error}
+              forceMfa={forceMfa}
+              demoMode={demoMode}
+              onUsernameChange={setUsername}
+              onPasswordChange={setPassword}
+              onTogglePassword={() => setShowPassword((v) => !v)}
+              onForceMfaChange={setForceMfa}
+              onSubmit={handleSubmit}
+            />
+          </main>
         </div>
       </div>
     </div>
