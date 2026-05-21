@@ -9,6 +9,7 @@ import type {
   RuleStatus,
 } from '@/lib/rules-api';
 import { defaultQuery } from './QueryBuilderConfig';
+import { toDefinition } from './ruleDefinition';
 
 export interface RuleFormState {
   name: string;
@@ -54,7 +55,15 @@ export function useRuleForm(initial?: Partial<RuleFormState>) {
   }
 
   function toPayload(): CreateRulePayload {
-    return { name, status, whenConditions, whoConditions, action };
+    const definition = toDefinition({ name, whenConditions, whoConditions, action });
+    return {
+      name,
+      status,
+      definition: definition as unknown as Record<string, unknown>,
+      whenConditions,
+      whoConditions,
+      action,
+    };
   }
 
   return {
