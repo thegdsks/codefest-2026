@@ -16,20 +16,22 @@ const {
  * Derive a displayable SFC points balance from UserProfile.
  *
  * Priority:
- *   1. profile.loyaltyPointsBalance  (explicit field, added in future seed updates)
- *   2. profile.loyaltyScore * 82     (demo approximation; user001@510 -> ~41,820 pts)
- *
- * The multiplier of 82 is chosen so that user001 (loyaltyScore=510, tier=Gold)
- * ends up at roughly 42,000 points - within the Gold band (25,000-49,999) and
- * ~8,000 short of Platinum (50,000), matching the demo story.
+ *   1. profile.loyaltyPointsBalance  (explicit field, when seed provides it)
+ *   2. profile.loyaltyScore as raw points when >= 1000 (curated personas store
+ *      realistic point totals directly, e.g. dre032 = 49,500)
+ *   3. profile.loyaltyScore * 82 otherwise (legacy seed user001-030 stored a
+ *      0-1000 rating; scale to points so the UI shows a believable balance)
  */
 const POINTS_SCALE = 82;
+const RAW_POINTS_THRESHOLD = 1000;
 
 function deriveLoyaltyPoints(profile) {
   if (typeof profile.loyaltyPointsBalance === 'number' && profile.loyaltyPointsBalance >= 0) {
     return profile.loyaltyPointsBalance;
   }
-  return Math.round(Number(profile.loyaltyScore || 0) * POINTS_SCALE);
+  const raw = Number(profile.loyaltyScore || 0);
+  if (raw >= RAW_POINTS_THRESHOLD) return Math.round(raw);
+  return Math.round(raw * POINTS_SCALE);
 }
 
 function activityId(row) {

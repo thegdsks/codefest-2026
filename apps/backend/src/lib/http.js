@@ -59,10 +59,12 @@ function requireField(obj, field) {
   return obj[field];
 }
 
-function qparam(event, key) {
+function qparam(event, key, defaultValue) {
   const v = event.queryStringParameters && event.queryStringParameters[key];
-  if (!v || `${v}`.trim() === '')
+  if (!v || `${v}`.trim() === '') {
+    if (defaultValue !== undefined) return defaultValue;
     throw { status: 400, code: 'VALIDATION_ERROR', message: `Missing query parameter: ${key}` };
+  }
   return v;
 }
 
