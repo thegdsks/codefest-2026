@@ -623,8 +623,8 @@ async function surfaceEligibility(event, correlationId) {
   const userId = qparam(event, 'userId');
   await requireBearer(event, userId);
 
-  // ?aiMode=on|off  (default on)
-  const aiModeParam = qparam(event, 'aiMode');
+  // ?aiMode=on|off  (default on; query param is optional)
+  const aiModeParam = qparam(event, 'aiMode', 'on');
   const aiMode = aiModeParam !== 'off';
 
   const profile = await getUserById(userId);
