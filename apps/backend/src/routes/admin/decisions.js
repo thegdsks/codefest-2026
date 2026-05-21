@@ -74,19 +74,26 @@ function buildDecisionFilter(cutoff, typeFilter) {
  * @returns {Promise<object[]>}
  */
 async function fetchDecisionsByUser(cutoff, userId, typeFilter) {
-  const { filterParts, exprNames, exprValues } = buildDecisionFilter(cutoff, typeFilter);
-  exprValues[':uid'] = userId;
-  const result = await getDdb().send(
-    new QueryCommand({
-      TableName: CFG.tDecision,
-      IndexName: 'userId-timestamp-index',
-      KeyConditionExpression: 'userId = :uid',
-      FilterExpression: filterParts.join(' AND '),
-      ExpressionAttributeNames: exprNames,
-      ExpressionAttributeValues: exprValues,
-      ScanIndexForward: false,
-    })
-  );
+  const exprNames = { '#ts': 'timestamp' };
+  const exprValues = { ':uid': userId, ':cutoff': cutoff };
+  const filterParts = [];
+  if (typeFilter) {
+    filterParts.push('#dt = :dt');
+    exprNames['#dt'] = 'decisionType';
+    exprValues[':dt'] = typeFilter;
+  }
+  const query = {
+    TableName: CFG.tDecision,
+    IndexName: 'userId-timestamp-index',
+    KeyConditionExpression: 'userId = :uid AND #ts >= :cutoff',
+    ExpressionAttributeNames: exprNames,
+    ExpressionAttributeValues: exprValues,
+    ScanIndexForward: false,
+  };
+  if (filterParts.length) {
+    query.FilterExpression = filterParts.join(' AND ');
+  }
+  const result = await getDdb().send(new QueryCommand(query));
   return result.Items || [];
 }
 
