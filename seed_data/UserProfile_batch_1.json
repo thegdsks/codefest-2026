@@ -78,6 +78,19 @@
                 "S": "0b63ee863e1dc1113c3b3c3d57d01e2778f9aeba736dce391dc5b4bb12d1b519"
               }
             ]
+          },
+          "demo": {
+            "M": {
+              "recentTransferP90Amount": { "N": "600" },
+              "knownDevicesLast30d": {
+                "L": [
+                  { "S": "fp-a1b2c3d4e5f6" },
+                  { "S": "fp-b2c3d4e5f6a1" },
+                  { "S": "fp-c3d4e5f6a1b2" }
+                ]
+              },
+              "demoNotes": { "S": "Pre-seeded for demo story: transfer $7500 to trigger MFA path." }
+            }
           }
         }
       }
