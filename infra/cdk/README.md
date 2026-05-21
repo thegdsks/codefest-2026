@@ -97,7 +97,9 @@ The bucket name and distribution id come from the `BucketName` and `Distribution
    ```
 
    This creates a `CDKToolkit` stack with the asset S3 bucket and deploy role. Run once per account-region pair, not per stack.
-5. In the AWS Console, open Amazon Bedrock in `us-east-1` and request model access for Claude Haiku 4.5. This is a manual approval that takes a few minutes. Without it the decision engine returns AccessDenied on Bedrock calls.
+5. Demo path (LiteLLM): no Bedrock activation needed. The Marriott-hosted LiteLLM proxy already has Bedrock model access; the Lambda just needs `LITELLM_BASE_URL`, `LITELLM_API_KEY`, and `LITELLM_MODEL` set on it (use `./scripts/enable-litellm.sh` after the first `cdk deploy`).
+
+   Production-path (direct Bedrock, alternate): only if `BEDROCK_DIRECT=1` or the equivalent feature flag is flipped, open Amazon Bedrock in `us-east-1` in the AWS Console and request model access for Claude Haiku 4.5. Manual approval takes a few minutes. The CDK already attaches the IAM policy.
 
 ## First deploy walkthrough
 
@@ -205,7 +207,7 @@ Realistic spend across the three stacks for the 48-hour demo:
 |---|---|---|
 | DynamoDB PAY_PER_REQUEST | Demo traffic is tens to hundreds of requests | under $0.10 |
 | Lambda arm64 + HTTP API | A few thousand invocations at 512 MB | under $0.50 |
-| Bedrock Haiku 4.5 | Called only on the warm lane, capped by `FRAUD_SCORE_THRESHOLD` | under $5 with liberal use |
+| LiteLLM proxy (Claude Haiku 4.5 on Bedrock) | Called only on the warm lane, capped by `FRAUD_SCORE_THRESHOLD`. Switchable to budget-tier models (Gemini Flash, Nova Lite) from `/admin/settings`. | under $5 with liberal use |
 | CloudWatch (logs + dashboard) | 1-day retention on Lambda, 1-week on API access logs | under $0.20 |
 | SNS | A handful of fraud alert emails | free tier |
 | AWS Budgets | First 2 free, third at $0.02/day | under $0.20 |
@@ -213,16 +215,17 @@ Realistic spend across the three stacks for the 48-hour demo:
 | CloudFront | New-account free tier covers 1 TB/month outbound for 12 months | $0 during demo |
 | CDK bootstrap S3 bucket | A few MB of asset storage | under $0.01 |
 
-Total demo spend lands well under the $250 team cap, even with active Bedrock use.
+Total demo spend lands well under the $250 team cap, even with active LLM use.
 
 ## When something does not work
 
 - `Error: This stack uses assets, so the toolkit stack must be deployed to the environment`: run `cdk bootstrap` for the target account + region.
-- `AccessDeniedException: bedrock:InvokeModel`: model access was not enabled in the Bedrock console for `us-east-1`.
+- `AccessDeniedException: bedrock:InvokeModel`: only relevant on the direct-Bedrock production path. Enable model access in the Bedrock console for `us-east-1`. The demo (LiteLLM) path does not hit Bedrock directly.
+- AI Assist returns `AI_UNAVAILABLE` or fraud calls degrade: check that `LITELLM_BASE_URL`, `LITELLM_API_KEY`, and `LITELLM_MODEL` are set on the Lambda. Re-run `./scripts/enable-litellm.sh "$LITELLM_BASE_URL" "$LITELLM_API_KEY" "$LITELLM_MODEL"` to refresh them.
 - `ResourceNotFoundException` on a DynamoDB call: table was not seeded, or the Lambda env var points at the wrong table name. Check the runtime stack outputs.
 - `502 Bad Gateway` from the API: open CloudWatch Logs for the Lambda. Most likely cause is a handler crash before the response is built.
 - `cdk synth` fails with nag errors after a code change: read the finding, decide whether it is a real fix or a suppression with rationale. Do not blanket-suppress.
-- Long-running `cdk deploy` that seems stuck: check the CloudFormation events in the console for a `CREATE_IN_PROGRESS` resource waiting on something external (Bedrock access, manual approval, etc).
+- Long-running `cdk deploy` that seems stuck: check the CloudFormation events in the console for a `CREATE_IN_PROGRESS` resource waiting on something external (manual approval, etc).
 
 ## Design choices worth knowing
 
