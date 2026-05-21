@@ -74,7 +74,7 @@ function reasonOf(row: DecisionRow): string {
 }
 
 export default function DecisionsListPage() {
-  const [window, setWindow] = useState<Window>('24h');
+  const [activeWindow, setActiveWindow] = useState<Window>('24h');
   const [typeFilter, setTypeFilter] = useState<'' | DecisionType>('');
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
   const [userIdInput, setUserIdInput] = useState('');
@@ -84,12 +84,12 @@ export default function DecisionsListPage() {
 
   const query = useMemo(
     () => ({
-      window,
+      window: activeWindow,
       type: typeFilter || undefined,
       userId: userIdApplied || undefined,
       limit: 100,
     }),
-    [window, typeFilter, userIdApplied]
+    [activeWindow, typeFilter, userIdApplied]
   );
 
   const load = useCallback(async () => {
@@ -179,11 +179,11 @@ export default function DecisionsListPage() {
             <button
               key={w}
               type="button"
-              onClick={() => setWindow(w)}
+              onClick={() => setActiveWindow(w)}
               className={`rounded px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
-                window === w
+                activeWindow === w
                   ? 'bg-zinc-100 text-zinc-900'
-                  : 'text-[color:var(--text-muted)] hover:text-[color:var(--text)]'
+                  : 'text-zinc-400 hover:text-zinc-100'
               }`}
             >
               {w}
