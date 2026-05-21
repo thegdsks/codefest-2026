@@ -1,23 +1,36 @@
 'use client';
 
 import { Check, Circle, X } from '@phosphor-icons/react';
-import { useCallback, useEffect, useState } from 'react';
+import { Database, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AiModelCatalog from '@/components/admin/AiModelCatalog';
 import AuthGate from '@/components/admin/AuthGate';
 import Skeleton from '@/components/admin/Skeleton';
 import {
   adminApiConfig,
+  type DevConfigResponse,
+  getDevConfig,
   getHealth,
   getMetrics,
   type HealthResponse,
   type MetricsResponse,
+  type ReseedResponse,
+  reseedDemo,
 } from '@/lib/admin-api';
 import type { ApiErrorDetail, ApiResult } from '@/lib/types';
 
 interface SettingsState {
   health: ApiResult<HealthResponse> | null;
   metrics: ApiResult<MetricsResponse> | null;
+  devConfig: ApiResult<DevConfigResponse> | null;
 }
+
+type ReseedStatus =
+  | { kind: 'idle' }
+  | { kind: 'confirming' }
+  | { kind: 'running' }
+  | { kind: 'success'; result: ReseedResponse }
+  | { kind: 'error'; message: string };
 
 function StatusDot({ ok }: { ok: boolean | null }) {
   if (ok === null)
@@ -52,19 +65,51 @@ function KV({
 }
 
 export default function SettingsPage() {
-  const [state, setState] = useState<SettingsState>({ health: null, metrics: null });
+  const [state, setState] = useState<SettingsState>({
+    health: null,
+    metrics: null,
+    devConfig: null,
+  });
+  const [reseedStatus, setReseedStatus] = useState<ReseedStatus>({ kind: 'idle' });
+  const confirmRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
-    const [health, metrics] = await Promise.all([getHealth(), getMetrics('24h')]);
-    setState({ health, metrics });
+    const [health, metrics, devConfig] = await Promise.all([
+      getHealth(),
+      getMetrics('24h'),
+      getDevConfig(),
+    ]);
+    setState({ health, metrics, devConfig });
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  const handleReseedClick = useCallback(() => {
+    setReseedStatus({ kind: 'confirming' });
+  }, []);
+
+  const handleReseedConfirm = useCallback(async () => {
+    setReseedStatus({ kind: 'running' });
+    const res = await reseedDemo();
+    if (res.error) {
+      setReseedStatus({ kind: 'error', message: res.error.message });
+      return;
+    }
+    if (res.data) {
+      setReseedStatus({ kind: 'success', result: res.data });
+    }
+  }, []);
+
+  const handleReseedCancel = useCallback(() => {
+    setReseedStatus({ kind: 'idle' });
+  }, []);
+
   const fatal: ApiErrorDetail | null =
     state.metrics?.error?.code === 'NETWORK_ERROR' ? state.metrics.error : null;
+
+  const demoMode = state.devConfig?.data?.demoMode === true;
 
   if (fatal) {
     return <AuthGate error={fatal} onRetry={load} />;
@@ -179,6 +224,119 @@ export default function SettingsPage() {
             </dl>
           )}
         </section>
+        {demoMode ? (
+          <section className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
+            <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3">
+              <Database size={14} className="text-[var(--text-muted)]" />
+              <span className="text-base font-semibold text-[var(--text)]">Demo controls</span>
+            </div>
+            <div className="px-4 py-4">
+              <p className="mb-4 text-sm text-[var(--text-muted)]">
+                Restore all 5 DynamoDB tables to the original demo seed. Current state is
+                overwritten. Use this before each demo run.
+              </p>
+
+              {reseedStatus.kind === 'idle' && (
+                <button
+                  type="button"
+                  onClick={handleReseedClick}
+                  className="inline-flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+                >
+                  <RefreshCw size={14} />
+                  Reseed demo data
+                </button>
+              )}
+
+              {reseedStatus.kind === 'confirming' && (
+                <div
+                  ref={confirmRef}
+                  role="alertdialog"
+                  aria-modal="false"
+                  aria-labelledby="reseed-confirm-title"
+                  className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4"
+                >
+                  <p
+                    id="reseed-confirm-title"
+                    className="mb-3 text-sm font-medium text-amber-800 dark:text-amber-200"
+                  >
+                    This wipes current state and restores the demo seed. Are you sure?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleReseedConfirm}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+                    >
+                      <RefreshCw size={13} />
+                      Yes, reseed
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReseedCancel}
+                      className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {reseedStatus.kind === 'running' && (
+                <div
+                  aria-live="polite"
+                  className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)]"
+                >
+                  <RefreshCw size={14} className="animate-spin" />
+                  Reseeding...
+                </div>
+              )}
+
+              {reseedStatus.kind === 'success' && (
+                <div
+                  aria-live="polite"
+                  className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3"
+                >
+                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                    Reseed complete
+                  </p>
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
+                    <dt>Tables reset</dt>
+                    <dd className="font-mono">{reseedStatus.result.tablesReset.join(', ')}</dd>
+                    <dt>Items written</dt>
+                    <dd className="font-mono">{reseedStatus.result.itemsWritten}</dd>
+                    <dt>Duration</dt>
+                    <dd className="font-mono">{reseedStatus.result.durationMs} ms</dd>
+                  </dl>
+                  <button
+                    type="button"
+                    onClick={() => setReseedStatus({ kind: 'idle' })}
+                    className="mt-1 text-xs text-[var(--text-dim)] underline hover:text-[var(--text-muted)] focus-visible:outline-none"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {reseedStatus.kind === 'error' && (
+                <div
+                  aria-live="assertive"
+                  className="space-y-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-4 py-3"
+                >
+                  <p className="text-sm text-rose-700 dark:text-rose-300">
+                    Reseed failed: {reseedStatus.message}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setReseedStatus({ kind: 'idle' })}
+                    className="text-xs text-[var(--text-dim)] underline hover:text-[var(--text-muted)] focus-visible:outline-none"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   );

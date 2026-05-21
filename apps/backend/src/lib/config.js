@@ -39,6 +39,14 @@ const CFG = {
   get tUserState() {
     return process.env.TABLE_USER_STATE || 'UserState';
   },
+  get tEngagementRules() {
+    return process.env.TABLE_ENGAGEMENT_RULES || 'EngagementRules';
+  },
+  // When DEMO_MODE=1, the /admin/dev/reseed endpoint is active and the
+  // Settings UI shows the Demo controls section.
+  get demoMode() {
+    return process.env.DEMO_MODE === '1';
+  },
   // LLM fallback chain config
   get litellmFallbackModels() {
     const raw = process.env.LITELLM_FALLBACK_MODELS || '';

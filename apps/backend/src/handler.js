@@ -23,6 +23,7 @@ const {
   profileCompletenessEndpoint,
 } = require('./routes/customer');
 const admin = require('./admin');
+const { reseed, devConfig } = require('./routes/dev');
 const {
   trackEvent,
   listRules,
@@ -96,6 +97,10 @@ async function route(event, correlationId) {
   if (method === 'GET' && p === '/user/profile-completeness')
     return profileCompletenessEndpoint(event, correlationId);
   if (method === 'GET' && p === '/dashboard') return dashboard(event, correlationId);
+  // Demo-only routes. reseed is gated by DEMO_MODE=1 inside the handler.
+  if (method === 'GET' && p === '/admin/dev/config') return devConfig(event, correlationId);
+  if (method === 'POST' && p === '/admin/dev/reseed') return reseed(event, correlationId);
+
   if (method === 'GET' && p === '/admin/decisions') return admin.getDecisions(event, correlationId);
   if (method === 'GET' && p === '/admin/decisions/export')
     return admin.exportDecisions(event, correlationId);
