@@ -205,12 +205,16 @@ async function route(l1Draft, ctx, deps) {
   }
   // Otherwise keep the L1 action
 
-  return finalise(l1Draft, {
+  const classifyExtras = {
     action: finalAction,
     engineLayer: 'L1+L2',
     llmLatencyMs: result.latencyMs,
     llmModel: result.model,
-  });
+  };
+  if (result.rationale) {
+    classifyExtras.llmRationale = result.rationale;
+  }
+  return finalise(l1Draft, classifyExtras);
 }
 
 module.exports = { route };

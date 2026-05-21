@@ -108,6 +108,18 @@ function decision(
   if (engineMeta && engineMeta.llmModel) {
     base.llmModel = engineMeta.llmModel;
   }
+  if (engineMeta && typeof engineMeta.llmRationale === 'string') {
+    base.llmRationale = engineMeta.llmRationale;
+  }
+  if (engineMeta && engineMeta.ruleId) {
+    base.ruleId = engineMeta.ruleId;
+  }
+  if (engineMeta && engineMeta.ruleName) {
+    base.ruleName = engineMeta.ruleName;
+  }
+  if (engineMeta && Array.isArray(engineMeta.matchedConditions)) {
+    base.matchedConditions = engineMeta.matchedConditions;
+  }
   return base;
 }
 

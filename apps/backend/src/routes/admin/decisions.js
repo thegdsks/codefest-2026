@@ -207,6 +207,46 @@ function decisionsToCsv(rows) {
 }
 
 // ---------------------------------------------------------------------------
+// Trace helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the trace sub-object from a stored decision row.
+ *
+ * Returns an object with these fields:
+ *   ruleId          {string|null}
+ *   ruleName        {string|null}
+ *   engineLayer     {'L1'|'L1+L2'}
+ *   latencyMs       {number}
+ *   matched         {Array<{ field, operator, value, satisfied }>}
+ *   llmRationale    {string|null}
+ *
+ * If no trace-related fields are present on the row (e.g. older seed records),
+ * returns null so the frontend can render "No trace recorded".
+ *
+ * @param {object} row
+ * @returns {object|null}
+ */
+function buildTrace(row) {
+  const hasTrace =
+    row.ruleId != null ||
+    row.ruleName != null ||
+    row.llmRationale != null ||
+    Array.isArray(row.matchedConditions);
+
+  if (!hasTrace) return null;
+
+  return {
+    ruleId: row.ruleId || null,
+    ruleName: row.ruleName || null,
+    engineLayer: row.engineLayer || 'L1',
+    latencyMs: typeof row.llmLatencyMs === 'number' ? row.llmLatencyMs : 0,
+    matched: Array.isArray(row.matchedConditions) ? row.matchedConditions : [],
+    llmRationale: row.llmRationale || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Audit trail helper
 // ---------------------------------------------------------------------------
 
@@ -347,7 +387,9 @@ async function getDecision(event, correlationId) {
     return err(404, correlationId, 'NOT_FOUND', `Decision not found: ${decisionId}`);
   }
 
-  return json(200, correlationId, { data: { decision: row, auditTrail: buildAuditTrail(row) } });
+  return json(200, correlationId, {
+    data: { decision: row, auditTrail: buildAuditTrail(row), trace: buildTrace(row) },
+  });
 }
 
 /**
