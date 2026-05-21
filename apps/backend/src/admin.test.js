@@ -901,3 +901,122 @@ describe('getMfaStatus', () => {
     assert.equal(resp.statusCode, 403);
   });
 });
+
+// ---------------------------------------------------------------------------
+// getUserRisk
+// ---------------------------------------------------------------------------
+
+describe('getUserRisk', () => {
+  const now = nowSec();
+  const DAY = 24 * 3600;
+
+  test('returns the decayed risk score plus recent decisions for a real user', async () => {
+    const stateRow = { userId: 'USER#001', riskScore: 60, riskUpdatedAt: now - DAY };
+    const decisions = [
+      makeDecision({
+        userId: 'USER#001',
+        decisionType: 'FRAUD_LOGIN',
+        action: 'BLOCK',
+        timestamp: now - 60,
+      }),
+      makeDecision({
+        userId: 'USER#001',
+        decisionType: 'FRAUD_TRANSFER',
+        action: 'REVIEW',
+        timestamp: now - 120,
+      }),
+    ];
+
+    loadAdmin({
+      send: async (cmd) => {
+        const name = cmd.constructor.name;
+        if (name === 'GetCommand') return { Item: stateRow };
+        if (name === 'QueryCommand') return { Items: decisions, LastEvaluatedKey: null };
+        throw new Error(`Unexpected command: ${name}`);
+      },
+    });
+    const event = {
+      headers: ADMIN_AUTH,
+      queryStringParameters: {},
+      requestContext: { http: { method: 'GET', path: '/admin/users/USER%23001/risk' } },
+    };
+    const resp = await admin.getUserRisk(event, 'cid-risk-1');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.userId, 'USER#001');
+    assert.equal(body.data.storedRiskScore, 60);
+    assert.ok(
+      body.data.riskScore > 28 && body.data.riskScore < 32,
+      `decayed score should be ~30, got ${body.data.riskScore}`
+    );
+    assert.equal(body.data.recentDecisions.length, 2);
+    assert.equal(body.data.recentDecisions[0].action, 'BLOCK');
+  });
+
+  test('returns zero score when the user has no UserState row yet', async () => {
+    loadAdmin({
+      send: async (cmd) => {
+        const name = cmd.constructor.name;
+        if (name === 'GetCommand') return { Item: undefined };
+        if (name === 'QueryCommand') return { Items: [], LastEvaluatedKey: null };
+        throw new Error(`Unexpected command: ${name}`);
+      },
+    });
+    const event = {
+      headers: ADMIN_AUTH,
+      queryStringParameters: {},
+      requestContext: { http: { method: 'GET', path: '/admin/users/USER%23005/risk' } },
+    };
+    const resp = await admin.getUserRisk(event, 'cid-risk-2');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.riskScore, 0);
+    assert.equal(body.data.storedRiskScore, 0);
+    assert.equal(body.data.recentDecisions.length, 0);
+  });
+
+  test('URL-decodes the userId from the path', async () => {
+    let capturedKey = null;
+    loadAdmin({
+      send: async (cmd) => {
+        const name = cmd.constructor.name;
+        if (name === 'GetCommand') {
+          capturedKey = cmd.input.Key.userId;
+          return { Item: undefined };
+        }
+        if (name === 'QueryCommand') return { Items: [], LastEvaluatedKey: null };
+        throw new Error(`Unexpected command: ${name}`);
+      },
+    });
+    const event = {
+      headers: ADMIN_AUTH,
+      queryStringParameters: {},
+      requestContext: { http: { method: 'GET', path: '/admin/users/USER%23001/risk' } },
+    };
+    await admin.getUserRisk(event, 'cid-risk-3');
+    assert.equal(capturedKey, 'USER#001');
+  });
+
+  test('returns 400 when userId is missing from the path', async () => {
+    loadAdmin(fakeDdb({}));
+    const event = {
+      headers: ADMIN_AUTH,
+      queryStringParameters: {},
+      requestContext: { http: { method: 'GET', path: '/admin/users//risk' } },
+    };
+    const resp = await admin.getUserRisk(event, 'cid-risk-4');
+    assert.equal(resp.statusCode, 400);
+  });
+
+  test('returns 403 for a non-admin caller', async () => {
+    const token = Buffer.from('nobody:x').toString('base64');
+    loadAdmin(fakeDdb({}));
+    const event = {
+      headers: { authorization: `Basic ${token}` },
+      queryStringParameters: {},
+      requestContext: { http: { method: 'GET', path: '/admin/users/USER%23001/risk' } },
+    };
+    const resp = await admin.getUserRisk(event, 'cid-risk-5');
+    assert.equal(resp.statusCode, 403);
+  });
+});
