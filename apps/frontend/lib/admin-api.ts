@@ -93,6 +93,13 @@ export interface DecisionDetailResponse {
   trace: DecisionTrace | null;
 }
 
+export interface BudgetInfo {
+  llmDailyUsd: number;
+  usedUsd: number;
+  remainingUsd: number;
+  percentUsed: number;
+}
+
 export interface MetricsResponse {
   totals: {
     total: number;
@@ -104,6 +111,7 @@ export interface MetricsResponse {
   costEstimateUsd: number;
   asOf: number;
   guard?: Record<string, unknown>;
+  budget?: BudgetInfo;
 }
 
 export interface AdminUser {
@@ -157,6 +165,34 @@ export interface SessionRow {
 
 export interface SessionsListResponse {
   sessions: SessionRow[];
+  count?: number;
+}
+
+export interface RiskRecentDecision {
+  decisionId: string;
+  decisionType: string;
+  action: string;
+  score: number;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  timestamp: number;
+}
+
+export interface UserRiskResponse {
+  userId: string;
+  riskScore: number;
+  storedRiskScore?: number;
+  isBlocked?: boolean;
+  riskUpdatedAt?: number;
+  asOf?: number;
+  recentDecisions?: RiskRecentDecision[];
+}
+
+export interface MfaStatusResponse {
+  total: number;
+  enrolled: number;
+  pending: number;
+  notEnrolled: number;
+  enrolledPercent: number;
 }
 
 export interface RiskRecentDecision {

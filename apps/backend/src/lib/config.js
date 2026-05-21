@@ -89,6 +89,10 @@ const CFG = {
   get estLlmUnitUsd() {
     return Number(process.env.EST_LLM_UNIT_USD || 0.0006);
   },
+  // Daily LLM cost cap for the responsible-AI budget tile. Matches the codefest cost cap.
+  get llmDailyBudgetUsd() {
+    return Number(process.env.LLM_DAILY_BUDGET_USD || 250);
+  },
   // Risk score half-life in seconds (default 24 h).
   get riskHalfLifeSec() {
     return Number(process.env.RISK_HALF_LIFE_SEC || 24 * 3600);

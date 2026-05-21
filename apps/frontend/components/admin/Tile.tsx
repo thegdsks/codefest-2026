@@ -5,7 +5,7 @@ import { Tooltip } from '@/components/ui/Tooltip';
 
 interface TileProps {
   label: string;
-  value: string | number;
+  value: ReactNode;
   hint?: string;
   icon?: Icon;
   accent?: 'default' | 'green' | 'amber' | 'rose' | 'indigo';
