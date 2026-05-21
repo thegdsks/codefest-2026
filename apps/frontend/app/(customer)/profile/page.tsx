@@ -122,7 +122,7 @@ export default function ProfileScreen() {
                     data-signal="points_balance"
                     className="font-serif text-3xl font-semibold text-black mt-1"
                   >
-                    {user.points.toLocaleString()} SFC
+                    {user.points?.toLocaleString()} SFC
                   </p>
                 </div>
 
