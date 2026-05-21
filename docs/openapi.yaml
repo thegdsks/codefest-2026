@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Signal Force API
-  version: 0.1.0
+  version: 0.1.1
   license:
     name: Private - Marriott Codefest 2026 demo
     identifier: LicenseRef-private
@@ -23,8 +23,10 @@ info:
     `GET /health` is unauthenticated.
 
 servers:
-  - url: https://55p8lbxf9g.execute-api.us-east-1.amazonaws.com
-    description: Demo deploy (us-east-1)
+  - url: https://signal.glinr.com/api
+    description: Production deploy
+  - url: http://localhost:3000
+    description: Local dev
 
 security:
   - basicAuth: []
@@ -113,13 +115,19 @@ components:
       enum:
         - FRAUD_LOGIN
         - FRAUD_TRANSFER
-        - ENGAGEMENT_OFFER
         - ENGAGEMENT
         - NUDGE
-        - PROFILE_COMPLETENESS
+        - OFFER
         - MFA_VERIFY
         - DECISION_RELEASE
-      description: Category of the decision record.
+        - PROFILE_COMPLETENESS
+      description: >
+        Category of the decision record. FRAUD_LOGIN and FRAUD_TRANSFER are
+        written by the fraud engine and may carry an aiExplanation field.
+        ENGAGEMENT is written by the engagement event handler. NUDGE and OFFER
+        are written when the surface evaluator or engagement engine surfaces a
+        card. MFA_VERIFY is written when a transfer step-up MFA completes.
+        DECISION_RELEASE is written by the admin release action.
 
     DecisionAction:
       type: string
@@ -208,6 +216,147 @@ components:
           type: string
           description: Present on DECISION_RELEASE rows only - references the decision that was released.
           example: 'DEC#1716211100000'
+        aiExplanation:
+          type: object
+          description: >
+            LLM-generated fraud rationale. Present on FRAUD_LOGIN and
+            FRAUD_TRANSFER decisions where action is BLOCK, REVIEW, or MFA
+            and LiteLLM env vars are configured. The DecisionDrawer AI
+            Analysis panel renders this. Absent when the LLM was not called
+            or timed out.
+          properties:
+            paragraph:
+              type: string
+              maxLength: 1200
+              description: 2-4 sentences in plain English for a fraud analyst or product manager.
+              example: >
+                The transfer of 7,500 points was flagged because the device fingerprint
+                has not appeared on this account in over 30 days. Combined with the high
+                transfer amount, this raised the risk score to 65.
+            riskFactors:
+              type: array
+              items:
+                type: string
+                maxLength: 200
+              maxItems: 6
+              description: Specific signals that contributed to the decision.
+              example:
+                - 'Transfer amount 7,500 points exceeds 24h pattern'
+                - 'Device fingerprint not seen in last 30 days'
+            recommendation:
+              type: string
+              maxLength: 300
+              description: One sentence telling the analyst what to do next.
+              example: Require the member to complete MFA and verify the recipient before releasing.
+
+    # ------------------------------------------------------------------
+    # Surface evaluation
+    # ------------------------------------------------------------------
+    SurfaceNextAction:
+      type: object
+      properties:
+        label:
+          type: string
+          description: Human-readable action label for the DemoPanel.
+          example: Book 4 nights to reach Platinum
+        target:
+          type: string
+          enum:
+            - profileCompletion
+            - tier
+            - mfaEnrolled
+            - flow.transfer
+            - booking
+          description: Which UserProfile or UserState field the action targets.
+        delta:
+          type: object
+          description: Value to set on the target field.
+          additionalProperties: true
+
+    SurfaceEvaluation:
+      type: object
+      description: >
+        Result for one surface from GET /customer/surface-eligibility.
+        The six surface IDs are: PROPERTY_PRESTIGE_ADVANCE,
+        RESULTS_PRESTIGE_ADVANCE, PROFILE_CATALYST_ELEVATE,
+        MFA_ENROLLMENT_NUDGE, TRANSFER_ABANDON_OFFER,
+        BOOKING_CONFIRMATION_OFFER.
+      required: [surfaceId, state, reason, context]
+      properties:
+        surfaceId:
+          type: string
+          enum:
+            - PROPERTY_PRESTIGE_ADVANCE
+            - RESULTS_PRESTIGE_ADVANCE
+            - PROFILE_CATALYST_ELEVATE
+            - MFA_ENROLLMENT_NUDGE
+            - TRANSFER_ABANDON_OFFER
+            - BOOKING_CONFIRMATION_OFFER
+          example: PROPERTY_PRESTIGE_ADVANCE
+        state:
+          type: string
+          enum: [SHOWN, HIDDEN, PENDING, COMPLETED]
+          description: >
+            SHOWN - card is visible. HIDDEN - threshold not met or goal already
+            achieved at top tier. PENDING - an in-progress action (e.g. profile
+            edit underway). COMPLETED - goal reached in the last 60 s.
+          example: SHOWN
+        ruleId:
+          type: string
+          nullable: true
+          description: The EngagementRules PK that triggered this surface, or null.
+          example: 'RULE#TIER_GAP_NUDGE'
+        reason:
+          type: string
+          description: Human-readable explanation of why the state was set.
+          example: Within 2000 pts of Platinum
+        context:
+          type: object
+          description: Raw context values used by the evaluator (varies by surface).
+          additionalProperties: true
+          example:
+            pointsToNextTier: 2000
+            currentTier: Gold
+            nextTier: Platinum
+        copy:
+          type: object
+          nullable: true
+          description: Headline and body copy to render. Null when state is not SHOWN.
+          properties:
+            headline:
+              type: string
+              example: Prestige Advance Benefit
+            body:
+              type: string
+              example: You are only 2,000 points away from Platinum. Book 4 nights to get double points.
+        nextAction:
+          type: object
+          nullable: true
+          description: Action the DemoPanel can fire to flip this surface to a new state.
+          allOf:
+            - $ref: '#/components/schemas/SurfaceNextAction'
+        aiAction:
+          type: string
+          enum: [PROMOTE, KEEP, DEMOTE, HIDE, SWAP]
+          description: >
+            LLM verdict on whether to emphasize or suppress this surface.
+            Only present when aiMode=on and the LLM responded successfully.
+          example: PROMOTE
+        aiPriority:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: >
+            Rank among active surfaces (1 = show first, 5 = least relevant).
+            Only present when aiMode=on and the LLM responded successfully.
+          example: 1
+        aiRationale:
+          type: string
+          maxLength: 300
+          description: >
+            1-2 sentences from the LLM explaining the ranking decision.
+            Only present when aiMode=on and the LLM responded successfully.
+          example: User is close to tier upgrade and recently visited property pages; high conversion likelihood.
 
     # ------------------------------------------------------------------
     # Profile
@@ -2648,6 +2797,974 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Admin - Decisions (additional)
+  # ----------------------------------------------------------------------------
+
+  /admin/decisions/export:
+    get:
+      operationId: adminExportDecisions
+      summary: Export decision records as JSON or CSV
+      description: >
+        Returns up to ADMIN_DECISIONS_EXPORT_MAX_ITEMS (default 10000) records
+        in json (default) or csv format. Accepts the same window, type, and
+        userId filters as GET /admin/decisions.
+
+        When format=csv the response Content-Type is text/csv and the
+        Content-Disposition header is set for file download.
+      x-internal-only: true
+      parameters:
+        - $ref: '#/components/parameters/Window'
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DecisionType'
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: format
+          in: query
+          required: false
+          description: Response format. Defaults to json.
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+      responses:
+        '200':
+          description: Decisions exported.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [decisions, count]
+                    properties:
+                      decisions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Decision'
+                      count:
+                        type: integer
+            text/csv:
+              schema:
+                type: string
+        '400':
+          description: Invalid window or type parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/decisions/{id}:
+    get:
+      operationId: adminGetDecisionById
+      summary: Fetch a single decision with audit trail and trace
+      description: >
+        Returns the full decision row, a synthetic audit trail (one step for
+        L1-only decisions, two steps for L1+L2), and a trace object with the
+        matched conditions and LLM rationale when available.
+
+        The id is the full decisionId value (e.g. DEC#1716211200000).
+        URL-encode # as %23 in the path.
+      x-internal-only: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Full decisionId. URL-encode # as %23 (e.g. DEC%231716211200000).
+          schema:
+            type: string
+            example: DEC%231716211200000
+      responses:
+        '200':
+          description: Decision found.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [decision, auditTrail]
+                    properties:
+                      decision:
+                        $ref: '#/components/schemas/Decision'
+                      auditTrail:
+                        type: array
+                        items:
+                          type: object
+                          required: [step]
+                          properties:
+                            step:
+                              type: string
+                            score:
+                              type: number
+                            riskLevel:
+                              type: string
+                            action:
+                              type: string
+                            reasonCode:
+                              type: string
+                            llmModel:
+                              type: string
+                            llmLatencyMs:
+                              type: number
+                            label:
+                              type: string
+                      trace:
+                        description: Present when engineLayer is available on the row.
+                        nullable: true
+                        type: object
+                        properties:
+                          ruleId:
+                            type: string
+                            nullable: true
+                          ruleName:
+                            type: string
+                            nullable: true
+                          engineLayer:
+                            type: string
+                          latencyMs:
+                            type: number
+                            nullable: true
+                          matched:
+                            type: array
+                            items:
+                              type: object
+                          llmRationale:
+                            type: string
+                            nullable: true
+        '400':
+          description: Missing or invalid id path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Decision not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Admin - Users (additional)
+  # ----------------------------------------------------------------------------
+
+  /admin/users/{id}/risk:
+    get:
+      operationId: adminGetUserRisk
+      summary: User risk score with decay and recent decisions
+      description: >
+        Returns the user's current risk score after applying exponential decay
+        (half-life configurable via RISK_HALF_LIFE_SEC, default 24h) plus the
+        N most recent risk-relevant decisions for a sparkline. The asOf field
+        is the server time at which the decay was applied.
+      x-internal-only: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: userId. URL-encode # as %23 (e.g. USER%23001).
+          schema:
+            type: string
+            example: USER%23001
+      responses:
+        '200':
+          description: Risk profile returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [userId, riskScore, storedRiskScore, asOf, recentDecisions]
+                    properties:
+                      userId:
+                        type: string
+                        example: 'USER#001'
+                      riskScore:
+                        type: number
+                        description: Decayed risk score at asOf time.
+                        example: 14.3
+                      storedRiskScore:
+                        type: number
+                        description: Raw score as last written by the engine.
+                        example: 42
+                      riskUpdatedAt:
+                        type: integer
+                        nullable: true
+                        description: Unix epoch seconds when the stored score was last written.
+                        example: 1716211200
+                      asOf:
+                        type: integer
+                        description: Unix epoch seconds at which decay was applied.
+                        example: 1716214800
+                      recentDecisions:
+                        type: array
+                        items:
+                          type: object
+                          required: [decisionId, decisionType, action, score, riskLevel, timestamp]
+                          properties:
+                            decisionId:
+                              type: string
+                            decisionType:
+                              type: string
+                            action:
+                              type: string
+                            score:
+                              type: number
+                            riskLevel:
+                              type: string
+                            timestamp:
+                              type: integer
+        '400':
+          description: Missing userId path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Admin - AI config
+  # ----------------------------------------------------------------------------
+
+  /admin/ai-config:
+    get:
+      operationId: adminGetAiConfig
+      summary: LLM catalog and active model config
+      description: >
+        Returns the curated model catalog, the active model ID resolved from
+        LITELLM_MODEL env var, whether the LiteLLM proxy is configured, and
+        estimated cost per classify call for each model. Read-only in v1.
+      x-internal-only: true
+      responses:
+        '200':
+          description: AI config returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, proxyConfigured, activeModelId, activeModelKnown, defaultModelId, models]
+                properties:
+                  correlationId:
+                    type: string
+                  proxyConfigured:
+                    type: boolean
+                    description: True when LITELLM_BASE_URL and LITELLM_API_KEY are both set.
+                  activeModelId:
+                    type: string
+                    example: gpt-4o-mini
+                  activeModelKnown:
+                    type: boolean
+                    description: True when activeModelId is in the curated catalog.
+                  defaultModelId:
+                    type: string
+                    example: gpt-4o-mini
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AiModel'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Admin - Dev / demo
+  # ----------------------------------------------------------------------------
+
+  /admin/dev/config:
+    get:
+      operationId: adminDevConfig
+      summary: Dev feature flags (demoMode)
+      description: >
+        Returns the current DEMO_MODE flag so the admin UI can decide
+        whether to show or hide the Demo controls section. Does not
+        require DEMO_MODE to be active.
+      x-internal-only: true
+      responses:
+        '200':
+          description: Dev config returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, demoMode]
+                properties:
+                  correlationId:
+                    type: string
+                  demoMode:
+                    type: boolean
+                    description: True when DEMO_MODE=1 is set on the Lambda.
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/dev/reseed:
+    post:
+      operationId: adminDevReseed
+      summary: Restore all tables from seed data
+      description: >
+        Restores all five DynamoDB tables from the bundled seed_data/ JSON
+        files using BatchWriteItem. Returns 403 when DEMO_MODE is not set.
+        Destructive: existing rows are overwritten.
+      x-internal-only: true
+      responses:
+        '200':
+          description: Reseed completed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, ok, tablesReset, itemsWritten, durationMs]
+                properties:
+                  correlationId:
+                    type: string
+                  ok:
+                    type: boolean
+                    example: true
+                  tablesReset:
+                    type: array
+                    items:
+                      type: string
+                    description: Names of tables that were reset.
+                    example: [UserProfile, UserSession, UserActivity, DecisionStore, UserState]
+                  itemsWritten:
+                    type: integer
+                    example: 150
+                  durationMs:
+                    type: integer
+                    description: Wall-clock time for the reseed in milliseconds.
+                    example: 1240
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin check failed or DEMO_MODE is not enabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected reseed failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Admin - Demo actions
+  # ----------------------------------------------------------------------------
+
+  /admin/demo-actions/mutate-user:
+    post:
+      operationId: adminMutateDemoUser
+      summary: Apply a mutation to UserProfile and/or UserState for demo purposes
+      description: >
+        Applies supported mutation fields to a user's profile and state records,
+        returns a before/after diff of the touched fields, and writes a
+        DEMO_EVENT to UserActivity so the admin feed captures the operator action.
+
+        Supported mutation fields: profileCompletion, tier, mfaEnrolled,
+        loyaltyScore, flow.transfer.abandon, flow.transfer.resume,
+        booking.trigger.
+      x-internal-only: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, mutation]
+              properties:
+                userId:
+                  type: string
+                  example: 'USER#001'
+                mutation:
+                  type: object
+                  description: One or more fields to mutate. Unknown fields are ignored.
+                  properties:
+                    profileCompletion:
+                      type: number
+                      minimum: 0
+                      maximum: 100
+                    tier:
+                      type: string
+                      example: Platinum
+                    mfaEnrolled:
+                      type: boolean
+                    loyaltyScore:
+                      type: number
+                    flow:
+                      type: object
+                      properties:
+                        transfer:
+                          type: object
+                          properties:
+                            abandon:
+                              type: boolean
+                            resume:
+                              type: boolean
+                    booking:
+                      type: object
+                      properties:
+                        trigger:
+                          type: boolean
+      responses:
+        '200':
+          description: Mutation applied.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [userId, touched, activityId, mutatedAt]
+                    properties:
+                      userId:
+                        type: string
+                      touched:
+                        type: object
+                        description: Keyed by field name. Each value is a { from, to } pair.
+                        additionalProperties:
+                          type: object
+                          properties:
+                            from: {}
+                            to: {}
+                      activityId:
+                        type: string
+                        example: 'DEMO#a1b2c3d4-e5f6'
+                      mutatedAt:
+                        type: integer
+                        description: Unix epoch seconds.
+        '400':
+          description: Validation error - missing userId or invalid mutation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/demo-events:
+    post:
+      operationId: adminWriteDemoEvent
+      summary: Record an operator action from the DemoPanel
+      description: >
+        Writes a UserActivity row with activityType=DEMO_EVENT. Use this to
+        capture operator gestures (user switches, location overrides, forced
+        signals) so they appear in the admin activity feed.
+      x-internal-only: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - USER_SWITCH
+                    - LOCATION_OVERRIDE
+                    - FORCE_HIGH_RISK
+                    - SIGNAL_TRIGGER
+                    - MFA_FORCED
+                    - SURFACE_REEVALUATE
+                actor:
+                  type: string
+                  description: Identifier of the operator or panel that sent the event.
+                  default: demo
+                  example: demo-panel
+                payload:
+                  type: object
+                  additionalProperties: true
+                  description: Arbitrary event payload.
+                timestamp:
+                  type: integer
+                  description: >
+                    Optional event timestamp in epoch milliseconds. Defaults
+                    to server time.
+                  example: 1716211200000
+      responses:
+        '201':
+          description: Event written.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [activityId, type, actor, timestamp]
+                    properties:
+                      activityId:
+                        type: string
+                        example: 'DEMO#a1b2c3d4-e5f6'
+                      type:
+                        type: string
+                      actor:
+                        type: string
+                      timestamp:
+                        type: integer
+                        description: Unix epoch seconds as stored.
+        '400':
+          description: Missing or invalid type field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      operationId: adminListDemoEvents
+      summary: Return recent operator demo events
+      description: >
+        Returns DEMO_EVENT rows from UserActivity that occurred after the
+        since cursor, newest first, up to limit (max 50).
+      x-internal-only: true
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: Epoch milliseconds cursor. Returns events after this time.
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 50
+      responses:
+        '200':
+          description: Demo events returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [events, count]
+                    properties:
+                      events:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DemoEvent'
+                      count:
+                        type: integer
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Admin - Activity feed
+  # ----------------------------------------------------------------------------
+
+  /admin/activity-feed:
+    get:
+      operationId: adminGetActivityFeed
+      summary: Unified activity feed from decisions, sessions, and demo events
+      description: >
+        Merges three event sources into a single chronological array (newest
+        first): decisions from DecisionStore, ACCESS rows from UserSession,
+        and DEMO_EVENT rows from UserActivity. Total capped at 100.
+        The nextCursor value is the epoch-ms timestamp of the newest event
+        so the client can poll incrementally.
+      x-internal-only: true
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: Epoch milliseconds cursor. Defaults to one hour ago when absent.
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 100
+      responses:
+        '200':
+          description: Activity feed returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [events, nextCursor]
+                    properties:
+                      events:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ActivityFeedItem'
+                      nextCursor:
+                        type: integer
+                        description: >
+                          Epoch milliseconds of the newest event in this
+                          page. Pass as since on the next poll.
+                        example: 1716214800000
+        '401':
+          description: Missing or invalid gateway Basic Auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Basic Auth subject is not in ADMIN_USERNAMES.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Customer - Surface eligibility
+  # ----------------------------------------------------------------------------
+
+  /customer/surface-eligibility:
+    get:
+      operationId: customerSurfaceEligibility
+      summary: State-aware surface evaluation for all known UI surfaces
+      description: >
+        Returns evaluation results for all six surfaces. Each result carries
+        state (SHOWN, HIDDEN, PENDING, COMPLETED), the triggering rule, a
+        human-readable reason, copy (null when not SHOWN), and a nextAction
+        the DemoPanel can fire to flip state live.
+
+        When aiMode=on (default) each surface is additionally annotated with
+        AI verdict fields (aiAction, aiPriority, aiRationale) from the L2 LLM.
+        On LLM timeout the response includes aiUnavailable: true and returns
+        the deterministic result only.
+
+        Surface IDs: PROPERTY_PRESTIGE_ADVANCE, RESULTS_PRESTIGE_ADVANCE,
+        PROFILE_CATALYST_ELEVATE, MFA_ENROLLMENT_NUDGE,
+        TRANSFER_ABANDON_OFFER, BOOKING_CONFIRMATION_OFFER.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - name: aiMode
+          in: query
+          required: false
+          description: '"on" (default) to include L2 AI verdict fields. "off" for deterministic output only.'
+          schema:
+            type: string
+            enum: ['on', 'off']
+            default: 'on'
+      responses:
+        '200':
+          description: Surface evaluations returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [userId, surfaces]
+                    properties:
+                      userId:
+                        type: string
+                        example: 'USER#001'
+                      surfaces:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SurfaceEvaluation'
+                      aiMode:
+                        type: boolean
+                        description: >
+                          Present when aiMode=on was requested and the LLM
+                          responded successfully.
+                      aiUnavailable:
+                        type: boolean
+                        description: >
+                          Present and true when aiMode=on was requested but
+                          the LLM was unavailable or timed out.
+        '400':
+          description: Missing userId parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ----------------------------------------------------------------------------
+  # Transactions - MFA verify
+  # ----------------------------------------------------------------------------
+
+  /transactions/mfa/verify:
+    post:
+      operationId: transferMfaVerify
+      summary: Complete a transfer that was gated behind MFA
+      description: >
+        Validates the TOTP code (or static fallback when MFA_MODE=static) for
+        a pending transfer MFA challenge. On success, marks the challenge
+        consumed, executes the transfer, and writes a FRAUD_TRANSFER ALLOW
+        decision. Replaying the same challengeId after it has been consumed
+        returns 400 MFA_CHALLENGE_INVALID.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeId, otp]
+              properties:
+                challengeId:
+                  type: string
+                  description: The sessionId returned by POST /transactions/transfer when action is MFA_REQUIRED.
+                  example: 'SESSION#a1b2c3d4'
+                otp:
+                  type: string
+                  description: 6-digit TOTP code (or static fallback 123456 when MFA_MODE=static).
+                  example: '492013'
+      responses:
+        '200':
+          description: Transfer MFA verified and transfer completed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, data]
+                properties:
+                  correlationId:
+                    type: string
+                  data:
+                    type: object
+                    required: [action, transferId, completedAt, mfaPath]
+                    properties:
+                      action:
+                        type: string
+                        enum: [ALLOW]
+                      transferId:
+                        type: string
+                        example: 'XFER#a1b2c3d4'
+                      completedAt:
+                        type: integer
+                        description: Unix epoch seconds when the transfer was executed.
+                        example: 1716214800
+                      mfaPath:
+                        type: string
+                        enum: [TRANSFER_RISK]
+        '400':
+          description: Challenge not found, expired, already consumed, or wrong challengeType.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                correlationId: ''
+                error:
+                  code: MFA_CHALLENGE_INVALID
+                  message: Transfer MFA challenge not found, expired, or already consumed
+        '401':
+          description: OTP invalid or bearer missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                correlationId: ''
+                error:
+                  code: OTP_INVALID
+                  message: OTP invalid
+        '404':
+          description: Recipient no longer found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error.
           content:
             application/json:
               schema:

@@ -494,15 +494,161 @@ The change is live for new requests within 10 minutes (rule cache refresh interv
 A hot-reload endpoint can be added later if real-time is needed.
 ```
 
+## AI brain (L2 modules)
+
+Two L2 modules live in `apps/backend/src/engine/`:
+
+### AI fraud explainer (`ai-fraud-explainer.js`)
+
+Triggered after every `FRAUD_LOGIN` or `FRAUD_TRANSFER` decision where `action` is `BLOCK`, `REVIEW`, or `MFA`. Sends a structured prompt to the LiteLLM proxy and returns a `{ paragraph, riskFactors[], recommendation }` object stored on the decision row as `aiExplanation`. The DecisionDrawer "AI Analysis" panel in the admin console renders this inline.
+
+Constraints:
+- Hard 2 s `AbortSignal` timeout. Returns null on timeout; the decision proceeds without a rationale.
+- Budget guard (`engine/budget.js`) blocks the call when the daily LLM call cap is hit.
+- Falls back silently (no error to the caller) when `LITELLM_BASE_URL` or `LITELLM_API_KEY` is absent.
+
+### AI surface prioritizer (`ai-surface-prioritizer.js`)
+
+Activated on `GET /customer/surface-eligibility?aiMode=on`. After the deterministic `evaluateSurfaces()` call produces a 6-surface candidate list, the prioritizer sends those surfaces plus user context (tier, loyalty score, profile completion, recent SDK signals) to L2 and receives per-surface verdicts.
+
+Each verdict carries:
+- `aiAction`: `PROMOTE` | `KEEP` | `DEMOTE` | `HIDE` | `SWAP`
+- `aiPriority`: 1 (show first) through 5 (least relevant)
+- `aiRationale`: 1-2 sentences for a product manager
+
+The deterministic `state` from the surface evaluator is the source of truth and is never overridden by AI. AI fields are additive. The response includes `aiUnavailable: true` when the LLM is unreachable.
+
+Cache: in-memory Map keyed by `(userId + surface-state-hash)`, 30 s TTL per Lambda container. No DDB.
+Timeout: 6 s (raised from 3 s in PR #124).
+
+### LiteLLM topology
+
+```
+Lambda engine modules
+  |
+  | LITELLM_BASE_URL (OpenAI-compatible REST)
+  v
+LiteLLM Cloudflare Worker proxy
+  |
+  | Bedrock Converse API
+  v
+us.anthropic.claude-haiku-4-5-20251001-v1:0
+  (US cross-region inference profile)
+```
+
+Active model: `us.anthropic.claude-haiku-4-5-20251001-v1:0`. The Lambda does not need direct
+Bedrock model activation because the proxy handles it. Three env vars are read at runtime:
+`LITELLM_BASE_URL`, `LITELLM_API_KEY`, `LITELLM_MODEL`. These are injected into the Lambda
+at CDK synth time via `process.env` in `infra/cdk/lib/runtime-stack.ts` (PR #100). Updating
+them requires a CDK deploy, not just a Lambda env var update, because Lambda Versions snapshot
+env vars immutably at publish time.
+
+### Budget guard (`engine/budget.js`)
+
+Tracks LLM calls in an in-memory counter (per Lambda container). Reads `LLM_DAILY_BUDGET_USD`
+from the env (or `LLM_GUARD_MAX_CALLS` for a call-count ceiling). When the ceiling is hit,
+`budget.tryReserve()` returns `{ ok: false }` and both AI modules skip the LLM call. The daily
+spend is visible in the admin overview tile at `/admin` under "Engine Guard".
+
+## Stateful surfaces (GET /customer/surface-eligibility)
+
+The surface evaluator (`engine/surfaces.js`) tracks lifecycle state per user for six named surfaces. State is derived from `UserProfile` and `UserState` fields at read time - there is no separate state row.
+
+Surface lifecycle:
+
+```
+HIDDEN  --[threshold crossed]--> SHOWN
+SHOWN   --[action taken]-------> PENDING
+PENDING --[mutation applied]---> COMPLETED (within 60 s window)
+SHOWN   --[goal reached]-------> HIDDEN  (e.g. user already at top tier)
+```
+
+The six surfaces and their trigger thresholds:
+
+| Surface ID | Shown when | Completed when |
+|---|---|---|
+| `PROPERTY_PRESTIGE_ADVANCE` | `loyaltyScore` within 10,000 pts of Platinum | `platinumReachedAt` within last 60 s |
+| `RESULTS_PRESTIGE_ADVANCE` | Same threshold as above | Same |
+| `PROFILE_CATALYST_ELEVATE` | `profileCompletion < 90` and tier below Platinum | `profileCompletionReachedAt` within last 60 s |
+| `MFA_ENROLLMENT_NUDGE` | Gold or Platinum member without `mfaSecret` | `mfaEnrolledAt` within last 60 s |
+| `TRANSFER_ABANDON_OFFER` | Stale `transferDraft` in UserState (>60 s old) | `lastTransferCompletedAt` within last 60 s |
+| `BOOKING_CONFIRMATION_OFFER` | `recentBookingAt` within last 300 s | `bookingOfferDismissedAt` set after booking |
+
+The DemoPanel "Quick Mutations" row fires `POST /admin/demo-actions/mutate-user` to flip these fields directly so a presenter can walk through any surface state during a live demo.
+
+## Demo events and activity feed
+
+### Demo events (`routes/admin/demo-events.js`)
+
+`POST /admin/demo-events` records operator actions from the DemoPanel as `DEMO_EVENT` rows in
+`UserActivity`. Each row carries a `type` (e.g. `USER_SWITCH`, `MFA_FORCED`, `SIGNAL_TRIGGER`),
+an optional `actor`, and a free-form `payload`. The activity feed and the admin live-ticker
+display these alongside real decisions and sessions.
+
+### Activity feed (`routes/admin/activity-feed.js`)
+
+`GET /admin/activity-feed?since=<epochMs>&limit=<n>` merges three sources into one
+chronological stream:
+
+1. `DecisionStore` rows with `timestamp > since`
+2. `UserSession` ACCESS rows with `lastActivityAt > since`
+3. `UserActivity` rows with `activityType = DEMO_EVENT` and `timestamp > since`
+
+Events are sorted newest-first, capped at 100, and returned with a `nextCursor` (epoch ms of
+the newest event) for incremental polling. The `kind` field distinguishes each source:
+`DECISION`, `SESSION`, or `DEMO_EVENT`. The `LiveActivityFeed` hero widget on the admin
+overview polls this endpoint every few seconds.
+
+## DynamoDB tables (as deployed)
+
+Six tables in `signal-force-dynamodb`. All PAY_PER_REQUEST with PITR enabled.
+
+| Table | PK | SK | GSI | Stores |
+|---|---|---|---|---|
+| `UserProfile` | `userId` (S) | - | `username-index` (PK: `username`) | Loyalty member directory, MFA secret, tier, profile fields |
+| `UserSession` | `sessionId` (S) | - | `userId-index` (PK: `userId`) | Bearer sessions. `recordType: ACCESS` for active tokens, `CHALLENGE` for MFA challenges |
+| `UserActivity` | `userId` (S) | `activityTime` (N) | - (TTL on `ttl`) | Append-only event log per user. DEMO_EVENT rows share this table |
+| `DecisionStore` | `decisionId` (S) | - | `userId-timestamp-index` (PK: `userId`, SK: `timestamp`) | Every engine decision. GSI enables per-user queries with time range in `KeyConditionExpression` |
+| `UserState` | `userId` (S) | - | - | Rolling counters and surface lifecycle timestamps per user |
+| `EngagementRules` | `ruleId` (S) | `version` (S) | - | Rule documents. `version=latest` is the live row; ISO timestamps are history entries |
+
+The `DecisionStore` GSI (`userId-timestamp-index`) is used by `GET /admin/decisions?userId=` to
+query by user with a timestamp range in the `KeyConditionExpression` (not a `FilterExpression`),
+giving O(log n) lookup instead of a table scan (PR #88, #94).
+
+## MFA implementation
+
+The demo Lambda runs with `MFA_MODE=static` and `DEMO_MODE=1` (both hardcoded in the CDK
+runtime stack). `MFA_MODE=static` means any login or transfer MFA challenge accepts OTP
+`123456` as a fallback alongside real TOTP codes. The `mfaPath` field in the response
+records which path succeeded (`TOTP` or `STATIC`) for audit purposes.
+
+The TOTP secret is stored as `mfaSecret` on the `UserProfile` item. A challenge `CHALLENGE`
+row is written to `UserSession` when the fraud engine returns `action: MFA`. After
+`POST /auth/mfa/verify` accepts the code, an `ACCESS` row is written keyed by the opaque bearer
+token, so token lookup is O(1) without a secondary index. Every authenticated customer request
+calls `validateBearer`, which also slides the row's `expiresAt` forward by `SESSION_TTL_SEC`
+(default 1800 s).
+
+## Frontend components added since 2026-05-20
+
+- `DemoPanel` - Surface Eligibility section, Quick Mutations row, AI Mode toggle (PRs #103, #111, #122)
+- `LiveActivityFeed` - hero widget on admin overview, merges all event kinds (PR #112)
+- `DecisionDrawer` - "AI Analysis" panel renders `aiExplanation` from fraud decisions (PR #122)
+- Engine guard tile - black-themed, compact, sub-cent USD cost display (PRs #117, #118)
+- TopBar dec/s meter - switched to TanStack Query with EMA smoothing (PR #106)
+- Force-MFA-on-demo checkbox on login page when `DEMO_MODE=1` (PR #96)
+- Engagement detectors wired on `/search`, `/results`, `/property`, `/transfer`, `/profile` (PR #97)
+
 ## Stacks
 
-Three CDK stacks. All on `main`.
+Three CDK stacks (six DynamoDB tables is accurate; the "Promotion" and "Rule" references in older docs are stale - those tables were replaced by `EngagementRules`). All on `main`.
 
 | Stack | Status | Contents |
 |---|---|---|
-| `signal-force-dynamodb` | built | UserProfile, UserSession, UserActivity (TTL), DecisionStore, UserState. **Promotion** and **Rule** tables added in next runtime-stack PR. |
-| `signal-force-budgets` | built | 3 monthly budgets (25 / 100 / 200 USD) with SNS email alerts |
-| `signal-force-runtime` | built | Lambda + HTTP API + IAM + Bedrock IAM (for prod-path Bedrock direct, unused on demo LiteLLM path) + fraud-alert SNS topic + CloudWatch dashboard |
+| `signal-force-dynamodb` | deployed | 6 DynamoDB tables: UserProfile, UserSession, UserActivity (TTL), DecisionStore, UserState, EngagementRules |
+| `signal-force-budgets` | deployed | 3 monthly budgets (25 / 100 / 200 USD) with SNS email alerts |
+| `signal-force-runtime` | deployed | Lambda + HTTP API + IAM + Bedrock IAM (prod-path, unused on LiteLLM demo path) + fraud-alert SNS + CloudWatch dashboard |
 
 ## Service selection (demo stack)
 
@@ -523,10 +669,11 @@ Seven tables (existing five plus Promotion and Rule). PAY_PER_REQUEST. RemovalPo
 ### LLM: Marriott LiteLLM proxy (Claude Haiku 4.5 on Bedrock, OpenAI-compatible)
 
 - Demo path: `LITELLM_BASE_URL`, `LITELLM_API_KEY`, `LITELLM_MODEL` on the Lambda. The proxy speaks OpenAI wire format and routes to Bedrock, so the Lambda does not need direct Bedrock model access.
-- Default model id: `us.anthropic.claude-haiku-4-5-20251001-v1:0` (US cross-region inference profile).
-- Switchable catalog: see `apps/backend/src/lib/aiModels.js`, surfaced in the admin UI at `/admin/settings`. Budget tier (Gemini 2.5 Flash Lite, Nova Micro / Lite, Llama 3.x) for high-volume scoring under the demo cap. Standard tier (Haiku, Sonnet) for quality. Premium (Opus) reserved for last-resort accuracy.
-- Called only when rules abstain or on the nightly studio batch.
+- Active model id: `us.anthropic.claude-haiku-4-5-20251001-v1:0` (US cross-region inference profile).
+- Switchable catalog: see `apps/backend/src/lib/aiModels.js`, surfaced in the admin UI at `/admin/settings`. Budget tier (Gemini 2.5 Flash Lite, Nova Micro / Lite, Llama 3.x) for high-volume scoring under the demo cap. Standard tier (Haiku, Sonnet) for quality.
+- Called by the L2 AI fraud explainer (post-decision) and the AI surface prioritizer (on-demand via `?aiMode=on`). Also called by the admin rule editor AI Assist feature.
 - Production alternate: direct Bedrock Converse API with Provisioned Throughput. The CDK Bedrock IAM policy is retained for that path. Unused on the LiteLLM path.
+- See "AI brain" section above for timeout, budget guard, and cache details.
 
 ### Frontend hosting
 
