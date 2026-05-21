@@ -79,10 +79,12 @@ async function fetchDecisionsByUser(cutoff, userId, typeFilter) {
   const result = await getDdb().send(
     new QueryCommand({
       TableName: CFG.tDecision,
+      IndexName: 'userId-timestamp-index',
       KeyConditionExpression: 'userId = :uid',
       FilterExpression: filterParts.join(' AND '),
       ExpressionAttributeNames: exprNames,
       ExpressionAttributeValues: exprValues,
+      ScanIndexForward: false,
     })
   );
   return result.Items || [];
