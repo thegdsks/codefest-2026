@@ -22,40 +22,6 @@ const TYPE_COLORS = [
   '#A78BFA',
 ];
 
-interface CenterLabelProps {
-  cx: number;
-  cy: number;
-  total: number;
-}
-
-function CenterLabel({ cx, cy, total }: CenterLabelProps) {
-  return (
-    <>
-      <text
-        x={cx}
-        y={cy - 6}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill="#e4e4e7"
-        fontSize={20}
-        fontWeight={600}
-      >
-        {total.toLocaleString()}
-      </text>
-      <text
-        x={cx}
-        y={cy + 14}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill="#71717a"
-        fontSize={11}
-      >
-        decisions
-      </text>
-    </>
-  );
-}
-
 interface Props {
   window: Window;
   height?: number;
@@ -105,16 +71,24 @@ export default function TypeDonutChart({ window: windowKey, height = 240 }: Prop
     <div
       role="img"
       aria-label="Donut chart showing distribution of decisions by type"
-      className="h-72 px-4"
+      className="relative h-72 px-4"
     >
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-start pl-[19%]">
+        <div className="flex flex-col items-center">
+          <span className="text-xl font-semibold text-zinc-100 tabular-nums">
+            {total.toLocaleString()}
+          </span>
+          <span className="text-xs text-zinc-500">decisions</span>
+        </div>
+      </div>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <Pie
             data={slices}
-            cx="40%"
+            cx="35%"
             cy="50%"
-            innerRadius={60}
-            outerRadius={90}
+            innerRadius={55}
+            outerRadius={85}
             paddingAngle={2}
             dataKey="value"
             isAnimationActive={!noAnim}
@@ -122,7 +96,6 @@ export default function TypeDonutChart({ window: windowKey, height = 240 }: Prop
             {slices.map((entry, index) => (
               <Cell key={entry.name} fill={TYPE_COLORS[index % TYPE_COLORS.length]} />
             ))}
-            <CenterLabel cx={0} cy={0} total={total} />
           </Pie>
           <Tooltip
             contentStyle={{
