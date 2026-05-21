@@ -3,6 +3,21 @@ export interface SurfaceCopy {
   body: string;
 }
 
+export type SurfaceState = 'SHOWN' | 'HIDDEN' | 'PENDING' | 'COMPLETED';
+
+export type NextActionTarget =
+  | 'profileCompletion'
+  | 'tier'
+  | 'mfaEnrolled'
+  | 'flow.transfer'
+  | 'booking';
+
+export interface NextAction {
+  label: string;
+  target: NextActionTarget;
+  delta?: Record<string, unknown>;
+}
+
 export interface PrestigeAdvanceContext {
   pointsToNextTier: number;
   currentTier: string;
@@ -15,15 +30,36 @@ export interface CatalystElevateContext {
   nextTier: string;
 }
 
-export type SurfaceContext = PrestigeAdvanceContext | CatalystElevateContext;
+export interface MfaEnrollmentContext {
+  hasMfa: boolean;
+  currentTier: string;
+}
+
+export interface TransferAbandonContext {
+  hasDraft: boolean;
+  lastUpdatedAt?: number;
+}
+
+export interface BookingContext {
+  hasRecentBooking: boolean;
+  recentBookingAt?: number;
+}
+
+export type SurfaceContext =
+  | PrestigeAdvanceContext
+  | CatalystElevateContext
+  | MfaEnrollmentContext
+  | TransferAbandonContext
+  | BookingContext;
 
 export interface SurfaceEvaluation {
   surfaceId: string;
-  eligible: boolean;
+  state: SurfaceState;
   ruleId: string | null;
   context: SurfaceContext;
   copy: SurfaceCopy | null;
   reason: string;
+  nextAction: NextAction | null;
 }
 
 export interface SurfaceEligibilityResponse {

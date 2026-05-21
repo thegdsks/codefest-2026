@@ -237,6 +237,84 @@
           "updatedAt": { "N": "1748400001" }
         }
       }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "ruleId": { "S": "RULE#MFA_ENROLLMENT_GAP" },
+          "version": { "S": "latest" },
+          "status": { "S": "ACTIVE" },
+          "name": { "S": "MFA not enrolled for high-tier member" },
+          "definition": {
+            "M": {
+              "conditions": {
+                "M": {
+                  "all": {
+                    "L": [
+                      { "M": { "fact": { "S": "signal" }, "operator": { "S": "equal" }, "value": { "S": "mfa_gap" } } },
+                      { "M": { "fact": { "S": "mfaSecret" }, "operator": { "S": "equal" }, "value": { "S": "null" } } },
+                      { "M": { "fact": { "S": "tier" }, "operator": { "S": "in" }, "value": { "S": "Gold,Platinum" } } }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "M": {
+                  "type": { "S": "MFA_ENROLLMENT_GAP" },
+                  "params": {
+                    "M": {
+                      "action": { "S": "NUDGE" },
+                      "surface": { "S": "inline_card" },
+                      "score": { "N": "65" },
+                      "copy": { "S": "Protect your points balance with two-factor authentication." }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "createdAt": { "N": "1748500000" },
+          "updatedAt": { "N": "1748500000" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "ruleId": { "S": "RULE#POST_BOOKING_UPSELL" },
+          "version": { "S": "latest" },
+          "status": { "S": "ACTIVE" },
+          "name": { "S": "Post-booking upsell offer" },
+          "definition": {
+            "M": {
+              "conditions": {
+                "M": {
+                  "all": {
+                    "L": [
+                      { "M": { "fact": { "S": "signal" }, "operator": { "S": "equal" }, "value": { "S": "booking_confirmed" } } }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "M": {
+                  "type": { "S": "POST_BOOKING_UPSELL" },
+                  "params": {
+                    "M": {
+                      "action": { "S": "OFFER" },
+                      "surface": { "S": "offer_modal" },
+                      "score": { "N": "60" },
+                      "copy": { "S": "Earn 500 bonus points when you add breakfast to your reservation." }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "createdAt": { "N": "1748500001" },
+          "updatedAt": { "N": "1748500001" }
+        }
+      }
     }
   ]
 }

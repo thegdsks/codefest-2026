@@ -29,6 +29,7 @@ const { scoreOffer } = require('../rules/offers');
 const { scoreNudge } = require('../rules/nudges');
 const { profileCompleteness } = require('../rules/profile');
 const { route: engineRoute } = require('../engine/router');
+const { evaluateSurfaces } = require('../engine/surfaces');
 const { evaluateMfaCode } = require('./auth');
 
 /**
@@ -560,18 +561,18 @@ async function transferMfaVerify(event, correlationId) {
 /**
  * GET /customer/surface-eligibility
  *
- * Returns eligibility for each benefit card surface, evaluated deterministically
- * from the user's current profile and tier data. The frontend uses these
- * results to conditionally render (or suppress) the three static benefit cards.
- *
- * All three surfaces are always returned, with eligible=true/false and a
- * human-readable reason for each. The DemoPanel uses these to show "why is
- * this card showing right now?"
+ * Returns state-aware surface evaluation for all known surfaces. Each surface
+ * carries state (SHOWN | HIDDEN | PENDING | COMPLETED), the triggering ruleId,
+ * a human-readable reason, raw context inputs, copy (null when not SHOWN), and
+ * a nextAction the DemoPanel can use to flip state live.
  *
  * Surface IDs:
  *   PROPERTY_PRESTIGE_ADVANCE  - booking card on property detail page
  *   RESULTS_PRESTIGE_ADVANCE   - inline card on results listing
  *   PROFILE_CATALYST_ELEVATE   - profile completeness card on profile page
+ *   MFA_ENROLLMENT_NUDGE       - MFA onboarding nudge for Gold/Platinum users
+ *   TRANSFER_ABANDON_OFFER     - 2x points offer on abandoned transfer
+ *   BOOKING_CONFIRMATION_OFFER - post-booking upsell
  */
 async function surfaceEligibility(event, correlationId) {
   const userId = qparam(event, 'userId');
@@ -579,101 +580,10 @@ async function surfaceEligibility(event, correlationId) {
   const profile = await getUserById(userId);
   if (!profile) return err(404, correlationId, 'USER_NOT_FOUND', 'User not found');
 
-  const tier = String(profile.tier || '');
-  const isPlat = tier.toLowerCase() === 'platinum';
-  const loyaltyScore = Number(profile.loyaltyScore || 0);
+  const state = (await getState(userId)) || {};
+  const now = nowSec();
 
-  // Points to next tier: stored as a demo field or derived from loyaltyScore.
-  // The seed data does not store pointsToNextTier explicitly, so we derive it
-  // from loyaltyScore: treat 1000 as the Platinum threshold.
-  const PLATINUM_THRESHOLD = 1000;
-  const pointsToNextTier = isPlat ? 0 : Math.max(PLATINUM_THRESHOLD - loyaltyScore, 0);
-
-  // Profile completeness uses the same backend rule as the nudge endpoint.
-  const { percent: profileCompletion } = profileCompleteness({ profile });
-
-  // --- PROPERTY_PRESTIGE_ADVANCE ---
-  const propPrestigeEligible = !isPlat && pointsToNextTier < 15000;
-  const propPrestigeRuleId = propPrestigeEligible ? 'RULE#TIER_GAP_NUDGE' : null;
-  const propPrestigeReason = propPrestigeEligible
-    ? `Within ${pointsToNextTier.toLocaleString()} pts of next tier`
-    : isPlat
-      ? 'Already Platinum - card hidden'
-      : 'More than 15000 pts from next tier - card hidden';
-
-  // --- RESULTS_PRESTIGE_ADVANCE ---
-  const resultsPrestigeEligible = !isPlat && pointsToNextTier < 15000;
-  const resultsPrestigeRuleId = resultsPrestigeEligible ? 'RULE#TIER_GAP_NUDGE' : null;
-  const resultsPrestigeReason = resultsPrestigeEligible
-    ? `Within ${pointsToNextTier.toLocaleString()} pts of next tier`
-    : isPlat
-      ? 'Already Platinum - card hidden'
-      : 'More than 15000 pts from next tier - card hidden';
-
-  // --- PROFILE_CATALYST_ELEVATE ---
-  const catalystEligible = profileCompletion < 90 && !isPlat;
-  const catalystRuleId = catalystEligible ? 'RULE#PROFILE_INCOMPLETE_TIER_GAP' : null;
-  const catalystReason = catalystEligible
-    ? `Profile ${profileCompletion}% complete and user is below Platinum`
-    : isPlat
-      ? 'Already Platinum - card hidden'
-      : `Profile already ${profileCompletion}% complete - card hidden`;
-
-  const nextTier = isPlat ? 'Diamond' : 'Platinum';
-
-  const surfaces = [
-    {
-      surfaceId: 'PROPERTY_PRESTIGE_ADVANCE',
-      eligible: propPrestigeEligible,
-      ruleId: propPrestigeRuleId,
-      context: {
-        pointsToNextTier,
-        currentTier: tier,
-        nextTier,
-      },
-      copy: propPrestigeEligible
-        ? {
-            headline: 'Prestige Advance Benefit',
-            body: `You're only ${pointsToNextTier.toLocaleString()} points away from ${nextTier}. Book 4 nights in the next 3 hours to get double points and reach ${nextTier} tier.`,
-          }
-        : null,
-      reason: propPrestigeReason,
-    },
-    {
-      surfaceId: 'RESULTS_PRESTIGE_ADVANCE',
-      eligible: resultsPrestigeEligible,
-      ruleId: resultsPrestigeRuleId,
-      context: {
-        pointsToNextTier,
-        currentTier: tier,
-        nextTier,
-      },
-      copy: resultsPrestigeEligible
-        ? {
-            headline: 'Prestige Advance Benefit',
-            body: `You're only ${pointsToNextTier.toLocaleString()} points away from ${nextTier}. Book 4 nights in the next 3 hours to get double points and reach ${nextTier} tier.`,
-          }
-        : null,
-      reason: resultsPrestigeReason,
-    },
-    {
-      surfaceId: 'PROFILE_CATALYST_ELEVATE',
-      eligible: catalystEligible,
-      ruleId: catalystRuleId,
-      context: {
-        profileCompletion,
-        currentTier: tier,
-        nextTier,
-      },
-      copy: catalystEligible
-        ? {
-            headline: 'Catalyst Elevate Benefit',
-            body: `As a valued ${tier} Status member, you are only ${pointsToNextTier.toLocaleString()} SFC points away from ${nextTier}. Update your details to increase your ${profileCompletion}% Registry Completeness.`,
-          }
-        : null,
-      reason: catalystReason,
-    },
-  ];
+  const surfaces = evaluateSurfaces({ profile, state, nowSec: now });
 
   return json(200, correlationId, { data: { userId, surfaces } });
 }

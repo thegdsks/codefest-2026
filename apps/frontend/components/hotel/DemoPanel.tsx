@@ -19,6 +19,8 @@ import {
   type EngagementEventResponse,
   fireEngagementSignal,
   login as loginRequest,
+  mutateDemoUser,
+  type UserMutation,
   verifyMfa,
 } from '@/lib/hotel/customer-api';
 import {
@@ -64,6 +66,7 @@ export default function DemoPanel() {
   const [switching, setSwitching] = useState<string | null>(null);
   const [forcedHighRisk, setForcedHighRisk] = useState(false);
   const [eligibilityOpen, setEligibilityOpen] = useState(false);
+  const [mutating, setMutating] = useState<string | null>(null);
   const [signalStatus, setSignalStatus] = useState<SignalStatus>({
     loading: false,
     result: null,
@@ -174,6 +177,17 @@ export default function DemoPanel() {
     sessionStorage.clear();
     logout();
     window.location.href = '/';
+  }
+
+  async function mutateAndRefetch(key: string, mutation: UserMutation) {
+    if (!session?.userId) return;
+    setMutating(key);
+    try {
+      await mutateDemoUser(session.userId, mutation);
+    } finally {
+      setMutating(null);
+      refetchSurfaces();
+    }
   }
 
   return (
@@ -472,6 +486,49 @@ export default function DemoPanel() {
 
                 {eligibilityOpen && (
                   <div className="space-y-2">
+                    {/* Quick Mutations */}
+                    <div className="bg-[#ffdea5]/20 border border-[#ffdea5] p-2 space-y-1.5">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-[#775a19] font-sans">
+                        Quick Mutations
+                      </p>
+                      <div className="flex gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          disabled={mutating !== null}
+                          onClick={() =>
+                            mutateAndRefetch('platinum', { tier: 'Platinum', loyaltyScore: 1000 })
+                          }
+                          className="text-[9px] font-bold uppercase tracking-wider border border-[#775a19] text-[#775a19] px-2 py-1 hover:bg-[#775a19] hover:text-white transition-colors font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {mutating === 'platinum' ? '...' : 'Make Platinum'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={mutating !== null}
+                          onClick={() =>
+                            mutateAndRefetch('complete-profile', { profileCompletion: 95 })
+                          }
+                          className="text-[9px] font-bold uppercase tracking-wider border border-[#775a19] text-[#775a19] px-2 py-1 hover:bg-[#775a19] hover:text-white transition-colors font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {mutating === 'complete-profile' ? '...' : 'Complete Profile'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={mutating !== null}
+                          onClick={() =>
+                            mutateAndRefetch('reset-gold', {
+                              tier: 'Gold',
+                              profileCompletion: 50,
+                              loyaltyScore: 500,
+                            })
+                          }
+                          className="text-[9px] font-bold uppercase tracking-wider border border-black text-black px-2 py-1 hover:bg-black hover:text-white transition-colors font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {mutating === 'reset-gold' ? '...' : 'Reset Gold + 50%'}
+                        </button>
+                      </div>
+                    </div>
+
                     {Object.keys(surfaces).length === 0 && !surfacesLoading && (
                       <p className="text-[9px] text-gray-400 font-sans">
                         No data yet. Log in to evaluate surfaces.
@@ -480,34 +537,54 @@ export default function DemoPanel() {
                     {surfacesLoading && (
                       <p className="text-[9px] text-gray-400 font-sans">Loading...</p>
                     )}
-                    {Object.values(surfaces).map((s) => (
-                      <div
-                        key={s.surfaceId}
-                        className="bg-white border border-gray-100 p-2.5 text-[10px] font-sans space-y-1"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-mono text-[9px] text-gray-600 break-all">
-                            {s.surfaceId}
-                          </span>
-                          <span
-                            className={`shrink-0 px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold uppercase tracking-wider ${
-                              s.eligible
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-gray-100 text-gray-500'
-                            }`}
-                          >
-                            {s.eligible ? 'SHOWN' : 'HIDDEN'}
-                          </span>
+                    {Object.values(surfaces).map((s) => {
+                      const statePillClass: Record<string, string> = {
+                        SHOWN: 'bg-emerald-100 text-emerald-700',
+                        HIDDEN: 'bg-gray-100 text-gray-500',
+                        PENDING: 'bg-amber-100 text-amber-700',
+                        COMPLETED: 'bg-blue-100 text-blue-700',
+                      };
+                      const pillClass = statePillClass[s.state] ?? 'bg-gray-100 text-gray-500';
+                      return (
+                        <div
+                          key={s.surfaceId}
+                          className="bg-white border border-gray-100 p-2.5 text-[10px] font-sans space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono text-[9px] text-gray-600 break-all">
+                              {s.surfaceId}
+                            </span>
+                            <span
+                              className={`shrink-0 px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold uppercase tracking-wider ${pillClass}`}
+                            >
+                              {s.state}
+                            </span>
+                          </div>
+                          <p className="text-gray-500 text-[9px]">
+                            rule:{' '}
+                            <span className="font-mono text-gray-700">
+                              {s.ruleId ?? 'no rule matched'}
+                            </span>
+                          </p>
+                          <p className="text-gray-400 text-[9px] leading-snug">{s.reason}</p>
+                          {s.nextAction && (
+                            <button
+                              type="button"
+                              disabled={mutating !== null}
+                              onClick={() =>
+                                mutateAndRefetch(
+                                  `${s.surfaceId}-action`,
+                                  (s.nextAction?.delta ?? {}) as UserMutation
+                                )
+                              }
+                              className="w-full text-[9px] font-bold uppercase tracking-wider border border-[#775a19] text-[#775a19] py-1 hover:bg-[#ffdea5]/30 transition-colors font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {mutating === `${s.surfaceId}-action` ? '...' : s.nextAction.label}
+                            </button>
+                          )}
                         </div>
-                        <p className="text-gray-500 text-[9px]">
-                          rule:{' '}
-                          <span className="font-mono text-gray-700">
-                            {s.ruleId ?? 'no rule matched'}
-                          </span>
-                        </p>
-                        <p className="text-gray-400 text-[9px] leading-snug">{s.reason}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <button
                       type="button"
                       disabled={surfacesLoading}
