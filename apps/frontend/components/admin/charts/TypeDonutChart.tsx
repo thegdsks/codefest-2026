@@ -31,10 +31,25 @@ interface CenterLabelProps {
 function CenterLabel({ cx, cy, total }: CenterLabelProps) {
   return (
     <>
-      <text x={cx} y={cy - 6} textAnchor="middle" fill="#e4e4e7" fontSize={20} fontWeight={600}>
+      <text
+        x={cx}
+        y={cy - 6}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="#e4e4e7"
+        fontSize={20}
+        fontWeight={600}
+      >
         {total.toLocaleString()}
       </text>
-      <text x={cx} y={cy + 14} textAnchor="middle" fill="#71717a" fontSize={11}>
+      <text
+        x={cx}
+        y={cy + 14}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="#71717a"
+        fontSize={11}
+      >
         decisions
       </text>
     </>
@@ -87,9 +102,13 @@ export default function TypeDonutChart({ window: windowKey, height = 240 }: Prop
   }
 
   return (
-    <div role="img" aria-label="Donut chart showing distribution of decisions by type">
-      <ResponsiveContainer width="100%" height={height}>
-        <PieChart>
+    <div
+      role="img"
+      aria-label="Donut chart showing distribution of decisions by type"
+      className="h-72 px-4"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <Pie
             data={slices}
             cx="40%"
@@ -120,7 +139,8 @@ export default function TypeDonutChart({ window: windowKey, height = 240 }: Prop
             align="right"
             verticalAlign="middle"
             iconType="circle"
-            iconSize={8}
+            iconSize={10}
+            wrapperStyle={{ paddingLeft: 16 }}
             formatter={(value: string) => (
               <span style={{ color: '#a1a1aa', fontSize: 11 }}>{value}</span>
             )}
