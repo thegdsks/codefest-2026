@@ -4,6 +4,7 @@ import { Plus, Scroll } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
+import RuleExperienceViewer from '@/components/admin/RuleExperienceViewer';
 import RuleCard from '@/components/admin/rules/RuleCard';
 import Skeleton from '@/components/admin/Skeleton';
 import {
@@ -46,6 +47,7 @@ function RulesNotDeployed() {
 export default function RulesListPage() {
   const [tab, setTab] = useState<FilterTab>('ALL');
   const [result, setResult] = useState<ApiResult<RulesListResponse> | null>(null);
+  const [previewRule, setPreviewRule] = useState<EngagementRule | null>(null);
 
   const load = useCallback(async () => {
     const filter = tab === 'ALL' ? undefined : { status: tab as RuleStatus };
@@ -125,10 +127,16 @@ export default function RulesListPage() {
       ) : (
         <ul className="space-y-3">
           {rules.map((rule) => (
-            <RuleCard key={rule.ruleId} rule={rule} />
+            <RuleCard key={rule.ruleId} rule={rule} onPreview={setPreviewRule} />
           ))}
         </ul>
       )}
+
+      <RuleExperienceViewer
+        rule={previewRule}
+        open={previewRule !== null}
+        onClose={() => setPreviewRule(null)}
+      />
     </div>
   );
 }

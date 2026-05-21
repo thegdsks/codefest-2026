@@ -1,9 +1,10 @@
 'use client';
 
-import { FloppyDisk, Warning } from '@phosphor-icons/react';
+import { Eye, FloppyDisk, Warning } from '@phosphor-icons/react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
+import RuleExperienceViewer from '@/components/admin/RuleExperienceViewer';
 import RuleActionPanel from '@/components/admin/rules/RuleActionPanel';
 import RuleConditionsEditor from '@/components/admin/rules/RuleConditionsEditor';
 import RulePreviewPanel from '@/components/admin/rules/RulePreviewPanel';
@@ -21,6 +22,7 @@ const STATUS_OPTIONS = [
 
 function RuleEditorInner({ initial }: { initial: EngagementRule }) {
   const router = useRouter();
+  const [experienceOpen, setExperienceOpen] = useState(false);
   const form = useRuleForm({
     name: initial.name,
     status: initial.status,
@@ -84,6 +86,14 @@ function RuleEditorInner({ initial }: { initial: EngagementRule }) {
         </div>
         <button
           type="button"
+          onClick={() => setExperienceOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+        >
+          <Eye size={14} />
+          Preview experience
+        </button>
+        <button
+          type="button"
           onClick={handleSave}
           disabled={form.saving}
           className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
@@ -125,6 +135,12 @@ function RuleEditorInner({ initial }: { initial: EngagementRule }) {
           <RulePreviewPanel rule={previewRule} />
         </div>
       </div>
+
+      <RuleExperienceViewer
+        rule={previewRule}
+        open={experienceOpen}
+        onClose={() => setExperienceOpen(false)}
+      />
     </div>
   );
 }

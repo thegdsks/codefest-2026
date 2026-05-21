@@ -4,6 +4,7 @@ import type { Icon } from '@phosphor-icons/react';
 import {
   ChartLineUp,
   Gear,
+  House,
   MagnifyingGlass,
   ShieldCheck,
   SquaresFour,
@@ -224,7 +225,19 @@ export default function FloatingSidebar({
         ))}
       </nav>
 
-      <div className="px-2 pt-2 pb-2 border-t border-white/[0.04]">
+      <div className="px-2 pt-2 pb-2 border-t border-white/[0.04] space-y-1">
+        <Link
+          href="/"
+          className="group flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium leading-none tracking-[-0.005em] text-[color:var(--text-muted)] transition-all duration-200 ease-out hover:bg-[color:var(--hover)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/40"
+        >
+          <House
+            size={15}
+            weight="regular"
+            className="shrink-0 text-[color:var(--text-dim)] transition-colors duration-200 group-hover:text-[color:var(--text)]"
+            aria-hidden="true"
+          />
+          <span className="flex-1 truncate">Back to site</span>
+        </Link>
         <UserMenu
           health={health}
           onOpenCommandPalette={onOpenCommandPalette}
