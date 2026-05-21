@@ -1,5 +1,6 @@
 'use client';
 
+import { attachPointsBalanceStareDetector } from '@signal-force/engagement-sdk';
 import {
   ArrowRight,
   Award,
@@ -17,6 +18,7 @@ import { useEffect } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import DynamicOfferCard from '@/components/hotel/DynamicOfferCard';
 import { PARTNERS } from '@/lib/hotel/data';
+import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 function formatPhone(code?: string, number?: string) {
   if (!number || number.trim() === '') return '—';
@@ -33,10 +35,21 @@ const COMM_CHANNELS = ['Email', 'SMS/Text Message', 'Postal Mail'];
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, pastStays, isLoggedIn } = useCustomer();
+  const { trackEvent } = useTrackedEngagement();
 
   useEffect(() => {
     if (!isLoggedIn) router.replace('/login');
   }, [isLoggedIn, router]);
+
+  // Points balance stare: user lingers on the points balance element.
+  // The balance element carries data-stare-target="points" which the global
+  // detector in mountCapture also watches. This per-page instance injects
+  // userId into the signal via useTrackedEngagement.
+  useEffect(() => {
+    // Use a 5s threshold so the signal fires promptly during the demo.
+    const detach = attachPointsBalanceStareDetector((signal) => trackEvent(signal), 5_000);
+    return detach;
+  }, [trackEvent]);
 
   const coreFields = [
     user.country,

@@ -1,13 +1,15 @@
 'use client';
 
+import { attachAbandonedFlowStepDetector } from '@signal-force/engagement-sdk';
 import { Calculator, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { type FormEvent, useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { transferPoints } from '@/lib/hotel/customer-api';
 import { PARTNERS } from '@/lib/hotel/data';
 import { getForceHighRiskTransfer, setForceHighRiskTransfer } from '@/lib/hotel/demo-context';
+import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 function newClientRef() {
   return `LH-${Math.floor(100000 + Math.random() * 900000)}-X`;
@@ -15,8 +17,31 @@ function newClientRef() {
 
 export default function TransferScreen() {
   const router = useRouter();
+  const pathname = usePathname();
+  const { trackEvent } = useTrackedEngagement();
+  const routeListenersRef = useRef<Set<(path: string) => void>>(new Set());
   const { user, session, isLoggedIn, deductPoints, setTransferDetails } = useCustomer();
   const [partnerKey, setPartnerKey] = useState('aeroglobal');
+
+  // Notify abandoned-flow listeners when the pathname changes.
+  useEffect(() => {
+    for (const listener of routeListenersRef.current) {
+      listener(pathname);
+    }
+  }, [pathname]);
+
+  // Abandoned flow step: user fills in transfer form then leaves without submitting
+  useEffect(() => {
+    const detach = attachAbandonedFlowStepDetector((signal) => trackEvent(signal), {
+      onRouteChange: (callback) => {
+        routeListenersRef.current.add(callback);
+        return () => {
+          routeListenersRef.current.delete(callback);
+        };
+      },
+    });
+    return detach;
+  }, [trackEvent]);
   const [accountNumber, setAccountNumber] = useState('8832948210');
   const [pointsInput, setPointsInput] = useState('15000');
   const [triggerSecurityDemo, setTriggerSecurityDemo] = useState(false);

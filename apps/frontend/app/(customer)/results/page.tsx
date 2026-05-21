@@ -1,5 +1,6 @@
 'use client';
 
+import { attachDwellNoActionDetector, attachRageClickDetector } from '@signal-force/engagement-sdk';
 import {
   Award,
   Clock,
@@ -14,6 +15,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { type MouseEvent, Suspense, useEffect, useMemo, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { DESTINATIONS } from '@/lib/hotel/data';
+import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 const NEIGHBORHOODS = [
   'Luberon Valley',
@@ -33,7 +35,21 @@ function ResultsInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useCustomer();
+  const { trackEvent } = useTrackedEngagement();
   const searchQuery = searchParams.get('q') ?? 'Provence';
+
+  // Rage click: user frantically clicking results without booking
+  useEffect(() => {
+    const detach = attachRageClickDetector((signal) => trackEvent(signal));
+    return detach;
+  }, [trackEvent]);
+
+  // Dwell without action: user staring at results without clicking through
+  // Use a shorter threshold (15s) since results page is action-oriented
+  useEffect(() => {
+    const detach = attachDwellNoActionDetector((signal) => trackEvent(signal), 15_000);
+    return detach;
+  }, [trackEvent]);
 
   const [maxPrice, setMaxPrice] = useState(2500);
   const [likedProperties, setLikedProperties] = useState<Record<string, boolean>>({});
