@@ -1,18 +1,10 @@
 'use client';
 
-import {
-  ArrowClockwise,
-  CaretRight,
-  DownloadSimple,
-  MagnifyingGlass,
-  X,
-} from '@phosphor-icons/react';
-import Link from 'next/link';
+import { ArrowClockwise, DownloadSimple, MagnifyingGlass, X } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import ActionPill from '@/components/admin/ActionPill';
 import AuthGate from '@/components/admin/AuthGate';
-import EngineBadge from '@/components/admin/EngineBadge';
-import FilterChips, { type FeedFilter } from '@/components/admin/FilterChips';
+import DecisionDrawer from '@/components/admin/DecisionDrawer';
+import DecisionFeedRow from '@/components/admin/DecisionFeedRow';
 import { DECISION_TYPE_LABEL } from '@/components/admin/LiveActivityFeed';
 import LiveEngagementStream from '@/components/admin/LiveEngagementStream';
 import Skeleton from '@/components/admin/Skeleton';
@@ -25,19 +17,10 @@ import {
   type Window,
 } from '@/lib/admin-api';
 import type { ApiResult } from '@/lib/types';
+import { useDecisionGroups } from '@/lib/useDecisionGroups';
 
-const FILTER_FRAUD_TYPES: DecisionType[] = ['FRAUD_LOGIN', 'FRAUD_TRANSFER'];
-const FILTER_ENGAGEMENT_TYPES: DecisionType[] = ['ENGAGEMENT_OFFER', 'NUDGE'];
-
-const FRAUD_TYPES_SET = new Set<string>(FILTER_FRAUD_TYPES);
-const ENGAGEMENT_TYPES_SET = new Set<string>(FILTER_ENGAGEMENT_TYPES);
-
-function matchesFeedFilter(row: DecisionRow, f: FeedFilter): boolean {
-  if (f === 'all') return true;
-  if (f === 'fraud') return FRAUD_TYPES_SET.has(row.decisionType);
-  if (f === 'engagement') return ENGAGEMENT_TYPES_SET.has(row.decisionType);
-  return !FRAUD_TYPES_SET.has(row.decisionType) && !ENGAGEMENT_TYPES_SET.has(row.decisionType);
-}
+const FRAUD_TYPES_SET = new Set<string>(['FRAUD_LOGIN', 'FRAUD_TRANSFER']);
+const ENGAGEMENT_TYPES_SET = new Set<string>(['ENGAGEMENT_OFFER', 'NUDGE', 'ENGAGEMENT', 'OFFER']);
 
 const WINDOWS: Window[] = ['5m', '1h', '6h', '24h', '7d', '30d'];
 
@@ -64,39 +47,166 @@ const TYPE_OPTIONS: Array<{ value: '' | DecisionType; label: string }> = [
 
 const SKELETON_ROWS = ['r0', 'r1', 'r2', 'r3', 'r4', 'r5'];
 
-function formatTimeAgo(epochSec: number): string {
-  const diffMs = Date.now() - epochSec * 1000;
-  const s = Math.max(0, Math.round(diffMs / 1000));
-  if (s < 60) return `${s}s ago`;
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.round(h / 24);
-  return `${d}d ago`;
+const WINDOW_LABEL: Record<Window, string> = {
+  '5m': 'Last 5 min',
+  '1h': 'Last hour',
+  '6h': 'Last 6 h',
+  '24h': 'Last 24 h',
+  '7d': 'Last 7 d',
+  '30d': 'Last 30 d',
+};
+
+type QuickFilter = 'all' | 'fraud' | 'engagement' | 'blocked' | 'l2only';
+
+const QUICK_CHIPS: Array<{ value: QuickFilter; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'fraud', label: 'Logins / Transfers' },
+  { value: 'engagement', label: 'Engagement' },
+  { value: 'blocked', label: 'Blocked' },
+  { value: 'l2only', label: 'L2 only' },
+];
+
+function QuickFilterChips({
+  active,
+  onChange,
+}: {
+  active: QuickFilter;
+  onChange: (f: QuickFilter) => void;
+}) {
+  return (
+    <fieldset className="m-0 border-0 p-0">
+      <legend className="sr-only">Quick filter</legend>
+      <div className="flex flex-wrap items-center gap-2">
+        {QUICK_CHIPS.map((chip) => {
+          const isActive = chip.value === active;
+          return (
+            <button
+              key={chip.value}
+              type="button"
+              onClick={() => onChange(chip.value)}
+              aria-pressed={isActive}
+              className={
+                isActive
+                  ? 'inline-flex items-center rounded-full bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-[var(--accent-fg)] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]'
+                  : 'inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]'
+              }
+            >
+              {chip.label}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
 }
 
-function reasonOf(row: DecisionRow): string {
-  return row.reasonText || row.reasonCode || row.explanation || row.reason || '';
+function computeKpiStats(rows: DecisionRow[]) {
+  let total = 0;
+  let transfers = 0;
+  let logins = 0;
+  let engagement = 0;
+  let blocked = 0;
+  let l2 = 0;
+  for (const r of rows) {
+    total += 1;
+    if (r.decisionType === 'FRAUD_TRANSFER' || r.decisionType === 'TRANSFER') transfers += 1;
+    else if (r.decisionType === 'FRAUD_LOGIN' || r.decisionType === 'LOGIN') logins += 1;
+    else if (
+      r.decisionType === 'ENGAGEMENT_OFFER' ||
+      r.decisionType === 'NUDGE' ||
+      r.decisionType === 'ENGAGEMENT' ||
+      r.decisionType === 'OFFER'
+    )
+      engagement += 1;
+    if (r.action === 'BLOCK') blocked += 1;
+    if (r.engineLayer === 'L1+L2') l2 += 1;
+  }
+  return { total, transfers, logins, engagement, blocked, l2 };
+}
+
+function KpiStrip({
+  rows,
+  window: w,
+  loading,
+}: {
+  rows: DecisionRow[];
+  window: Window;
+  loading: boolean;
+}) {
+  const stats = useMemo(() => computeKpiStats(rows), [rows]);
+
+  if (loading) {
+    return (
+      <div className="mb-3 flex flex-wrap gap-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 px-4 py-2">
+        <Skeleton className="h-3 w-40" />
+      </div>
+    );
+  }
+
+  const windowLabel = WINDOW_LABEL[w];
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 px-4 py-2 text-[11px] text-[color:var(--text-dim)]">
+      <span className="font-medium text-[color:var(--text-muted)]">{windowLabel}:</span>
+      <span>
+        <span className="font-semibold text-[color:var(--text)]">{stats.total}</span> decisions
+      </span>
+      <span>
+        <span className="font-semibold text-rose-400">{stats.logins}</span> logins
+      </span>
+      <span>
+        <span className="font-semibold text-amber-400">{stats.transfers}</span> transfers
+      </span>
+      <span>
+        <span className="font-semibold text-violet-400">{stats.engagement}</span> engagement
+      </span>
+      {stats.blocked > 0 ? (
+        <span className="ml-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-400">
+          {stats.blocked} blocked
+        </span>
+      ) : null}
+      {stats.l2 > 0 ? (
+        <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+          {stats.l2} L2
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function applyQuickFilter(
+  rows: DecisionRow[],
+  quickFilter: QuickFilter,
+  search: string
+): DecisionRow[] {
+  return rows.filter((r) => {
+    if (search && !r.userId.toLowerCase().includes(search.toLowerCase())) return false;
+    if (quickFilter === 'blocked') return r.action === 'BLOCK';
+    if (quickFilter === 'l2only') return r.engineLayer === 'L1+L2';
+    if (quickFilter === 'fraud') return FRAUD_TYPES_SET.has(r.decisionType);
+    if (quickFilter === 'engagement') return ENGAGEMENT_TYPES_SET.has(r.decisionType);
+    return true;
+  });
 }
 
 export default function DecisionsListPage() {
   const [activeWindow, setActiveWindow] = useState<Window>('24h');
   const [typeFilter, setTypeFilter] = useState<'' | DecisionType>('');
-  const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
-  const [userIdInput, setUserIdInput] = useState('');
-  const [userIdApplied, setUserIdApplied] = useState('');
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
+  const [userIdSearch, setUserIdSearch] = useState('');
   const [result, setResult] = useState<ApiResult<DecisionsListResponse> | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null);
+  const [drawerDecisionId, setDrawerDecisionId] = useState<string | null>(null);
 
   const query = useMemo(
     () => ({
       window: activeWindow,
       type: typeFilter || undefined,
-      userId: userIdApplied || undefined,
       limit: 100,
     }),
-    [activeWindow, typeFilter, userIdApplied]
+    [activeWindow, typeFilter]
   );
 
   const load = useCallback(async () => {
@@ -134,15 +244,29 @@ export default function DecisionsListPage() {
     };
   }, [query, activeWindow]);
 
-  const data = result?.data ?? null;
+  const allRows = result?.data?.decisions ?? [];
+
+  const filteredRows = useMemo(
+    () => applyQuickFilter(allRows, quickFilter, userIdSearch),
+    [allRows, quickFilter, userIdSearch]
+  );
+
+  const groups = useDecisionGroups(filteredRows);
+
+  const handleToggleExpand = useCallback((id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  }, []);
+
+  const handleToggleGroup = useCallback((key: string) => {
+    setExpandedGroupKey((prev) => (prev === key ? null : key));
+  }, []);
+
   const err = result?.error ?? null;
   const loading = result === null;
 
-  if (err && !data) {
+  if (err && !result?.data) {
     return <AuthGate error={err} onRetry={load} />;
   }
-
-  const rows = (data?.decisions ?? []).filter((r) => matchesFeedFilter(r, feedFilter));
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -150,11 +274,11 @@ export default function DecisionsListPage() {
         <LiveEngagementStream />
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-[color:var(--text)]">Decision feed</h1>
           <p className="mt-1 text-sm text-[color:var(--text-dim)]">
-            Newest first. Filter, click a row for the audit trail.
+            Newest first. Expand a row inline or click through for the full audit trail.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -180,8 +304,10 @@ export default function DecisionsListPage() {
         </div>
       </div>
 
+      <KpiStrip rows={filteredRows} window={activeWindow} loading={loading} />
+
       <div className="mb-3">
-        <FilterChips active={feedFilter} onChange={setFeedFilter} />
+        <QuickFilterChips active={quickFilter} onChange={setQuickFilter} />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40 p-3">
@@ -218,138 +344,86 @@ export default function DecisionsListPage() {
           ))}
         </select>
 
-        <form
-          className="flex items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setUserIdApplied(userIdInput.trim());
-          }}
-        >
-          <label className="sr-only" htmlFor="user-id-filter">
-            User ID
+        <div className="flex items-center rounded-md border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-2">
+          <MagnifyingGlass size={12} className="text-[color:var(--text-dim)]" />
+          <label className="sr-only" htmlFor="user-id-search">
+            Filter by userId
           </label>
-          <div className="flex items-center rounded-md border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-2">
-            <MagnifyingGlass size={12} className="text-[color:var(--text-dim)]" />
-            <input
-              id="user-id-filter"
-              type="text"
-              value={userIdInput}
-              onChange={(e) => setUserIdInput(e.target.value)}
-              placeholder="userId e.g. USER#001"
-              className="bg-transparent px-2 py-1.5 text-xs text-[color:var(--text)] outline-none placeholder:text-[color:var(--text-dim)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-            />
-            {userIdApplied ? (
-              <button
-                type="button"
-                aria-label="Clear user filter"
-                onClick={() => {
-                  setUserIdInput('');
-                  setUserIdApplied('');
-                }}
-                className="text-[color:var(--text-dim)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-              >
-                <X size={12} />
-              </button>
-            ) : null}
-          </div>
-          <button
-            type="submit"
-            className="rounded-md border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-3 py-1.5 text-xs text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-          >
-            Apply
-          </button>
-        </form>
+          <input
+            id="user-id-search"
+            type="text"
+            value={userIdSearch}
+            onChange={(e) => setUserIdSearch(e.target.value)}
+            placeholder="Filter by userId"
+            className="bg-transparent px-2 py-1.5 text-xs text-[color:var(--text)] outline-none placeholder:text-[color:var(--text-dim)] focus-visible:outline-none"
+          />
+          {userIdSearch ? (
+            <button
+              type="button"
+              aria-label="Clear user filter"
+              onClick={() => setUserIdSearch('')}
+              className="text-[color:var(--text-dim)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+            >
+              <X size={12} />
+            </button>
+          ) : null}
+        </div>
 
         <div
           aria-live="polite"
           aria-atomic="true"
           className="ml-auto text-xs text-[color:var(--text-dim)]"
         >
-          {loading ? 'Loading' : `${rows.length} rows`}
+          {loading ? 'Loading' : `${filteredRows.length} rows`}
         </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40">
-        <div className="grid grid-cols-12 gap-3 border-b border-[color:var(--border)] px-4 py-2 text-[10px] font-medium uppercase tracking-wider text-[color:var(--text-dim)]">
-          <div className="col-span-3">When</div>
-          <div className="col-span-2">User</div>
-          <div className="col-span-2">Type</div>
-          <div className="col-span-1">Action</div>
-          <div className="col-span-1 text-right">Score</div>
-          <div className="col-span-2">Engine</div>
-          <div className="col-span-1 text-right">More</div>
+        <div className="flex items-center gap-3 border-b border-[color:var(--border)] py-2 pl-10 pr-8 text-[10px] font-medium uppercase tracking-wider text-[color:var(--text-dim)]">
+          <div className="w-24 shrink-0">When</div>
+          <div className="w-24 shrink-0">User</div>
+          <div className="min-w-0 flex-1">Detail</div>
+          <div className="shrink-0">Action</div>
+          <div className="w-12 shrink-0 text-right">Score</div>
+          <div className="hidden w-16 shrink-0 md:block">Engine</div>
+          <div className="w-8 shrink-0" />
         </div>
+
         {loading ? (
           <div className="divide-y divide-[color:var(--border)]">
             {SKELETON_ROWS.map((k) => (
-              <div key={k} className="grid grid-cols-12 gap-3 px-4 py-3">
-                <Skeleton className="col-span-3 h-4" />
-                <Skeleton className="col-span-2 h-4" />
-                <Skeleton className="col-span-2 h-4" />
-                <Skeleton className="col-span-1 h-4" />
-                <Skeleton className="col-span-1 h-4" />
-                <Skeleton className="col-span-2 h-4" />
-                <Skeleton className="col-span-1 h-4" />
+              <div key={k} className="flex items-center gap-3 px-4 py-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-10" />
               </div>
             ))}
           </div>
-        ) : rows.length === 0 ? (
+        ) : groups.length === 0 ? (
           <div className="px-4 py-10 text-center text-sm text-[color:var(--text-dim)]">
             No decisions match these filters.
           </div>
         ) : (
           <ul className="divide-y divide-[color:var(--border)]">
-            {rows.map((row) => {
-              const href = `/admin/decisions/${encodeURIComponent(row.decisionId)}`;
-              return (
-                <li key={row.decisionId}>
-                  <Link
-                    href={href}
-                    className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[color:var(--bg-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-                  >
-                    <div className="col-span-3">
-                      <div className="text-[color:var(--text)]">{formatTimeAgo(row.timestamp)}</div>
-                      <div className="text-[11px] text-[color:var(--text-dim)] tabular-nums">
-                        {new Date(row.timestamp * 1000).toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="col-span-2 truncate font-mono text-xs text-[color:var(--text-muted)]">
-                      {row.userId}
-                    </div>
-                    <div className="col-span-2 truncate text-xs text-[color:var(--text-muted)]">
-                      {DECISION_TYPE_LABEL[row.decisionType] ?? row.decisionType}
-                    </div>
-                    <div className="col-span-1">
-                      <ActionPill action={row.action} />
-                    </div>
-                    <div className="col-span-1 text-right tabular-nums text-[color:var(--text)]">
-                      {Math.round(row.score)}
-                    </div>
-                    <div className="col-span-2">
-                      <EngineBadge
-                        layer={row.engineLayer}
-                        llmLatencyMs={row.llmLatencyMs}
-                        compact
-                      />
-                      {row.engineLayer === 'L1+L2' && typeof row.llmLatencyMs === 'number' ? (
-                        <div className="mt-0.5 text-[11px] text-[color:var(--text-dim)] tabular-nums">
-                          {row.llmLatencyMs} ms
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="col-span-1 flex items-center justify-end gap-1 text-[color:var(--text-dim)]">
-                      <span className="truncate text-[11px]" title={reasonOf(row)}>
-                        {reasonOf(row).slice(0, 18)}
-                      </span>
-                      <CaretRight size={14} />
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
+            {groups.map((group) => (
+              <li key={group.key}>
+                <DecisionFeedRow
+                  group={group}
+                  expandedId={expandedId}
+                  expandedGroupKey={expandedGroupKey}
+                  onToggleExpand={handleToggleExpand}
+                  onToggleGroup={handleToggleGroup}
+                  onOpenDrawer={(id) => setDrawerDecisionId(id)}
+                />
+              </li>
+            ))}
           </ul>
         )}
       </div>
+
+      <DecisionDrawer decisionId={drawerDecisionId} onClose={() => setDrawerDecisionId(null)} />
     </div>
   );
 }

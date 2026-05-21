@@ -492,7 +492,9 @@ export function setAdminBearerToken(token: string | null): void {
   }
 }
 
-// Activity feed types
+// ---------------------------------------------------------------------------
+// Activity feed types (unified live admin feed)
+// ---------------------------------------------------------------------------
 
 export interface DecisionActivityEvent {
   kind: 'DECISION';
@@ -527,6 +529,10 @@ export interface ActivityFeedResponse {
   events: ActivityEvent[];
   nextCursor: number;
 }
+
+// ---------------------------------------------------------------------------
+// Demo event types (used by DemoPanel)
+// ---------------------------------------------------------------------------
 
 export type DemoEventType =
   | 'USER_SWITCH'
