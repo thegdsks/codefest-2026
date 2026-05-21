@@ -316,8 +316,8 @@ export default function AdminDashboardPage() {
           ) : null}
         </div>
 
-        {/* Right rail: live feed (xl breakpoint and up) */}
-        <div className="hidden w-80 shrink-0 xl:block">
+        {/* Right rail: live feed (2xl breakpoint and up so we don't cramp at 1280) */}
+        <div className="hidden w-80 shrink-0 2xl:block">
           <div className="sticky top-4 h-[calc(100vh-8rem)]">
             <LiveActivityFeed />
           </div>
