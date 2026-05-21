@@ -1,13 +1,17 @@
 'use client';
 
 import {
+  ArrowDown,
+  ArrowUp,
   Bug,
   ChevronDown,
   ChevronUp,
+  EyeOff,
   LogOut,
   MapPin,
   Radio,
   RefreshCw,
+  Shuffle,
   Smartphone,
   User,
   X,
@@ -15,6 +19,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
+import { type DemoEventPayload, type DemoEventType, writeDemoEvent } from '@/lib/admin-api';
 import {
   type EngagementEventResponse,
   fireEngagementSignal,
@@ -29,6 +34,12 @@ import {
   setForceHighRiskTransfer,
 } from '@/lib/hotel/demo-context';
 import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
+
+function publishDemoEvent(type: DemoEventType, payload?: DemoEventPayload): void {
+  writeDemoEvent({ type, payload }).catch(() => {
+    // fire-and-forget: demo panel events are best-effort
+  });
+}
 
 const LOCATIONS = ['New York', 'Lagos', 'Tokyo', 'Sydney', 'Berlin', 'Moscow'];
 const DEVICE_TYPES = ['desktop', 'mobile', 'tablet', 'unknown'];
@@ -90,6 +101,7 @@ export default function DemoPanel() {
         return;
       }
       setSignalStatus({ loading: false, result: res.data, error: null });
+      publishDemoEvent('SIGNAL_TRIGGER', { signal });
     } catch (e) {
       setSignalStatus({
         loading: false,
@@ -131,6 +143,7 @@ export default function DemoPanel() {
 
   function applyContext() {
     setDemoLoginContext({ location, deviceId, deviceType });
+    publishDemoEvent('LOCATION_OVERRIDE', { location, deviceId });
   }
 
   async function switchUser(username: string) {
@@ -160,6 +173,7 @@ export default function DemoPanel() {
         return;
       }
       setSwitching(null);
+      publishDemoEvent('USER_SWITCH', { to: username });
       router.push('/profile');
     } catch (e) {
       setSwitchError(e instanceof Error ? e.message : 'Unexpected error.');
@@ -171,6 +185,7 @@ export default function DemoPanel() {
     setForceHighRiskTransfer(true);
     setForcedHighRisk(true);
     setTimeout(() => setForcedHighRisk(false), 3000);
+    publishDemoEvent('FORCE_HIGH_RISK', { enabled: true });
   }
 
   function handleResetAll() {
@@ -588,7 +603,10 @@ export default function DemoPanel() {
                     <button
                       type="button"
                       disabled={surfacesLoading}
-                      onClick={refetchSurfaces}
+                      onClick={() => {
+                        publishDemoEvent('SURFACE_REEVALUATE');
+                        refetchSurfaces();
+                      }}
                       className="w-full text-[10px] font-bold uppercase tracking-widest border border-[#775a19] text-[#775a19] py-1.5 hover:bg-[#ffdea5]/30 transition-colors font-sans disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {surfacesLoading ? 'Evaluating...' : 'Re-evaluate'}

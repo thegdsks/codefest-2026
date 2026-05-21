@@ -33,6 +33,12 @@ export type DecisionAction =
   | 'HOLD'
   | 'RELEASE';
 
+export interface AiExplanation {
+  paragraph: string;
+  riskFactors: string[];
+  recommendation: string;
+}
+
 export interface DecisionRow {
   decisionId: string;
   userId: string;
@@ -53,6 +59,7 @@ export interface DecisionRow {
   modelVersion?: string;
   originalDecisionId?: string;
   correlationId?: string;
+  aiExplanation?: AiExplanation;
 }
 
 export interface DecisionsListResponse {
@@ -483,4 +490,86 @@ export function setAdminBearerToken(token: string | null): void {
   } else {
     localStorage.setItem(BEARER_TOKEN_KEY, token);
   }
+}
+
+// Activity feed types
+
+export interface DecisionActivityEvent {
+  kind: 'DECISION';
+  timestamp: number;
+  userId: string;
+  summary: string;
+  decisionId: string;
+  engineLayer: string;
+  raw: DecisionRow;
+}
+
+export interface SessionActivityEvent {
+  kind: 'SESSION';
+  timestamp: number;
+  userId: string;
+  summary: string;
+  sessionId: string;
+  raw: SessionRow;
+}
+
+export interface DemoActivityEvent {
+  kind: 'DEMO_EVENT';
+  timestamp: number;
+  actor: string;
+  summary: string;
+  payload: Record<string, unknown>;
+}
+
+export type ActivityEvent = DecisionActivityEvent | SessionActivityEvent | DemoActivityEvent;
+
+export interface ActivityFeedResponse {
+  events: ActivityEvent[];
+  nextCursor: number;
+}
+
+export type DemoEventType =
+  | 'USER_SWITCH'
+  | 'LOCATION_OVERRIDE'
+  | 'FORCE_HIGH_RISK'
+  | 'SIGNAL_TRIGGER'
+  | 'MFA_FORCED'
+  | 'SURFACE_REEVALUATE';
+
+export interface DemoEventPayload {
+  from?: string;
+  to?: string;
+  location?: string;
+  deviceId?: string;
+  enabled?: boolean;
+  signal?: string;
+  target?: string;
+}
+
+export interface WriteDemoEventRequest {
+  type: DemoEventType;
+  actor?: string;
+  payload?: DemoEventPayload;
+  timestamp?: number;
+}
+
+export interface WriteDemoEventResponse {
+  activityId: string;
+  type: DemoEventType;
+  actor: string;
+  timestamp: number;
+}
+
+export function getActivityFeed(since?: number): Promise<ApiResult<ActivityFeedResponse>> {
+  const qs = since ? `?since=${since}` : '';
+  return adminFetch<ActivityFeedResponse>(`/admin/activity-feed${qs}`);
+}
+
+export function writeDemoEvent(
+  req: WriteDemoEventRequest
+): Promise<ApiResult<WriteDemoEventResponse>> {
+  return adminFetch<WriteDemoEventResponse>('/admin/demo-events', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  });
 }

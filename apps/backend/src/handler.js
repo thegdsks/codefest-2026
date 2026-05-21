@@ -74,12 +74,8 @@ function isBearerRoute(method, path) {
 }
 
 async function route(event, correlationId) {
-  const method =
-    (event.requestContext && event.requestContext.http && event.requestContext.http.method) ||
-    event.httpMethod;
-  const path =
-    (event.requestContext && event.requestContext.http && event.requestContext.http.path) ||
-    event.path;
+  const method = event.requestContext?.http?.method || event.httpMethod;
+  const path = event.requestContext?.http?.path || event.path;
 
   // normalize: strip stage prefix for REST API (if any)
   const p = path || '/';
@@ -128,6 +124,12 @@ async function route(event, correlationId) {
   if (method === 'GET' && p === '/admin/ai-config') return admin.getAiConfig(event, correlationId);
   if (method === 'POST' && p === '/admin/demo-actions/mutate-user')
     return admin.mutateDemoUser(event, correlationId);
+  if (method === 'POST' && p === '/admin/demo-events')
+    return admin.writeDemoEvent(event, correlationId);
+  if (method === 'GET' && p === '/admin/demo-events')
+    return admin.listDemoEvents(event, correlationId);
+  if (method === 'GET' && p === '/admin/activity-feed')
+    return admin.getActivityFeed(event, correlationId);
 
   // Engagement routes
   if (method === 'POST' && p === '/engagement/event') return trackEvent(event, correlationId);
@@ -151,13 +153,8 @@ exports.main = async (event) => {
   const correlationId = getHeader(event.headers, 'x-correlation-id') || '';
 
   try {
-    const method =
-      (event.requestContext && event.requestContext.http && event.requestContext.http.method) ||
-      event.httpMethod;
-    const rawP =
-      (event.requestContext && event.requestContext.http && event.requestContext.http.path) ||
-      event.path ||
-      '/';
+    const method = event.requestContext?.http?.method || event.httpMethod;
+    const rawP = event.requestContext?.http?.path || event.path || '/';
 
     // CORS preflight: browsers send OPTIONS without credentials, so the auth
     // gate below would 401 the preflight and break every browser request.
@@ -188,7 +185,7 @@ exports.main = async (event) => {
 
     return await route(event, correlationId);
   } catch (e) {
-    if (e && e.status) return err(e.status, correlationId, e.code || 'ERROR', e.message || 'Error');
+    if (e?.status) return err(e.status, correlationId, e.code || 'ERROR', e.message || 'Error');
     console.error(e);
     return err(500, correlationId, 'INTERNAL_ERROR', 'Unexpected server error');
   }
