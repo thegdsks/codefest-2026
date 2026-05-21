@@ -268,7 +268,6 @@ export default function EditProfileScreen() {
               type="tel"
               value={mobilePhone}
               onChange={setMobilePhone}
-              required
             />
           </div>
 
