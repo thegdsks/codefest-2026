@@ -7,6 +7,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { transferPoints } from '@/lib/hotel/customer-api';
 import { PARTNERS } from '@/lib/hotel/data';
+import { getForceHighRiskTransfer, setForceHighRiskTransfer } from '@/lib/hotel/demo-context';
 
 function newClientRef() {
   return `LH-${Math.floor(100000 + Math.random() * 900000)}-X`;
@@ -55,7 +56,9 @@ export default function TransferScreen() {
     });
 
     // Client-side simulation: force the step-up review screen without a real call.
-    if (triggerSecurityDemo) {
+    const shouldForceReview = triggerSecurityDemo || getForceHighRiskTransfer();
+    setForceHighRiskTransfer(false);
+    if (shouldForceReview) {
       setTransferDetails({
         id: newClientRef(),
         partner: partnerName,

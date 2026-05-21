@@ -71,7 +71,7 @@ export interface AuditTrailStep {
   label?: string;
 }
 
-export interface MatchedCondition {
+export interface TraceCondition {
   field: string;
   operator: string;
   value: unknown;
@@ -82,8 +82,8 @@ export interface DecisionTrace {
   ruleId: string | null;
   ruleName: string | null;
   engineLayer: 'L1' | 'L1+L2';
-  latencyMs: number;
-  matched: MatchedCondition[];
+  latencyMs: number | null;
+  matched: TraceCondition[];
   llmRationale: string | null;
 }
 
@@ -147,7 +147,6 @@ export interface HealthResponse {
 export interface SessionRow {
   sessionId: string;
   userId: string;
-  recordType?: string;
   type?: 'CHALLENGE' | 'ACCESS';
   issuedAt?: number;
   createdAt?: number;
@@ -161,11 +160,39 @@ export interface SessionRow {
   deviceId?: string;
   active?: boolean;
   revokedAt?: number;
+  recordType?: string;
 }
 
 export interface SessionsListResponse {
   sessions: SessionRow[];
   count?: number;
+}
+
+export interface RiskRecentDecision {
+  decisionId: string;
+  decisionType: string;
+  action: string;
+  score: number;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  timestamp: number;
+}
+
+export interface UserRiskResponse {
+  userId: string;
+  riskScore: number;
+  storedRiskScore?: number;
+  isBlocked?: boolean;
+  riskUpdatedAt?: number;
+  asOf?: number;
+  recentDecisions?: RiskRecentDecision[];
+}
+
+export interface MfaStatusResponse {
+  total: number;
+  enrolled: number;
+  pending: number;
+  notEnrolled: number;
+  enrolledPercent: number;
 }
 
 export interface RiskRecentDecision {
@@ -393,18 +420,18 @@ export function getSessions(): Promise<ApiResult<SessionsListResponse>> {
   return adminFetch<SessionsListResponse>('/admin/sessions');
 }
 
-export function revokeSession(sessionId: string): Promise<ApiResult<{ revoked: true }>> {
-  return adminFetch<{ revoked: true }>(`/admin/sessions/${encodeURIComponent(sessionId)}/revoke`, {
-    method: 'POST',
-  });
-}
-
 export function getUserRisk(userId: string): Promise<ApiResult<UserRiskResponse>> {
   return adminFetch<UserRiskResponse>(`/admin/users/${encodeURIComponent(userId)}/risk`);
 }
 
 export function getMfaStatus(): Promise<ApiResult<MfaStatusResponse>> {
   return adminFetch<MfaStatusResponse>('/admin/mfa-status');
+}
+
+export function revokeSession(sessionId: string): Promise<ApiResult<{ revoked: true }>> {
+  return adminFetch<{ revoked: true }>(`/admin/sessions/${encodeURIComponent(sessionId)}/revoke`, {
+    method: 'POST',
+  });
 }
 
 export const adminApiConfig = {

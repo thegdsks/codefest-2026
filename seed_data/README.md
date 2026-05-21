@@ -28,3 +28,4 @@ aws dynamodb batch-write-item --request-items file://UserState_batch_2.json
 ## Notes
 - All users use passwordHash = "Password1" (hackathon seed).
 - UserActivity includes `ttl` (epoch seconds) set to 7 days after activityTime.
+- DecisionStore records include `engineLayer`, `ruleId`, `ruleName`, `latencyMs`, `matched`, and `llmRationale` trace fields required by the PR-90 decision drawer.

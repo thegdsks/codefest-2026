@@ -13,6 +13,21 @@ export type { FeedFilter } from './FilterChips';
 const FRAUD_TYPES = new Set(['FRAUD_LOGIN', 'FRAUD_TRANSFER']);
 const ENGAGEMENT_TYPES = new Set(['ENGAGEMENT_OFFER', 'ENGAGEMENT', 'NUDGE', 'OFFER']);
 
+export const DECISION_TYPE_LABEL: Record<string, string> = {
+  FRAUD_LOGIN: 'Login check',
+  FRAUD_TRANSFER: 'Transfer check',
+  MFA_EVENT: 'MFA outcome',
+  MFA_VERIFY: 'MFA verification',
+  ENGAGEMENT: 'Engagement signal',
+  ENGAGEMENT_OFFER: 'Offer surface',
+  NUDGE: 'Nudge',
+  PROFILE_COMPLETENESS: 'Profile check',
+  LOGIN: 'Login',
+  TRANSFER: 'Transfer',
+  OFFER: 'Offer',
+  DECISION_RELEASE: 'Manual release',
+};
+
 function matchesFilter(row: DecisionRow, filter: FeedFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'fraud') return FRAUD_TYPES.has(row.decisionType);
@@ -145,7 +160,7 @@ export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedPro
                           <span
                             className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${typeTone(row.decisionType)}`}
                           >
-                            {row.decisionType}
+                            {DECISION_TYPE_LABEL[row.decisionType] ?? row.decisionType}
                           </span>
                           <ActionPill action={row.action} />
                           <span className="flex-1" />

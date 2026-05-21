@@ -125,10 +125,23 @@ function buildNudgePrompt(ctx) {
  */
 async function route(l1Draft, ctx, deps) {
   const llm = deps && deps.llm ? deps.llm : defaultLlm;
+  const routeStart = Date.now();
+
+  // Build the base trace fields carried from the L1 draft.
+  // ruleId and ruleName derive from the draft's reasonCode so the drawer
+  // can show a human label even for the hardcoded rules modules.
+  const l1Trace = {
+    ruleId: l1Draft.reasonCode || null,
+    ruleName: l1Draft.reasonCode || null,
+  };
 
   // --- Tier 1 and 2: clear cases, no LLM ---
   if (isClear(l1Draft)) {
-    return finalise(l1Draft, { engineLayer: 'L1' });
+    return finalise(l1Draft, {
+      engineLayer: 'L1',
+      latencyMs: Date.now() - routeStart,
+      ...l1Trace,
+    });
   }
 
   // --- Tier 3: nudge - generate personalized text ---
@@ -140,6 +153,8 @@ async function route(l1Draft, ctx, deps) {
         engineLayer: 'L1',
         generatedText: NUDGE_DEFAULT_TEXT,
         breakerOpen: true,
+        latencyMs: Date.now() - routeStart,
+        ...l1Trace,
       });
     }
     const prompt = buildNudgePrompt(ctx);
@@ -160,12 +175,17 @@ async function route(l1Draft, ctx, deps) {
         generatedText: result.text,
         llmLatencyMs: result.latencyMs,
         llmModel: result.model,
+        llmRationale: result.text || null,
+        latencyMs: Date.now() - routeStart,
+        ...l1Trace,
       });
     }
     // Fall back: templated default, keep L1 attribution
     return finalise(l1Draft, {
       engineLayer: 'L1',
       generatedText: NUDGE_DEFAULT_TEXT,
+      latencyMs: Date.now() - routeStart,
+      ...l1Trace,
     });
   }
 
@@ -173,7 +193,12 @@ async function route(l1Draft, ctx, deps) {
   const reservation = budget.tryReserve();
   if (!reservation.ok) {
     // Budget exceeded: fall back to L1 verbatim with breaker flag
-    return finalise(l1Draft, { engineLayer: 'L1', breakerOpen: true });
+    return finalise(l1Draft, {
+      engineLayer: 'L1',
+      breakerOpen: true,
+      latencyMs: Date.now() - routeStart,
+      ...l1Trace,
+    });
   }
 
   const prompt = buildClassifyPrompt(l1Draft, ctx);
@@ -191,7 +216,11 @@ async function route(l1Draft, ctx, deps) {
 
   if (!result) {
     // LLM unavailable or timed out: fall back to L1 verbatim
-    return finalise(l1Draft, { engineLayer: 'L1' });
+    return finalise(l1Draft, {
+      engineLayer: 'L1',
+      latencyMs: Date.now() - routeStart,
+      ...l1Trace,
+    });
   }
 
   // Fold L2 verdict in
@@ -205,11 +234,18 @@ async function route(l1Draft, ctx, deps) {
   }
   // Otherwise keep the L1 action
 
+  // Capture the LLM rationale only when it's a real classify result
+  // (not the rule-only sentinel which has no rationale field).
+  const llmRationale = result && typeof result.rationale === 'string' ? result.rationale : null;
+
   return finalise(l1Draft, {
     action: finalAction,
     engineLayer: 'L1+L2',
     llmLatencyMs: result.latencyMs,
     llmModel: result.model,
+    llmRationale,
+    latencyMs: Date.now() - routeStart,
+    ...l1Trace,
   });
 }
 

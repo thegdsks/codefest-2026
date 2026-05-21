@@ -79,10 +79,12 @@ async function fetchDecisionsByUser(cutoff, userId, typeFilter) {
   const result = await getDdb().send(
     new QueryCommand({
       TableName: CFG.tDecision,
+      IndexName: 'userId-timestamp-index',
       KeyConditionExpression: 'userId = :uid',
       FilterExpression: filterParts.join(' AND '),
       ExpressionAttributeNames: exprNames,
       ExpressionAttributeValues: exprValues,
+      ScanIndexForward: false,
     })
   );
   return result.Items || [];
@@ -244,6 +246,57 @@ function buildAuditTrail(row) {
 }
 
 // ---------------------------------------------------------------------------
+// Trace helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the trace sub-object from a decision row.
+ *
+ * Returns null when no trace data is present (older decisions written before
+ * the engine started capturing ruleId/matched/llmRationale).
+ *
+ * The `latencyMs` field on the row represents total router latency, not just
+ * the LLM call. For L1-only decisions llmLatencyMs may be absent.
+ *
+ * @param {object} row
+ * @returns {object|null}
+ */
+function buildTrace(row) {
+  // Require at least engineLayer to be present for a meaningful trace.
+  // Very old seed rows won't have it; we return null so the UI shows the
+  // "No trace recorded" placeholder.
+  if (!row.engineLayer) return null;
+
+  // matched: array of condition objects. Prefer the explicit `matched` field
+  // captured by the engine. Fall back to a synthetic single-entry array
+  // derived from the L1 reasonCode so every live decision shows something.
+  let matched = null;
+  if (Array.isArray(row.matched) && row.matched.length > 0) {
+    matched = row.matched;
+  } else if (row.reasonCode) {
+    matched = [
+      {
+        field: 'reasonCode',
+        operator: 'equals',
+        value: row.reasonCode,
+        satisfied: true,
+      },
+    ];
+  } else {
+    matched = [];
+  }
+
+  return {
+    ruleId: row.ruleId || null,
+    ruleName: row.ruleName || row.reasonCode || null,
+    engineLayer: row.engineLayer,
+    latencyMs: typeof row.latencyMs === 'number' ? row.latencyMs : null,
+    matched,
+    llmRationale: typeof row.llmRationale === 'string' ? row.llmRationale : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Route handlers
 // ---------------------------------------------------------------------------
 
@@ -347,7 +400,9 @@ async function getDecision(event, correlationId) {
     return err(404, correlationId, 'NOT_FOUND', `Decision not found: ${decisionId}`);
   }
 
-  return json(200, correlationId, { data: { decision: row, auditTrail: buildAuditTrail(row) } });
+  return json(200, correlationId, {
+    data: { decision: row, auditTrail: buildAuditTrail(row), trace: buildTrace(row) },
+  });
 }
 
 /**
