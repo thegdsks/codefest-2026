@@ -369,6 +369,75 @@ describe('getMetrics', () => {
       process.env.LLM_DAILY_BUDGET_USD = original;
     }
   });
+
+  test('budget reflects custom LLM_DAILY_BUDGET_USD env var', async () => {
+    const original = process.env.LLM_DAILY_BUDGET_USD;
+    process.env.LLM_DAILY_BUDGET_USD = '100';
+
+    const ts = nowSec();
+    // 1 L1+L2 call * 0.0006 = 0.0006 USD used of 100 USD cap
+    const items = [makeDecision({ engineLayer: 'L1+L2', timestamp: ts })];
+
+    const key = require.resolve('./admin');
+    delete require.cache[key];
+    admin = require('./admin');
+    admin._setDdb(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.getMetrics(event, 'cid-budget-4');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    const { budget, costEstimateUsd } = body.data;
+
+    // llmDailyUsd must reflect the env var
+    assert.equal(budget.llmDailyUsd, 100);
+    // usedUsd matches the existing costEstimateUsd field
+    assert.ok(Math.abs(budget.usedUsd - costEstimateUsd) < 0.000001);
+    // remainingUsd = 100 - 0.0006
+    assert.ok(Math.abs(budget.remainingUsd - (100 - 0.0006)) < 0.00001);
+    // percentUsed = (0.0006 / 100) * 100 = 0.0006 %
+    assert.ok(budget.percentUsed >= 0 && budget.percentUsed < 1);
+
+    if (original === undefined) {
+      delete process.env.LLM_DAILY_BUDGET_USD;
+    } else {
+      process.env.LLM_DAILY_BUDGET_USD = original;
+    }
+  });
+
+  test('budget percentUsed is 0 when llmDailyUsd is 0', async () => {
+    const original = process.env.LLM_DAILY_BUDGET_USD;
+    process.env.LLM_DAILY_BUDGET_USD = '0';
+
+    const ts = nowSec();
+    const items = [makeDecision({ engineLayer: 'L1+L2', timestamp: ts })];
+
+    const key = require.resolve('./admin');
+    delete require.cache[key];
+    admin = require('./admin');
+    admin._setDdb(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.getMetrics(event, 'cid-budget-5');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    const { budget } = body.data;
+
+    assert.equal(budget.percentUsed, 0, 'percentUsed must be 0 when llmDailyUsd is 0');
+    assert.equal(budget.remainingUsd, 0, 'remainingUsd must be 0 when llmDailyUsd is 0');
+
+    if (original === undefined) {
+      delete process.env.LLM_DAILY_BUDGET_USD;
+    } else {
+      process.env.LLM_DAILY_BUDGET_USD = original;
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
