@@ -1,17 +1,17 @@
 'use client';
 
-import { Command, Search } from 'lucide-react';
+import { Command, List, MagnifyingGlass } from '@phosphor-icons/react';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMetrics } from '@/lib/admin-api';
 
 const PAGE_TITLES: Record<string, string> = {
-  '/admin': 'Dashboard',
-  '/admin/decisions': 'Decisions',
+  '/admin': 'Overview',
+  '/admin/decisions': 'Decision feed',
   '/admin/users': 'Users',
-  '/admin/sessions': 'Sessions',
+  '/admin/sessions': 'Auth sessions',
   '/admin/rules': 'Rules',
-  '/admin/settings': 'Settings',
+  '/admin/settings': 'Configuration',
 };
 
 const POLL_MS = 5_000;
@@ -100,9 +100,10 @@ function MiniSparkline({ values }: { values: number[] }) {
 
 interface TopBarV2Props {
   onCmdK?: () => void;
+  onMenuOpen?: () => void;
 }
 
-export default function TopBarV2({ onCmdK }: TopBarV2Props) {
+export default function TopBarV2({ onCmdK, onMenuOpen }: TopBarV2Props) {
   const pathname = usePathname();
   const { rate, sparkline } = useDecisionsPerSec();
 
@@ -119,30 +120,47 @@ export default function TopBarV2({ onCmdK }: TopBarV2Props) {
 
   return (
     <header className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4 py-3 gap-4">
-      {/* Left: page title */}
-      <div className="text-sm font-medium text-zinc-300 shrink-0 min-w-[80px]">{title}</div>
+      {/* Hamburger: visible only under md */}
+      <button
+        type="button"
+        onClick={onMenuOpen}
+        className="md:hidden shrink-0 flex items-center justify-center rounded-md p-1 text-zinc-400 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+        aria-label="Open navigation"
+      >
+        <List size={18} aria-hidden="true" />
+      </button>
 
-      {/* Center: Cmd+K trigger */}
+      {/* Left: page title (desktop) */}
+      <div className="text-sm font-medium text-zinc-300 shrink-0 min-w-[80px] hidden md:block">
+        {title}
+      </div>
+
+      {/* Center: Cmd+K trigger — hidden on small screens */}
       <button
         type="button"
         onClick={handleClick}
-        className="flex flex-1 max-w-sm items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+        className="md:flex hidden flex-1 max-w-sm items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70"
         aria-label="Open command palette"
       >
-        <Search size={13} aria-hidden="true" />
+        <MagnifyingGlass size={13} aria-hidden="true" />
         <span className="flex-1 text-left text-xs truncate">Search or run a command...</span>
-        <span className="hidden sm:inline-flex items-center gap-0.5 rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[10px] font-medium text-zinc-500">
+        <span className="hidden md:inline-flex items-center gap-0.5 rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[10px] font-medium text-zinc-500">
           <Command size={9} aria-hidden="true" />K
         </span>
       </button>
 
-      {/* Right: dec/s meter */}
+      {/* Mobile page title (visible under md) */}
+      <div className="md:hidden flex-1 text-sm font-medium text-zinc-300 truncate">{title}</div>
+
+      {/* Right: dec/s meter — sparkline hidden under sm */}
       <div
         role="status"
         className="flex items-center gap-2 shrink-0 text-xs text-zinc-400"
         aria-label="Decisions per second"
       >
-        <MiniSparkline values={sparkline} />
+        <span className="hidden sm:inline-block">
+          <MiniSparkline values={sparkline} />
+        </span>
         <span className="tabular-nums text-zinc-300 font-medium">{rate.toFixed(2)}</span>
         <span className="text-zinc-600 hidden sm:inline">dec/s</span>
       </div>

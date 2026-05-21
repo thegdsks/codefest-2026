@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, CheckCircle2, ShieldOff } from 'lucide-react';
+import { ArrowLeft, CheckCircle, ShieldSlash } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -117,12 +117,12 @@ export default function DecisionDetailPage() {
               disabled={releasing}
               className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             >
-              <ShieldOff size={12} />
+              <ShieldSlash size={12} />
               {releasing ? 'Releasing' : 'Release this block'}
             </button>
             {releaseOk ? (
               <span className="inline-flex items-center gap-1 text-xs text-emerald-300">
-                <CheckCircle2 size={12} />
+                <CheckCircle size={12} />
                 Released. Refreshing.
               </span>
             ) : null}

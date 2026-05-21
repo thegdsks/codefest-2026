@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, ScrollText } from 'lucide-react';
+import { Plus, Scroll } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
@@ -30,7 +30,7 @@ function RulesNotDeployed() {
     <div className="flex min-h-[60vh] items-center justify-center px-6">
       <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950">
-          <ScrollText size={22} className="text-zinc-400" />
+          <Scroll size={22} className="text-zinc-400" />
         </div>
         <h2 className="text-lg font-semibold text-zinc-100">Rules engine not deployed yet</h2>
         <p className="mt-2 text-sm text-zinc-400">
@@ -83,7 +83,7 @@ export default function RulesListPage() {
           className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
         >
           <Plus size={14} />
-          New rule
+          Create rule
         </Link>
       </div>
 
@@ -115,7 +115,9 @@ export default function RulesListPage() {
         </ul>
       ) : rules.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-10 text-center text-sm text-zinc-500">
-          {tab === 'ALL' ? 'No rules yet. Create the first one.' : `No ${tab.toLowerCase()} rules.`}
+          {tab === 'ALL'
+            ? 'No engagement rules yet. Use the Create rule button to add the first one.'
+            : `No ${tab.toLowerCase()} rules. Switch to All or create a new rule.`}
         </div>
       ) : (
         <ul className="space-y-3">

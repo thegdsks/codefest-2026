@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, CircleDollarSign, Cpu, Layers, RefreshCcw } from 'lucide-react';
+import { ArrowClockwise, Cpu, CurrencyCircleDollar, Pulse, Stack } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
 import LiveActivityFeed from '@/components/admin/LiveActivityFeed';
@@ -73,7 +73,7 @@ export default function AdminDashboardPage() {
     <div className="mx-auto max-w-[1400px]">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-100">Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-zinc-100">Overview</h1>
           <p className="mt-1 text-sm text-zinc-500">
             Live decision metrics from the engine. Polls every 5 seconds.
           </p>
@@ -98,8 +98,8 @@ export default function AdminDashboardPage() {
             onClick={load}
             className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           >
-            <RefreshCcw size={12} />
-            Refresh
+            <ArrowClockwise size={12} />
+            Reload
           </button>
         </div>
       </div>
@@ -112,7 +112,7 @@ export default function AdminDashboardPage() {
               label="Total decisions"
               value={total}
               hint={`In the last ${window}`}
-              icon={Activity}
+              icon={Pulse}
               loading={loading}
             />
             <Tile
@@ -127,7 +127,7 @@ export default function AdminDashboardPage() {
               label="L1 + L2"
               value={l2}
               hint={`${formatPct(l2, total)} escalated to LLM`}
-              icon={Layers}
+              icon={Stack}
               accent="indigo"
               loading={loading}
             />
@@ -135,7 +135,7 @@ export default function AdminDashboardPage() {
               label="LLM spend"
               value={formatUsd(data?.costEstimateUsd ?? 0)}
               hint={`At ${l2} calls`}
-              icon={CircleDollarSign}
+              icon={CurrencyCircleDollar}
               accent="amber"
               loading={loading}
             />
