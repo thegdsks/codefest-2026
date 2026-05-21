@@ -1,10 +1,28 @@
 'use strict';
 
-const PLATINUM_THRESHOLD = 1000;
+const { pointsToNextTier: ptsToNext } = require('../lib/tiers');
+
 const PLAT_TIER = 'platinum';
 const GOLD_TIER = 'gold';
 const RECENT_WINDOW_SEC = 60;
 const BOOKING_WINDOW_SEC = 300;
+// Personas seeded with loyaltyScore >= 1000 store realistic point totals;
+// smaller values are legacy 0-1000 ratings that need scaling to render as
+// believable balances (matches the heuristic in routes/loyalty.js).
+const RAW_POINTS_THRESHOLD = 1000;
+const LEGACY_POINTS_SCALE = 82;
+function derivePoints(profile) {
+  const raw = Number(profile.loyaltyScore || 0);
+  if (raw >= RAW_POINTS_THRESHOLD) return raw;
+  return Math.round(raw * LEGACY_POINTS_SCALE);
+}
+// profileCompletion may be stored as 0-1 fraction or 0-100 integer
+// depending on which seed wrote it. Normalize to integer percent.
+function normalizeCompletion(raw) {
+  const v = Number(raw || 0);
+  if (v > 0 && v <= 1) return Math.round(v * 100);
+  return Math.round(v);
+}
 
 /**
  * @typedef {'SHOWN'|'HIDDEN'|'PENDING'|'COMPLETED'} SurfaceState
@@ -34,8 +52,8 @@ function evaluateSurfaces({ profile, state, nowSec }) {
   const st = state || {};
   const tier = String(profile.tier || '').toLowerCase();
   const isPlat = tier === PLAT_TIER;
-  const loyaltyScore = Number(profile.loyaltyScore || 0);
-  const pointsToNextTier = isPlat ? 0 : Math.max(PLATINUM_THRESHOLD - loyaltyScore, 0);
+  const points = derivePoints(profile);
+  const pointsToNextTier = isPlat ? 0 : ptsToNext(points);
   const displayTier = profile.tier || '';
   const nextTier = 'Platinum';
 
@@ -125,7 +143,7 @@ function prestigeAdvance(
 }
 
 function profileCatalyst({ profile, isPlat, st, pointsToNextTier, displayTier, nextTier }) {
-  const completion = Number(profile.profileCompletion || 0);
+  const completion = normalizeCompletion(profile.profileCompletion);
   const profileCompletionReachedAt = st.profileCompletionReachedAt
     ? Number(st.profileCompletionReachedAt)
     : null;
