@@ -12,6 +12,43 @@
 
 A real-time **decision intelligence platform**. One engine that turns customer signals into adaptive decisions across three surfaces: **security**, **personalization**, and **engagement**.
 
+## For judges and reviewers
+
+Live URL: &lt;PLACEHOLDER_PROD_URL&gt; (populated once deployed)
+
+### Test accounts
+
+| Username | Password  | Role     | Notes                                                 |
+|----------|-----------|----------|-------------------------------------------------------|
+| user001  | Password1 | customer | Seeded with the demo story rule pre-trigger           |
+| user002  | Password1 | customer | Transfer recipient for the demo flow                  |
+
+Admin console access uses HTTP Basic Auth at the gateway level. Set your browser or API client to username `demoClient`, password `demoSecret` (the values in `NEXT_PUBLIC_CLIENT_ID` / `NEXT_PUBLIC_CLIENT_SECRET`). Navigate to `/admin` after the credentials are applied.
+
+### Demo flow (90 seconds)
+
+1. Sign in as `user001` with password `Password1`. You land on the customer hotel surface.
+2. Navigate to Transfer. Enter amount `7500`, recipient `user002`, and submit.
+3. An MFA challenge fires because the browser fingerprint is not in `user001`'s known device list. Enter `123456` (static demo OTP, valid when `MFA_MODE=static`).
+4. Transfer completes. Open `/admin` in a new tab with Basic Auth `demoClient:demoSecret`.
+5. Open the Decisions tab and click the newest row. The drawer shows the rule that fired (`DEMO_HIGH_VALUE_UNSEEN_DEVICE`), the matched conditions, and the LLM rationale (if `L1+L2` path was taken).
+
+### Demo controls
+
+A floating debug panel sits in the bottom-right corner of the customer surface while logged in. Use it to:
+
+- Switch active users without logging out and back in.
+- Force MFA on the next transfer regardless of amount or device.
+- Override the device fingerprint to an unseen value (triggers the rule naturally for repeated runs).
+
+### One-button rehearsal
+
+```bash
+npm run rehearsal
+```
+
+Runs the full demo story end-to-end against the configured API (reseed, login, MFA verify, transfer, decisions check). Exit 0 means demo-ready. Add `--verbose` to print full request and response bodies.
+
 Every interaction on a loyalty platform is a decision. Show a promotion or not. Flag a transfer or not. Greet with a personalized nudge or stay quiet. Signal Force unifies those decisions into one engine, watches the activity stream, and returns a typed response the customer surface renders.
 
 > **Architecture and decision log:** see [`docs/architecture.md`](./docs/architecture.md). Diagrams, request flows, scale model, cost at Bonvoy scale, what we build vs what we skip. Read this before opening any PR that adds a new AWS service.
