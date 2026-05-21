@@ -86,11 +86,11 @@ export default function TransferScreen() {
       date,
     });
 
-    if (res.data.status === 'UNDER_REVIEW') {
-      router.push('/transfer/review');
-    } else {
+    if (res.data.status === 'SUCCESS') {
       deductPoints(cost);
       router.push('/transfer/success');
+    } else {
+      router.push('/transfer/review');
     }
   };
 
