@@ -72,24 +72,37 @@ function scoreTone(score: number): string {
 
 const SKELETON_KEYS = ['s0', 's1', 's2', 's3'];
 
-interface LiveActivityFeedProps {
-  filter?: FeedFilter;
+const LOAD_MORE_STEPS = [50, 100, 200, 500];
+const MAX_LIMIT = 500;
+
+function nextLimit(current: number): number {
+  const next = LOAD_MORE_STEPS.find((n) => n > current);
+  return next ?? MAX_LIMIT;
 }
 
-export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedProps) {
+interface LiveActivityFeedProps {
+  filter?: FeedFilter;
+  limit?: number;
+}
+
+export default function LiveActivityFeed({
+  filter = 'all',
+  limit: initialLimit = 50,
+}: LiveActivityFeedProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [limit, setLimit] = useState(initialLimit);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['live-feed', filter],
+    queryKey: ['live-feed', filter, limit],
     queryFn: async () => {
-      const res = await getDecisions({ window: '1h', limit: 50 });
+      const res = await getDecisions({ window: '1h', limit });
       return res.data;
     },
     refetchInterval: 2_000,
     staleTime: 0,
   });
 
-  const rows = (data?.decisions ?? []).filter((r) => matchesFilter(r, filter)).slice(0, 50);
+  const rows = (data?.decisions ?? []).filter((r) => matchesFilter(r, filter)).slice(0, limit);
 
   const isEmpty = !isLoading && !isError && rows.length === 0;
 
@@ -190,8 +203,19 @@ export default function LiveActivityFeed({ filter = 'all' }: LiveActivityFeedPro
           )}
         </section>
 
-        <div className="border-t border-[color:var(--border)] px-4 py-2 text-[11px] text-[color:var(--text-dim)]">
-          {rows.length > 0 ? `${rows.length} decisions in last 1h` : 'Waiting for activity'}
+        <div className="flex items-center justify-between border-t border-[color:var(--border)] px-4 py-2">
+          <span className="text-[11px] text-[color:var(--text-dim)]">
+            {rows.length > 0 ? `${rows.length} decisions in last 1h` : 'Waiting for activity'}
+          </span>
+          {limit < MAX_LIMIT && rows.length >= limit && (
+            <button
+              type="button"
+              onClick={() => setLimit(nextLimit(limit))}
+              className="rounded px-2 py-0.5 text-[11px] text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 transition-colors"
+            >
+              Load more
+            </button>
+          )}
         </div>
       </section>
 

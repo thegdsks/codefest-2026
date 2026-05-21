@@ -20,6 +20,15 @@ function formatUsd(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+const WINDOW_LABELS: Record<Window, string> = {
+  '5m': '5 min window',
+  '1h': '60 min window',
+  '6h': '6 hour window',
+  '24h': '24 hour window',
+  '7d': '7 day window',
+  '30d': '30 day window',
+};
+
 interface Props {
   window: Window;
   height?: number;
@@ -33,12 +42,7 @@ export default function EngineGuardRadial({ window: windowKey, height = 240 }: P
     staleTime: 4_000,
   });
 
-  const guard = useMemo(() => {
-    const g = resp?.data?.guard as
-      | { cost_window_used?: number; cost_window_cap?: number }
-      | undefined;
-    return g ?? null;
-  }, [resp]);
+  const budget = useMemo(() => resp?.data?.budget ?? null, [resp]);
 
   const noAnim = prefersReducedMotion();
 
@@ -53,8 +57,8 @@ export default function EngineGuardRadial({ window: windowKey, height = 240 }: P
     );
   }
 
-  const used = guard?.cost_window_used;
-  const cap = guard?.cost_window_cap;
+  const used = budget?.usedUsd;
+  const cap = budget?.llmDailyUsd;
 
   if (used == null || cap == null || cap === 0) {
     return (
@@ -67,17 +71,14 @@ export default function EngineGuardRadial({ window: windowKey, height = 240 }: P
         <p className="text-sm font-semibold text-[color:var(--text-muted)]">
           Guard data unavailable
         </p>
-        <p className="mt-1 text-xs text-[color:var(--text-dim)]">
-          cost_window_used / cost_window_cap not in API response.
-        </p>
+        <p className="mt-1 text-xs text-[color:var(--text-dim)]">No budget data in API response.</p>
       </div>
     );
   }
 
   const pct = Math.min(100, Math.round((used / cap) * 100));
   const fillColor = colorFromPct(pct);
-  const windowLabel =
-    windowKey === '1h' ? '60 min window' : windowKey === '7d' ? '7 day window' : '24 hour window';
+  const windowLabel = WINDOW_LABELS[windowKey] ?? '24 hour window';
 
   const chartData = [{ name: 'guard', value: pct, fill: fillColor }];
 

@@ -153,18 +153,18 @@ describe('getDecisions', () => {
     assert.ok(body.data.decisions.every((d) => d.decisionType === 'FRAUD_LOGIN'));
   });
 
-  test('applies limit cap at 200', async () => {
-    const items = Array.from({ length: 300 }, (_, i) => makeDecision({ timestamp: nowSec() - i }));
+  test('applies limit cap at 500', async () => {
+    const items = Array.from({ length: 600 }, (_, i) => makeDecision({ timestamp: nowSec() - i }));
     loadAdmin(fakeDdb({ scanItems: items }));
 
     const event = {
       headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
-      queryStringParameters: { limit: '300' },
+      queryStringParameters: { limit: '600' },
     };
     const resp = await admin.getDecisions(event, 'cid-004');
     assert.equal(resp.statusCode, 200);
     const body = JSON.parse(resp.body);
-    assert.ok(body.data.decisions.length <= 200);
+    assert.ok(body.data.decisions.length <= 500);
   });
 
   test('uses query (not scan) when userId filter provided', async () => {
@@ -276,11 +276,11 @@ describe('getMetrics', () => {
     const resp = await admin.getMetrics(event, 'cid-008');
     const body = JSON.parse(resp.body);
     const { totals } = body.data;
-    assert.equal(totals.by_type['FRAUD_LOGIN'], 2);
-    assert.equal(totals.by_type['NUDGE'], 1);
-    assert.equal(totals.by_action['ALLOW'], 1);
-    assert.equal(totals.by_action['BLOCK'], 1);
-    assert.equal(totals.by_action['NUDGE'], 1);
+    assert.equal(totals.by_type.FRAUD_LOGIN, 2);
+    assert.equal(totals.by_type.NUDGE, 1);
+    assert.equal(totals.by_action.ALLOW, 1);
+    assert.equal(totals.by_action.BLOCK, 1);
+    assert.equal(totals.by_action.NUDGE, 1);
   });
 
   test('returns 403 for non-admin user', async () => {
@@ -333,7 +333,7 @@ describe('getMetrics', () => {
     const resp = await admin.getMetrics(event, 'cid-budget-2');
     const body = JSON.parse(resp.body);
     const { budget } = body.data;
-    assert.ok(isFinite(budget.percentUsed), 'percentUsed must be a finite number');
+    assert.ok(Number.isFinite(budget.percentUsed), 'percentUsed must be a finite number');
     const decimals = (String(budget.percentUsed).split('.')[1] || '').length;
     assert.ok(decimals <= 1, `expected at most 1 decimal, got "${budget.percentUsed}"`);
   });
@@ -1308,5 +1308,256 @@ describe('getUserRisk', () => {
     };
     const resp = await admin.getUserRisk(event, 'cid-risk-5');
     assert.equal(resp.statusCode, 403);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WINDOW_SECONDS mapping (shared.js)
+// ---------------------------------------------------------------------------
+
+describe('WINDOW_SECONDS', () => {
+  const { WINDOW_SECONDS } = require('./routes/admin/shared');
+
+  test('5m maps to 300 seconds', () => {
+    assert.equal(WINDOW_SECONDS['5m'], 300);
+  });
+
+  test('1h maps to 3600 seconds', () => {
+    assert.equal(WINDOW_SECONDS['1h'], 3600);
+  });
+
+  test('6h maps to 21600 seconds', () => {
+    assert.equal(WINDOW_SECONDS['6h'], 21600);
+  });
+
+  test('24h maps to 86400 seconds', () => {
+    assert.equal(WINDOW_SECONDS['24h'], 86400);
+  });
+
+  test('7d maps to 604800 seconds', () => {
+    assert.equal(WINDOW_SECONDS['7d'], 7 * 86400);
+  });
+
+  test('30d maps to 2592000 seconds', () => {
+    assert.equal(WINDOW_SECONDS['30d'], 30 * 86400);
+  });
+
+  test('all six window keys are present', () => {
+    const keys = Object.keys(WINDOW_SECONDS);
+    for (const k of ['5m', '1h', '6h', '24h', '7d', '30d']) {
+      assert.ok(keys.includes(k), `missing key: ${k}`);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// writeDemoEvent
+// ---------------------------------------------------------------------------
+
+describe('writeDemoEvent', () => {
+  const makeEvent = (body, headers = ADMIN_AUTH) => ({
+    headers,
+    body: JSON.stringify(body),
+    queryStringParameters: {},
+    requestContext: { http: { method: 'POST', path: '/admin/demo-events' } },
+  });
+
+  test('returns 201 and records a DEMO_EVENT row for a valid type', async () => {
+    const putCapture = [];
+    loadAdmin(fakeDdb({ putCapture }));
+    const resp = await admin.writeDemoEvent(
+      makeEvent({ type: 'USER_SWITCH', payload: { to: 'user002' } }),
+      'cid-de-1'
+    );
+    assert.equal(resp.statusCode, 201);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.type, 'USER_SWITCH');
+    assert.ok(body.data.activityId.startsWith('DEMO#'));
+    assert.equal(putCapture.length, 1);
+    assert.equal(putCapture[0].Item.activityType, 'DEMO_EVENT');
+    assert.equal(putCapture[0].Item.type, 'USER_SWITCH');
+  });
+
+  test('returns 400 when type is missing', async () => {
+    loadAdmin(fakeDdb({}));
+    const resp = await admin.writeDemoEvent(makeEvent({ payload: {} }), 'cid-de-2');
+    assert.equal(resp.statusCode, 400);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.error.code, 'VALIDATION_ERROR');
+  });
+
+  test('returns 400 when type is not in the allowed set', async () => {
+    loadAdmin(fakeDdb({}));
+    const resp = await admin.writeDemoEvent(makeEvent({ type: 'UNKNOWN_TYPE' }), 'cid-de-3');
+    assert.equal(resp.statusCode, 400);
+  });
+
+  test('returns 403 for a non-admin caller', async () => {
+    const token = Buffer.from('nobody:x').toString('base64');
+    loadAdmin(fakeDdb({}));
+    const resp = await admin.writeDemoEvent(
+      makeEvent({ type: 'MFA_FORCED' }, { authorization: `Basic ${token}` }),
+      'cid-de-4'
+    );
+    assert.equal(resp.statusCode, 403);
+  });
+
+  test('defaults actor to "demo" when not provided', async () => {
+    const putCapture = [];
+    loadAdmin(fakeDdb({ putCapture }));
+    await admin.writeDemoEvent(makeEvent({ type: 'SIGNAL_TRIGGER' }), 'cid-de-5');
+    assert.equal(putCapture[0].Item.actor, 'demo');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listDemoEvents
+// ---------------------------------------------------------------------------
+
+describe('listDemoEvents', () => {
+  const makeEvent = (qs = {}) => ({
+    headers: ADMIN_AUTH,
+    queryStringParameters: qs,
+    requestContext: { http: { method: 'GET', path: '/admin/demo-events' } },
+  });
+
+  test('returns events from UserActivity filtered by DEMO_EVENT activityType', async () => {
+    const demoRow = {
+      activityId: 'DEMO#abc',
+      activityType: 'DEMO_EVENT',
+      type: 'FORCE_HIGH_RISK',
+      actor: 'demo',
+      payload: { enabled: true },
+      timestamp: nowSec(),
+    };
+    loadAdmin(fakeDdb({ scanItems: [demoRow] }));
+    const resp = await admin.listDemoEvents(makeEvent(), 'cid-dle-1');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.count, 1);
+    assert.equal(body.data.events[0].type, 'FORCE_HIGH_RISK');
+  });
+
+  test('caps results at 50 events', async () => {
+    const manyRows = Array.from({ length: 60 }, (_, i) => ({
+      activityId: `DEMO#${i}`,
+      activityType: 'DEMO_EVENT',
+      type: 'USER_SWITCH',
+      timestamp: nowSec() - i,
+    }));
+    loadAdmin(fakeDdb({ scanItems: manyRows }));
+    const resp = await admin.listDemoEvents(makeEvent(), 'cid-dle-2');
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.events.length, 50);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getActivityFeed
+// ---------------------------------------------------------------------------
+
+describe('getActivityFeed', () => {
+  const makeEvent = (qs = {}) => ({
+    headers: ADMIN_AUTH,
+    queryStringParameters: qs,
+    requestContext: { http: { method: 'GET', path: '/admin/activity-feed' } },
+  });
+
+  test('merges decisions, sessions, and demo events into one sorted feed', async () => {
+    const ts = nowSec();
+    const decision = {
+      decisionId: 'DEC#1',
+      userId: 'user-001',
+      decisionType: 'FRAUD_LOGIN',
+      action: 'ALLOW',
+      score: 10,
+      engineLayer: 'L1',
+      timestamp: ts - 10,
+    };
+    const session = {
+      sessionId: 'sess-1',
+      userId: 'user-001',
+      recordType: 'ACCESS',
+      lastActivityAt: ts - 5,
+      issuedAt: ts - 100,
+    };
+    const demoEvent = {
+      activityId: 'DEMO#1',
+      activityType: 'DEMO_EVENT',
+      type: 'USER_SWITCH',
+      actor: 'demo',
+      payload: { to: 'user002' },
+      timestamp: ts,
+    };
+    loadAdmin(
+      fakeDdb({
+        scanByTable: {
+          DecisionStore: [decision],
+          UserSession: [session],
+          UserActivity: [demoEvent],
+        },
+      })
+    );
+    const resp = await admin.getActivityFeed(
+      makeEvent({ since: String((ts - 3600) * 1000) }),
+      'cid-af-1'
+    );
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    const { events } = body.data;
+    assert.ok(events.length === 3, `expected 3 events, got ${events.length}`);
+    const kinds = events.map((e) => e.kind);
+    assert.ok(kinds.includes('DECISION'));
+    assert.ok(kinds.includes('SESSION'));
+    assert.ok(kinds.includes('DEMO_EVENT'));
+  });
+
+  test('returns 403 for a non-admin caller', async () => {
+    const token = Buffer.from('nobody:x').toString('base64');
+    loadAdmin(fakeDdb({}));
+    const resp = await admin.getActivityFeed(
+      {
+        headers: { authorization: `Basic ${token}` },
+        queryStringParameters: {},
+        requestContext: { http: { method: 'GET', path: '/admin/activity-feed' } },
+      },
+      'cid-af-2'
+    );
+    assert.equal(resp.statusCode, 403);
+  });
+
+  test('returns events newest-first', async () => {
+    const ts = nowSec();
+    const decisions = [
+      {
+        decisionId: 'DEC#old',
+        userId: 'u',
+        decisionType: 'FRAUD_LOGIN',
+        action: 'ALLOW',
+        score: 0,
+        engineLayer: 'L1',
+        timestamp: ts - 100,
+      },
+      {
+        decisionId: 'DEC#new',
+        userId: 'u',
+        decisionType: 'FRAUD_LOGIN',
+        action: 'ALLOW',
+        score: 0,
+        engineLayer: 'L1',
+        timestamp: ts - 10,
+      },
+    ];
+    loadAdmin(
+      fakeDdb({
+        scanByTable: { DecisionStore: decisions, UserSession: [], UserActivity: [] },
+      })
+    );
+    const resp = await admin.getActivityFeed(
+      makeEvent({ since: String((ts - 3600) * 1000) }),
+      'cid-af-3'
+    );
+    const body = JSON.parse(resp.body);
+    assert.ok(body.data.events[0].timestamp > body.data.events[1].timestamp);
   });
 });

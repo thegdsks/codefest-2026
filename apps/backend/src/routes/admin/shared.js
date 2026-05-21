@@ -116,9 +116,12 @@ function extractIdFromPath(rawPath, prefix, suffix) {
 
 // Allowed window values and their span in seconds.
 const WINDOW_SECONDS = {
+  '5m': 300,
   '1h': 3600,
+  '6h': 6 * 3600,
   '24h': 86400,
   '7d': 7 * 86400,
+  '30d': 30 * 86400,
 };
 
 module.exports = {

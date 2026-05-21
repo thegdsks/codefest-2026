@@ -112,9 +112,15 @@ export function sparklineSeries(
 }
 
 /** Window helpers — converts a Window string to milliseconds for both window and bucket. */
-export function windowToMs(w: '1h' | '24h' | '7d'): { windowMs: number; bucketMs: number } {
+export function windowToMs(w: '5m' | '1h' | '6h' | '24h' | '7d' | '30d'): {
+  windowMs: number;
+  bucketMs: number;
+} {
+  if (w === '5m') return { windowMs: 5 * 60 * 1000, bucketMs: 30 * 1000 };
   if (w === '1h') return { windowMs: 60 * 60 * 1000, bucketMs: 2 * 60 * 1000 };
+  if (w === '6h') return { windowMs: 6 * 60 * 60 * 1000, bucketMs: 15 * 60 * 1000 };
   if (w === '7d') return { windowMs: 7 * 24 * 60 * 60 * 1000, bucketMs: 2 * 60 * 60 * 1000 };
+  if (w === '30d') return { windowMs: 30 * 24 * 60 * 60 * 1000, bucketMs: 12 * 60 * 60 * 1000 };
   // 24h default
   return { windowMs: 24 * 60 * 60 * 1000, bucketMs: 30 * 60 * 1000 };
 }
