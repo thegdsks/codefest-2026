@@ -6,6 +6,58 @@ export enum Signal {
   PointsBalanceStare = 'points_balance_stare',
 }
 
+// ---------------------------------------------------------------------------
+// Flow state - page-level context set by form-level hooks
+// ---------------------------------------------------------------------------
+
+export type FlowPage =
+  | 'transfer'
+  | 'booking'
+  | 'profile'
+  | 'search'
+  | 'results'
+  | 'property';
+
+export interface FlowState {
+  page: FlowPage;
+  step?: string;
+  amountSfc?: number;
+  recipientId?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Device fingerprint
+// ---------------------------------------------------------------------------
+
+export interface DeviceContext {
+  userAgent: string;
+  viewportWidth: number;
+  viewportHeight: number;
+  language: string;
+  timezone: string;
+  pixelRatio: number;
+}
+
+// ---------------------------------------------------------------------------
+// Session context - attached to every emitted signal
+// ---------------------------------------------------------------------------
+
+export interface SignalContext {
+  pageUrl: string;
+  pageTimeSinceMountMs: number;
+  scrollDepthPct: number;
+  clickCountInSession: number;
+  routeChangesInSession: number;
+  trustScore: number;
+  recentEventTypes: string[];
+  device: DeviceContext;
+  flowState?: FlowState;
+}
+
+// ---------------------------------------------------------------------------
+// Signal event - the payload sent to /engagement/events
+// ---------------------------------------------------------------------------
+
 export interface SignalEvent {
   signal: Signal;
   userId?: string;
@@ -13,9 +65,10 @@ export interface SignalEvent {
   path: string;
   timestamp: number;
   metadata?: Record<string, string | number | boolean>;
+  context?: SignalContext;
 }
 
-export type SurfaceType = 'nudge_banner' | 'offer_modal' | 'help_tooltip';
+export type SurfaceType = 'nudge_banner' | 'offer_modal' | 'help_tooltip' | 'inline_card';
 
 export interface Surface {
   type: SurfaceType;
@@ -47,6 +100,7 @@ export interface EngagementConfig {
   dwellThresholdMs?: number;
   pollIntervalMs?: number;
   flushIntervalMs?: number;
+  debug?: boolean;
   onRouteChange?: (callback: (path: string) => void) => () => void;
 }
 
@@ -56,4 +110,6 @@ export interface EngagementClient {
   getPending: () => Promise<Intervention | null>;
   flush: () => Promise<void>;
   destroy: () => void;
+  getTrustScore: () => number;
+  setFlowState: (state: FlowState | null) => void;
 }
