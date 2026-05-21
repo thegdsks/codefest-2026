@@ -51,9 +51,14 @@ module.exports = {
           from: { opacity: '0', transform: 'translateY(-4px)' },
           to: { opacity: '1', transform: 'none' },
         },
+        'surface-slide-in': {
+          from: { opacity: '0', transform: 'translateX(1rem)' },
+          to: { opacity: '1', transform: 'none' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.25s ease-out both',
+        'surface-slide-in': 'surface-slide-in 0.3s ease-out both',
       },
     },
   },
