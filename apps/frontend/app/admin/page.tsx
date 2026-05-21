@@ -137,59 +137,43 @@ export default function AdminDashboardPage() {
       <div className="flex gap-6">
         {/* Left rail: KPI tiles, charts, and breakdown */}
         <div className="min-w-0 flex-1 space-y-6">
-          {/* KPI tiles with sparklines */}
+          {/* KPI tiles with sparklines inside */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex flex-col">
-              <Tile
-                label="Total decisions"
-                value={total}
-                hint={`In the last ${activeWindow}`}
-                icon={Pulse}
-                loading={loading}
-              />
-              <div className="flex justify-end pr-4 pt-1">
-                <Sparkline data={sparkTotal} color="#6366F1" />
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <Tile
-                label="L1 only"
-                value={l1}
-                hint={`${formatPct(l1, total)} of total`}
-                icon={Cpu}
-                accent="green"
-                loading={loading}
-              />
-              <div className="flex justify-end pr-4 pt-1">
-                <Sparkline data={sparkL1} color="#34D399" />
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <Tile
-                label="L1 + L2"
-                value={l2}
-                hint={`${formatPct(l2, total)} escalated to LLM`}
-                icon={Stack}
-                accent="indigo"
-                loading={loading}
-              />
-              <div className="flex justify-end pr-4 pt-1">
-                <Sparkline data={sparkL2Block} color="#F43F5E" />
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <Tile
-                label="LLM spend"
-                value={formatUsd(data?.costEstimateUsd ?? 0)}
-                hint={`At ${l2} calls`}
-                icon={CurrencyCircleDollar}
-                accent="amber"
-                loading={loading}
-              />
-              <div className="flex justify-end pr-4 pt-1">
-                <Sparkline data={sparkTotal} color="#FBBF24" />
-              </div>
-            </div>
+            <Tile
+              label="Total decisions"
+              value={total}
+              hint={`In the last ${activeWindow}`}
+              icon={Pulse}
+              loading={loading}
+              trend={<Sparkline data={sparkTotal} color="#6366F1" />}
+            />
+            <Tile
+              label="L1 only"
+              value={l1}
+              hint={`${formatPct(l1, total)} of total`}
+              icon={Cpu}
+              accent="green"
+              loading={loading}
+              trend={<Sparkline data={sparkL1} color="#34D399" />}
+            />
+            <Tile
+              label="L1 + L2"
+              value={l2}
+              hint={`${formatPct(l2, total)} escalated to LLM`}
+              icon={Stack}
+              accent="indigo"
+              loading={loading}
+              trend={<Sparkline data={sparkL2Block} color="#F43F5E" />}
+            />
+            <Tile
+              label="LLM spend"
+              value={formatUsd(data?.costEstimateUsd ?? 0)}
+              hint={`At ${l2} calls`}
+              icon={CurrencyCircleDollar}
+              accent="amber"
+              loading={loading}
+              trend={<Sparkline data={sparkTotal} color="#FBBF24" />}
+            />
           </div>
 
           {/* Chart row: decisions over time (2/3) + donut (1/3) */}
