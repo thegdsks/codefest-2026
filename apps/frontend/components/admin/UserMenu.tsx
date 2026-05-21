@@ -13,6 +13,7 @@ import {
   Sun,
   UserGear,
 } from '@phosphor-icons/react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useEffect, useRef, useState } from 'react';
@@ -26,6 +27,7 @@ type Health = 'unknown' | 'ok' | 'down';
 interface UserMenuProps {
   health: Health;
   onOpenShortcuts?: () => void;
+  onOpenCommandPalette?: () => void;
 }
 
 function ThemeSegment() {
@@ -70,41 +72,82 @@ function ThemeSegment() {
   );
 }
 
+interface RowProps {
+  icon: typeof Sun;
+  label: string;
+  shortcut?: string;
+  onClick?: () => void;
+  href?: string;
+  external?: boolean;
+  danger?: boolean;
+  onNavigate?: () => void;
+}
+
 function Row({
   icon: Icon,
   label,
   shortcut,
   onClick,
+  href,
+  external,
   danger,
-}: {
-  icon: typeof Sun;
-  label: string;
-  shortcut?: string;
-  onClick?: () => void;
-  danger?: boolean;
-}) {
+  onNavigate,
+}: RowProps) {
+  const baseClass =
+    'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] transition-colors duration-150 hover:bg-[color:var(--hover)] focus-visible:outline-none focus-visible:bg-[color:var(--hover)]';
+  const iconEl = (
+    <Icon
+      size={13}
+      className={`shrink-0 ${danger ? 'text-rose-400' : 'text-[color:var(--text-dim)]'}`}
+      aria-hidden="true"
+    />
+  );
+  const labelEl = (
+    <span className={`flex-1 ${danger ? 'text-rose-300' : 'text-[color:var(--text)]'}`}>
+      {label}
+    </span>
+  );
+  const shortcutEl = shortcut ? (
+    <span className="text-[10.5px] text-[color:var(--text-dim)] tabular-nums">{shortcut}</span>
+  ) : null;
+
+  if (href && external) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        role="menuitem"
+        onClick={onNavigate}
+        className={baseClass}
+      >
+        {iconEl}
+        {labelEl}
+        {shortcutEl}
+      </a>
+    );
+  }
+
+  if (href) {
+    return (
+      <Link href={href} role="menuitem" onClick={onNavigate} className={baseClass}>
+        {iconEl}
+        {labelEl}
+        {shortcutEl}
+      </Link>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] hover:bg-white/[0.05]"
-    >
-      <Icon
-        size={13}
-        className={`shrink-0 ${danger ? 'text-rose-400' : 'text-[color:var(--text-dim)]'}`}
-        aria-hidden="true"
-      />
-      <span className={`flex-1 ${danger ? 'text-rose-300' : 'text-[color:var(--text)]'}`}>
-        {label}
-      </span>
-      {shortcut && (
-        <span className="text-[10.5px] text-[color:var(--text-dim)] tabular-nums">{shortcut}</span>
-      )}
+    <button type="button" onClick={onClick} role="menuitem" className={baseClass}>
+      {iconEl}
+      {labelEl}
+      {shortcutEl}
     </button>
   );
 }
 
-export default function UserMenu({ health, onOpenShortcuts }: UserMenuProps) {
+export default function UserMenu({ health, onOpenShortcuts, onOpenCommandPalette }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -183,25 +226,64 @@ export default function UserMenu({ health, onOpenShortcuts }: UserMenuProps) {
           </div>
 
           <div className="px-1.5 py-1.5">
-            <Row icon={UserGear} label="Account settings" shortcut="⌘ ," />
-            <Row icon={Sparkle} label="Preferences" />
+            <Row
+              icon={UserGear}
+              label="Account settings"
+              shortcut="⌘ ,"
+              href="/admin/settings"
+              onNavigate={() => setOpen(false)}
+            />
+            <Row
+              icon={Sparkle}
+              label="Preferences"
+              href="/admin/settings#preferences"
+              onNavigate={() => setOpen(false)}
+            />
             <ThemeSegment />
           </div>
 
           <div className="border-t border-white/[0.06] px-1.5 py-1.5">
-            <Row icon={Command} label="Command menu" shortcut="⌘ K" />
+            <Row
+              icon={Command}
+              label="Command menu"
+              shortcut="⌘ K"
+              onClick={() => {
+                setOpen(false);
+                onOpenCommandPalette?.();
+              }}
+            />
             <Row
               icon={Keyboard}
               label="Keyboard shortcuts"
               shortcut="⌘ /"
-              onClick={onOpenShortcuts}
+              onClick={() => {
+                setOpen(false);
+                onOpenShortcuts?.();
+              }}
             />
-            <Row icon={Sparkle} label="What's new" />
+            <Row
+              icon={Sparkle}
+              label="What's new"
+              href="/admin/insights"
+              onNavigate={() => setOpen(false)}
+            />
           </div>
 
           <div className="border-t border-white/[0.06] px-1.5 py-1.5">
-            <Row icon={BookOpen} label="Documentation" />
-            <Row icon={Lifebuoy} label="Contact support" />
+            <Row
+              icon={BookOpen}
+              label="Documentation"
+              href="https://github.com/thegdsks/signal-force#readme"
+              external
+              onNavigate={() => setOpen(false)}
+            />
+            <Row
+              icon={Lifebuoy}
+              label="Contact support"
+              href="mailto:support@signal-force.dev"
+              external
+              onNavigate={() => setOpen(false)}
+            />
           </div>
 
           <div className="border-t border-white/[0.06] px-1.5 py-1.5">
