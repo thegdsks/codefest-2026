@@ -46,7 +46,7 @@ interface CustomerContextValue {
 
 const CustomerContext = createContext<CustomerContextValue | null>(null);
 
-export function CustomerProvider({ children }: { children: ReactNode }) {
+export function CustomerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [user, setUser] = useState<UserProfile>(MOCK_USER);
@@ -106,7 +106,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.window === 'undefined') {
       setIsHydrated(true);
       return;
     }
@@ -139,15 +139,15 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   }, [completeLogin]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof globalThis.window === 'undefined') return;
     const handleExpired = () => {
       clearSessionStorage(SESSION_STORAGE_KEY);
       setIsLoggedIn(false);
       setSession(null);
       setUser(MOCK_USER);
     };
-    window.addEventListener('sf:session-expired', handleExpired);
-    return () => window.removeEventListener('sf:session-expired', handleExpired);
+    globalThis.addEventListener('sf:session-expired', handleExpired);
+    return () => globalThis.removeEventListener('sf:session-expired', handleExpired);
   }, []);
 
   const deductPoints = useCallback((amount: number) => {

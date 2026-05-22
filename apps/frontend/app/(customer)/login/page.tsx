@@ -14,7 +14,8 @@ import {
   User,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { type FormEvent, Suspense, useEffect, useRef, useState } from 'react';
+import type React from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import BlockBanner from '@/components/hotel/BlockBanner';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import { clearUserBlock, getDevConfig } from '@/lib/admin-api';
@@ -249,7 +250,7 @@ function LoginScreenInner() {
       });
   }, []);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const trimmedUsername = username.trim();
     if (!trimmedUsername || !password) return;
@@ -368,7 +369,7 @@ function LoginScreenInner() {
                 onClick: () => {
                   const subject = encodeURIComponent('Account blocked - access request');
                   const body = encodeURIComponent(`Account: ${blockData.userId}`);
-                  window.location.href = `mailto:support@signal-force.demo?subject=${subject}&body=${body}`;
+                  globalThis.location.href = `mailto:support@signal-force.demo?subject=${subject}&body=${body}`;
                 },
               },
               ...demoClearActions,

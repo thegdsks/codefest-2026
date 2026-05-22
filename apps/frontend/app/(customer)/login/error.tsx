@@ -14,24 +14,24 @@ import { useEffect } from 'react';
 export default function LoginRouteError({
   error,
   reset,
-}: {
+}: Readonly<{
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+}>) {
   useEffect(() => {
     console.error('[LoginRouteError] login route render failure', error);
   }, [error]);
 
   const handleResetSession = () => {
     try {
-      window.sessionStorage.removeItem('sf.session');
+      globalThis.sessionStorage.removeItem('sf.session');
     } catch {
       // Storage access blocked: nothing we can do client-side. Reload anyway.
     }
     // Clear the legacy sf.token cookie defensively in case any older build
     // wrote one before this fix shipped.
     document.cookie = 'sf.token=; path=/; max-age=0; SameSite=Lax';
-    window.location.assign('/login');
+    globalThis.location.assign('/login');
   };
 
   return (
