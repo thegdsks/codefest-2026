@@ -1,8 +1,9 @@
 # Signal Force API - Client codegen
 
-The spec lives at `docs/openapi.yaml` (OpenAPI 3.1). FE devs can use it to
-generate TypeScript types and a typed fetch client without adding runtime
-dependencies to the frontend bundle.
+Last updated: 2026-05-21
+
+The spec lives at `docs/openapi.yaml` (OpenAPI 3.1). Frontend devs can use it to generate
+TypeScript types and a typed fetch client without adding runtime dependencies to the bundle.
 
 ## Generating TypeScript types
 
@@ -13,8 +14,7 @@ npx --yes openapi-typescript@latest docs/openapi.yaml \
   -o apps/frontend/src/api/openapi-types.ts
 ```
 
-Commit the generated file. Re-run whenever `docs/openapi.yaml` changes (see
-below for the workflow).
+Commit the generated file. Re-run whenever `docs/openapi.yaml` changes.
 
 ## Using the generated types with openapi-fetch
 
@@ -33,7 +33,7 @@ import createClient from 'openapi-fetch';
 import type { paths } from './openapi-types';
 
 export const apiClient = createClient<paths>({
-  baseUrl: import.meta.env.VITE_API_BASE_URL,
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
   headers: {
     Authorization: `Basic ${btoa('demoClient:demoSecret')}`,
   },
@@ -56,7 +56,7 @@ if (error) {
 
 ## Keeping the spec in sync
 
-There is no CI check yet that enforces spec-code sync. Manually re-generate
+There is no CI check that enforces spec-code sync. Manually re-generate
 types after any change to `apps/backend/src/handler.js` or `apps/backend/src/admin.js`.
 
 Suggested local workflow:
@@ -74,13 +74,45 @@ spec that excludes `/admin/*` paths.
 
 ## Postman import
 
-The OpenAPI spec at `docs/openapi.yaml` is the canonical Postman source for this
-project. There is no separate `*.postman_collection.json` file in the repo.
+A ready-to-use Postman collection and environment live in `docs/postman/`:
 
-To import: open Postman, click "Import", choose "File" or paste the raw
-`docs/openapi.yaml` content. Postman will generate a collection with one request
-per operation, pre-populated with example values from the spec.
+- `docs/postman/signal-force.postman_collection.json` - Postman v2.1 collection,
+  one folder per API surface (Auth, Customer, Engagement, Admin, AI, Demo).
+- `docs/postman/signal-force.postman_environment.json` - environment with
+  pre-filled production values.
 
-Gateway auth (`demoClient:demoSecret`) should be set as a Basic Auth collection
-variable so it applies to all requests. Bearer tokens must be set manually on
-customer-route requests after a `POST /auth/login` + `POST /auth/mfa/verify` flow.
+### Quick import steps
+
+1. Open Postman.
+2. Click **Import** (top-left).
+3. Drag `signal-force.postman_collection.json` onto the import dialog, then
+   repeat for `signal-force.postman_environment.json`.
+4. Select the **Signal Force - Production** environment from the environment
+   dropdown (top-right corner).
+5. Open **Auth > Login**, click **Send**. The test script captures `mfaSessionId`
+   automatically.
+6. Open **Auth > MFA Verify**, click **Send**. The test script captures
+   `bearerToken` automatically.
+7. All customer and engagement requests now work without further manual setup.
+
+### Variables
+
+| Variable | Source | Notes |
+|---|---|---|
+| `baseUrl` | Environment | Default: production API Gateway URL |
+| `clientId` | Environment | `demoClient` |
+| `clientSecret` | Environment (secret) | `demoSecret` |
+| `basicAuth` | Computed at runtime | Set by collection pre-request script |
+| `bearerToken` | Captured by test script | Populated by Auth/MFA Verify |
+| `userId` | Environment | Default: `USER#031` (maya031) |
+
+### Using the OpenAPI spec instead
+
+If you prefer to generate a collection from the spec, open Postman, click
+"Import", choose "File" or paste the raw `docs/openapi.yaml` content. Postman
+generates one request per operation from the spec. You will need to configure
+the `basicAuth` and `bearerToken` variables manually on the generated collection.
+
+---
+
+Related: [api-quickstart.md](./api-quickstart.md)

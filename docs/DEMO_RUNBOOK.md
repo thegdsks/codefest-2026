@@ -1,7 +1,8 @@
 # Signal Force Demo Runbook
 
+Last updated: 2026-05-21
+
 For the codefest demo and for teammates picking up the project mid-flight.
-Last updated: 2026-05-21 (the day before the Marriott Codefest 2026 final).
 
 ## TL;DR
 
@@ -18,7 +19,7 @@ Signal Force is a fraud-aware loyalty platform with four demo-able stories:
 
 - **Customer site (local dev):** http://localhost:3000
 - **Admin overview:** http://localhost:3000/admin
-- **Deployed API:** `https://55p8lbxf9g.execute-api.us-east-1.amazonaws.com`
+- **Deployed API:** see `apps/frontend/.env.production.local` (written by `deploy-backend.sh`)
 - **Admin Basic Auth:** `demoClient` / `demoSecret`
 - **Static MFA OTP for the demo:** `123456` (works because `MFA_MODE=static` is set on the Lambda)
 - **Test customer login:** `user020` / `Password1` (and `user001`..`user030` similarly)
@@ -105,7 +106,8 @@ Auth on all admin endpoints: `Authorization: Basic <base64(demoClient:demoSecret
 
 ```bash
 BASIC=$(printf "demoClient:demoSecret" | base64)
-API=https://55p8lbxf9g.execute-api.us-east-1.amazonaws.com
+# API base: set this to the value from apps/frontend/.env.production.local
+API=https://signal.glinr.com/api
 ```
 
 ### Surface eligibility (rule + AI)
@@ -113,7 +115,7 @@ API=https://55p8lbxf9g.execute-api.us-east-1.amazonaws.com
 ```bash
 TOKEN=$(curl -s -X POST -u "demoClient:demoSecret" \
   -H "Content-Type: application/json" \
-  -d '{"username":"user020","password":"Password1","location":"Chicago","deviceId":"d1","deviceType":"mobile","browser":"Safari","ipAddress":"50.1.2.3"}' \
+  -d '{"username":"user020","password":"Password1","location":"Chicago","deviceId":"d1","deviceType":"mobile","browser":"Safari"}' \
   "$API/auth/login" | jq -r .data.token)
 
 # Rule-only
@@ -244,3 +246,7 @@ A non-exhaustive list to help teammates pick up the context fast:
 - The decisions feed (`/admin/decisions`) page still uses the old inline row markup. The `DecisionFeedRow` component (with type icons, per-type sublines, color borders, inline expand) and `useDecisionGroups` hook are on main but not yet wired into the page. KPI strip + filter chips also not yet shipped.
 - 30+ stale remote branches from merged PRs need a cleanup pass.
 - LLM cost monitoring is per-Lambda-container; a centralised DDB-backed budget tracker would be more accurate but is overkill for the demo.
+
+---
+
+Related: [TEST_PERSONAS.md](./TEST_PERSONAS.md) | [api-quickstart.md](./api-quickstart.md) | [deployment.md](./deployment.md)

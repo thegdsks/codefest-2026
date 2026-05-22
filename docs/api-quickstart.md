@@ -1,8 +1,28 @@
 # Signal Force API quickstart
 
+Last updated: 2026-05-21
+
 > OpenAPI 3.1 spec: [docs/openapi.yaml](./openapi.yaml) - see [docs/openapi-readme.md](./openapi-readme.md) for TypeScript codegen instructions.
 
 Copy-paste curl examples for the deployed demo API. Verified working against the live stack on 2026-05-20.
+
+## Contents
+
+- [Endpoint index](#endpoint-index)
+- [Connection details](#connection-details)
+- [Seeded users](#seeded-users)
+- [Decision row schema](#decision-row-schema)
+- [Auth flow](#auth-flow-run-these-two-first)
+- [Customer surface](#customer-surface)
+- [Profile completeness](#profile-completeness)
+- [Transactions](#transactions)
+- [Admin endpoints](#admin-endpoints)
+- [Demo controls](#demo-controls)
+- [Rules editor](#rules-editor)
+- [Demo use cases verified](#demo-use-cases-verified)
+- [Postman setup](#postman-setup-tips)
+- [Common errors](#common-errors-decoded)
+- [Verified vs not yet verified](#what-is-verified-vs-not)
 
 ## Endpoint index
 
@@ -1084,10 +1104,14 @@ curl -u demoClient:demoSecret \
 | 403  | `ACCOUNT_BLOCKED`           | Heuristic flagged the user. State is in `UserState`. Use `POST /admin/decisions/{id}/release` to clear. |
 | 403  | `FORBIDDEN`                 | Admin endpoint called with a subject not in `ADMIN_USERNAMES`. |
 | 404  | `USER_NOT_FOUND`            | The `userId` or `recipientId` does not exist in `UserProfile`.          |
-| 500  | `INTERNAL_ERROR`            | Unhandled exception. Tail CloudWatch logs: `aws logs tail signal-force-runtime-ApiLambdaLogGroup3846CFFB-sSgrJbYDLaiR --follow --region us-east-1`. |
+| 500  | `INTERNAL_ERROR`            | Unhandled exception. Tail CloudWatch logs: `aws logs tail /aws/lambda/<function-name> --follow --region us-east-1`. |
 
 ## What is verified vs not
 
 Verified live: `POST /auth/login`, `POST /auth/mfa/verify`, `GET /dashboard`, `GET /offers`, `GET /admin/decisions`, `GET /admin/metrics`, `POST /admin/decisions/{id}/release`, `GET /admin/users`, `GET /user/profile-completeness`.
 
-Not yet smoke-tested end-to-end: all routes added in this document. They should work but flag anything weird and we will fix.
+Not yet smoke-tested end-to-end: routes added after 2026-05-20. They should work but flag any issues.
+
+---
+
+Related: [openapi-readme.md](./openapi-readme.md) | [rule-editor.md](./rule-editor.md) | [DEMO_RUNBOOK.md](./DEMO_RUNBOOK.md)
