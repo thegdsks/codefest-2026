@@ -163,6 +163,70 @@ Switch to priya033. Toggle AI Mode on. No nudge surfaces appear - the LLM demote
 
 ---
 
+## Demoing MFA via Impossible-Travel
+
+The login fraud engine compares each user's current login location against **that same user's prior successful login**. Persona histories are independent - switching from maya031 to dre032 does not cross state.
+
+The thresholds that govern what the engine returns:
+
+| Window (same user, different location) | Result |
+|---|---|
+| delta < 60s | BLOCK (IMPOSSIBLE_TRAVEL) |
+| 60s to 30 min | MFA challenge (SUSPICIOUS_LOCATION) |
+| > 30 min | ALLOW |
+
+### Option A: natural impossible-travel path
+
+1. Click any persona (e.g. Maya) and let the login complete.
+2. Wait at least 60 seconds after the first login completed.
+3. Click the same persona from a different location (use the location field or change the demo context location picker).
+4. The engine compares that user's prior login location to the new one. If they differ and the gap is 60s-30min, MFA fires.
+5. Enter the static OTP `123456` at the MFA screen. The response shows `mfaPath: "STATIC"` confirming the static fallback path.
+
+### Option B: Force MFA checkbox (fastest for live demo)
+
+1. Enable DEMO_MODE on the backend (set `DEMO_MODE=1` in the Lambda environment or `.env.local`).
+2. On the login form a "Force MFA challenge (demo)" checkbox appears.
+3. Check it, then click any persona or click Sign In.
+4. The fraud engine is bypassed entirely and the MFA challenge screen appears immediately.
+5. Enter OTP `123456`. Login succeeds with `mfaPath: "DEMO_FORCED"`.
+
+### Option C: persona quick-clear guarantee
+
+Every persona click in the side panel now calls `POST /admin/users/{userId}/clear-block` before submitting the login form. This means:
+
+- Clicking a persona that was previously blocked auto-clears the block.
+- No manual "Demo: clear my block" step needed for persona switching.
+- The clear-block call is best-effort; if the API is unavailable the login still proceeds.
+
+### Verification curl (MFA window)
+
+```bash
+# First login for a user (sets lastLoginLocation = "Austin")
+curl -s -X POST $API_URL/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"maya031","password":"Password1","location":"Austin","deviceId":"dev-demo"}' \
+  | jq '.data.status'
+# => "SUCCESS"
+
+# Second login for the same user, different location, 90 seconds later
+# (delta=90s, in 60-1800s MFA window)
+curl -s -X POST $API_URL/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"maya031","password":"Password1","location":"Tokyo","deviceId":"dev-demo"}' \
+  | jq '{status: .data.status, reason: .data.reason}'
+# => {"status":"MFA_REQUIRED","reason":"SUSPICIOUS_LOCATION"}
+
+# Verify MFA with static OTP
+curl -s -X POST $API_URL/auth/mfa/verify \
+  -H 'Content-Type: application/json' \
+  -d "{\"sessionId\":\"<sessionId from above>\",\"otp\":\"123456\"}" \
+  | jq '{status: .data.status, mfaPath: .data.mfaPath}'
+# => {"status":"SUCCESS","mfaPath":"STATIC"}
+```
+
+---
+
 ## Seed Command (run after PR merge)
 
 ```bash

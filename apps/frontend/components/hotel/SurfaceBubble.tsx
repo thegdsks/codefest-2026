@@ -13,8 +13,9 @@
  */
 
 import { Gift, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import type { SurfaceEvaluation } from '@/lib/hotel/surface-types';
+import type { NextActionTarget, SurfaceEvaluation } from '@/lib/hotel/surface-types';
 
 type BubblePlacement = 'top-right' | 'bottom-right' | 'bottom-left' | 'inline';
 
@@ -32,6 +33,38 @@ const PLACEMENT_CLASSES: Record<Exclude<BubblePlacement, 'inline'>, string> = {
   'bottom-right': 'fixed bottom-24 right-6 z-50',
   'bottom-left': 'fixed bottom-24 left-6 z-50',
 };
+
+// Maps a NextActionTarget or surfaceId fallback to a client-side route.
+function deepLinkFor(target: NextActionTarget | undefined, surfaceId: string): string | null {
+  if (target) {
+    switch (target) {
+      case 'profileCompletion':
+        return '/profile/edit';
+      case 'mfaEnrolled':
+        return '/profile/edit';
+      case 'tier':
+        return '/results';
+      case 'flow.transfer':
+        return '/transfer';
+      case 'booking':
+        return '/results';
+    }
+  }
+
+  // Fallback by surfaceId when target is absent.
+  switch (surfaceId) {
+    case 'PROFILE_CATALYST_ELEVATE':
+      return '/profile/edit';
+    case 'MFA_ENROLLMENT_NUDGE':
+      return '/profile/edit';
+    case 'TRANSFER_ABANDON_OFFER':
+      return '/transfer';
+    case 'BOOKING_CONFIRMATION_OFFER':
+      return '/results';
+    default:
+      return null;
+  }
+}
 
 function recordImpression(surfaceId: string): void {
   if (typeof window === 'undefined') return;
@@ -53,6 +86,7 @@ export default function SurfaceBubble({
   const [bubbleState, setBubbleState] = useState<BubbleState>('idle');
   const [visible, setVisible] = useState(true);
   const impressionFired = useRef(false);
+  const router = useRouter();
 
   // Fire impression once on mount (client-side dedup only; see file header).
   useEffect(() => {
@@ -82,6 +116,8 @@ export default function SurfaceBubble({
     try {
       await onAction();
       setBubbleState('done');
+      const href = deepLinkFor(action?.target, surface.surfaceId);
+      if (href) router.push(href);
     } catch {
       setBubbleState('idle');
     }
