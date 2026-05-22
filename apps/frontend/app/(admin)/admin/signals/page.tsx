@@ -25,14 +25,20 @@ const SIGNAL_TYPES: Array<{ value: '' | SignalType; label: string }> = [
 ];
 
 const SIGNAL_PILL_COLORS: Record<string, string> = {
-  rage_click: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-  dwell_no_action: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  abandoned_flow_step: 'bg-orange-500/15 text-orange-300 border-orange-500/30',
-  repeated_query: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
-  points_balance_stare: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+  rage_click:
+    'bg-[color:var(--danger-bg)] text-[color:var(--danger-fg)] border-[color:var(--danger-border)]',
+  dwell_no_action:
+    'bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] border-[color:var(--warning-border)]',
+  abandoned_flow_step:
+    'bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] border-[color:var(--warning-border)]',
+  repeated_query:
+    'bg-[color:var(--accent-violet-bg)] text-[color:var(--accent-violet-fg)] border-[color:var(--accent-violet-border)]',
+  points_balance_stare:
+    'bg-[color:var(--accent-sky-bg)] text-[color:var(--accent-sky-fg)] border-[color:var(--accent-sky-border)]',
 };
 
-const SIGNAL_PILL_DEFAULT = 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30';
+const SIGNAL_PILL_DEFAULT =
+  'bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)] border-[color:var(--border-strong)]';
 
 const SKELETON_ROWS = ['s0', 's1', 's2', 's3', 's4', 's5'];
 
