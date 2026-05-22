@@ -3,7 +3,7 @@
 /**
  * Admin user endpoints.
  *
- * Exports: listUsers, getUserRisk, clearUserBlock
+ * Exports: listUsers, getUser, getUserRisk, clearUserBlock
  */
 
 const {
@@ -105,6 +105,41 @@ async function listUsers(event, correlationId) {
   }
 
   return json(200, correlationId, { data: { users, nextCursor } });
+}
+
+/**
+ * GET /admin/users/{userId}
+ *
+ * Return a single user profile by userId (DynamoDB partition key, e.g. USER#035).
+ * passwordHash is stripped before returning.
+ *
+ * @param {object} event
+ * @param {string} correlationId
+ * @returns {Promise<object>}
+ */
+async function getUser(event, correlationId) {
+  const authCheck = requireAdmin(event, correlationId);
+  if (!authCheck.ok) return authCheck.response;
+
+  const rawPath = event.requestContext?.http?.path || event.path || '';
+  const rawId = extractIdFromPath(rawPath, '/admin/users', '');
+  if (!rawId) {
+    return err(400, correlationId, 'VALIDATION_ERROR', 'userId missing from path');
+  }
+  const userId = decodeURIComponent(rawId);
+
+  const result = await getDdb().send(
+    new GetCommand({ TableName: CFG.tUserProfile, Key: { userId } })
+  );
+
+  if (!result.Item) {
+    return err(404, correlationId, 'NOT_FOUND', `User ${userId} not found`);
+  }
+
+  const safe = { ...result.Item };
+  delete safe.passwordHash;
+
+  return json(200, correlationId, { data: safe });
 }
 
 /**
@@ -265,4 +300,4 @@ async function clearUserBlock(event, correlationId) {
   });
 }
 
-module.exports = { listUsers, getUserRisk, clearUserBlock };
+module.exports = { listUsers, getUser, getUserRisk, clearUserBlock };

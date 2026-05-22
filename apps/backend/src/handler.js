@@ -151,6 +151,8 @@ async function route(event, correlationId) {
   if (method === 'GET' && p.match(/^\/admin\/decisions\/[^/]+$/) && p !== '/admin/decisions/export')
     return admin.getDecisionById(event, correlationId);
   if (method === 'GET' && p === '/admin/users') return admin.getUsers(event, correlationId);
+  if (method === 'GET' && p.match(/^\/admin\/users\/[^/]+$/))
+    return admin.getUser(event, correlationId);
   if (method === 'GET' && p.match(/^\/admin\/users\/[^/]+\/risk$/))
     return admin.getUserRisk(event, correlationId);
   if (method === 'POST' && p.match(/^\/admin\/users\/[^/]+\/clear-block$/))
