@@ -272,8 +272,8 @@ function buildChecks() {
           },
           200,
           (b) => {
-            const d = (b && b.data) || b;
-            if (!d || !d.status) return 'missing data.status in login response';
+            const d = b?.data || b;
+            if (!d?.status) return 'missing data.status in login response';
             return null;
           }
         ),
@@ -315,8 +315,8 @@ function buildChecks() {
           200,
           (b) => {
             if (bearerToken) return null; // already had a token
-            const d = (b && b.data) || b;
-            if (!d || !d.token) return 'expected token in mfa/verify response';
+            const d = b?.data || b;
+            if (!d?.token) return 'expected token in mfa/verify response';
             return null;
           }
         ),
@@ -339,8 +339,8 @@ function buildChecks() {
             }),
           200,
           (b) => {
-            const d = (b && b.data) || b;
-            if (!d || !d.currentTier) return 'expected data.currentTier in loyalty-summary';
+            const d = b?.data || b;
+            if (!d?.currentTier) return 'expected data.currentTier in loyalty-summary';
             return null;
           }
         ),
@@ -363,7 +363,7 @@ function buildChecks() {
             }),
           200,
           (b) => {
-            const d = (b && b.data) || b;
+            const d = b?.data || b;
             if (d === undefined || d === null) return 'empty surface-eligibility response';
             return null;
           }
@@ -391,7 +391,7 @@ function buildChecks() {
             ),
           200,
           (b) => {
-            const d = (b && b.data) || b;
+            const d = b?.data || b;
             if (d === undefined || d === null) return 'empty surface-eligibility (aiMode) response';
             return null;
           }
@@ -422,7 +422,7 @@ function buildChecks() {
           },
           200,
           (b) => {
-            const d = (b && b.data) || b;
+            const d = b?.data || b;
             if (!d || typeof d !== 'object') return 'expected data object in transfer draft';
             return null;
           }
@@ -453,7 +453,7 @@ function buildChecks() {
             }),
           200,
           (b) => {
-            const d = (b && b.data) || b;
+            const d = b?.data || b;
             if (!d || typeof d !== 'object') return 'expected data object in transfer response';
             return null;
           }
@@ -538,7 +538,7 @@ function buildChecks() {
             }),
           200,
           (b) => {
-            const d = (b && b.data) || b;
+            const d = b?.data || b;
             if (!d || typeof d !== 'object') return 'expected data object in booking response';
             return null;
           }
@@ -593,7 +593,7 @@ function buildChecks() {
                 params: { count: 3, elementId: 'transfer-btn' },
               },
             });
-            if (r.body && r.body.data && r.body.data.decisionId) {
+            if (r.body?.data?.decisionId) {
               releaseDecisionId = r.body.data.decisionId;
             }
             return r;
@@ -650,7 +650,7 @@ function buildChecks() {
           },
           200,
           (b) => {
-            const decisions = (b && b.data && b.data.decisions) || (b && b.data) || [];
+            const decisions = b?.data?.decisions || b?.data || [];
             if (!Array.isArray(decisions)) return 'expected decisions array';
             return null;
           }
@@ -726,7 +726,7 @@ function buildChecks() {
           () => req('GET', '/admin/sessions', { headers: adminHeaders() }),
           200,
           (b) => {
-            const sessions = (b && b.data && b.data.sessions) || (b && b.data) || [];
+            const sessions = b?.data?.sessions || b?.data || [];
             if (!Array.isArray(sessions)) return 'expected sessions array';
             return null;
           }
@@ -747,7 +747,7 @@ function buildChecks() {
           () => req('GET', '/admin/users', { headers: adminHeaders() }),
           200,
           (b) => {
-            const users = (b && b.data && b.data.users) || (b && b.data) || [];
+            const users = b?.data?.users || b?.data || [];
             if (!Array.isArray(users)) return 'expected users array';
             return null;
           }
@@ -768,7 +768,7 @@ function buildChecks() {
           () => req('GET', '/admin/rules', { headers: adminHeaders() }),
           200,
           (b) => {
-            const rules = (b && b.data && b.data.rules) || (b && b.data) || [];
+            const rules = b?.data?.rules || b?.data || [];
             if (!Array.isArray(rules)) return 'expected rules array';
             return null;
           }
@@ -954,9 +954,9 @@ console.log('');
 console.log(bold('Signal Force API smoke test'));
 console.log(`  ${gray('API_URL')}  ${cyan(BASE_URL)}`);
 console.log(
-  `  ${gray('mode')}     ${cyan(QUICK ? '--quick (' + checksToRun.length + ' checks)' : 'full (' + checksToRun.length + ' checks)')}`
+  `  ${gray('mode')}     ${cyan(QUICK ? `--quick (${checksToRun.length} checks)` : `full (${checksToRun.length} checks)`)}`
 );
-console.log(`  ${gray('timeout')}  ${cyan(TIMEOUT_MS + 'ms per request')}`);
+console.log(`  ${gray('timeout')}  ${cyan(`${TIMEOUT_MS}ms per request`)}`);
 console.log('');
 
 const smokeStart = Date.now();
@@ -982,7 +982,7 @@ console.log(gray('-'.repeat(80)));
 
 for (const r of results) {
   const statusStr = String(r.status || '-').padStart(5);
-  const durStr = (r.durationMs + 'ms').padStart(7);
+  const durStr = `${r.durationMs}ms`.padStart(7);
   const statusMark = r.pass ? green('PASS') : red('FAIL');
   const p0mark = r.p0 ? bold('[P0]') : gray('[  ]');
   console.log(`${r.label.padEnd(56)} ${statusStr} ${durStr}  ${statusMark} ${p0mark}`);
@@ -995,7 +995,7 @@ console.log(gray('-'.repeat(80)));
 console.log(
   `${bold(`${passCount}/${results.length} passed`)}  ${gray('|')}  ` +
     `P0: ${allP0Pass ? green('all pass') : red('FAILED')}  ${gray('|')}  ` +
-    `Total: ${gray(totalMs + 'ms')}`
+    `Total: ${gray(`${totalMs}ms`)}`
 );
 console.log('');
 

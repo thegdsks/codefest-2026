@@ -1,8 +1,9 @@
 # Signal Force API - Client codegen
 
-The spec lives at `docs/openapi.yaml` (OpenAPI 3.1). FE devs can use it to
-generate TypeScript types and a typed fetch client without adding runtime
-dependencies to the frontend bundle.
+Last updated: 2026-05-21
+
+The spec lives at `docs/openapi.yaml` (OpenAPI 3.1). Frontend devs can use it to generate
+TypeScript types and a typed fetch client without adding runtime dependencies to the bundle.
 
 ## Generating TypeScript types
 
@@ -13,8 +14,7 @@ npx --yes openapi-typescript@latest docs/openapi.yaml \
   -o apps/frontend/src/api/openapi-types.ts
 ```
 
-Commit the generated file. Re-run whenever `docs/openapi.yaml` changes (see
-below for the workflow).
+Commit the generated file. Re-run whenever `docs/openapi.yaml` changes.
 
 ## Using the generated types with openapi-fetch
 
@@ -33,7 +33,7 @@ import createClient from 'openapi-fetch';
 import type { paths } from './openapi-types';
 
 export const apiClient = createClient<paths>({
-  baseUrl: import.meta.env.VITE_API_BASE_URL,
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
   headers: {
     Authorization: `Basic ${btoa('demoClient:demoSecret')}`,
   },
@@ -56,7 +56,7 @@ if (error) {
 
 ## Keeping the spec in sync
 
-There is no CI check yet that enforces spec-code sync. Manually re-generate
+There is no CI check that enforces spec-code sync. Manually re-generate
 types after any change to `apps/backend/src/handler.js` or `apps/backend/src/admin.js`.
 
 Suggested local workflow:
@@ -112,3 +112,7 @@ If you prefer to generate a collection from the spec, open Postman, click
 "Import", choose "File" or paste the raw `docs/openapi.yaml` content. Postman
 generates one request per operation from the spec. You will need to configure
 the `basicAuth` and `bearerToken` variables manually on the generated collection.
+
+---
+
+Related: [api-quickstart.md](./api-quickstart.md)
