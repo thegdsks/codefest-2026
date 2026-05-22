@@ -48,7 +48,7 @@ export function parseStoredSession(raw: string | null | undefined): StoredSessio
  * the server.
  */
 export function readSessionStorage(key: string): string | null {
-  if (typeof globalThis.window === 'undefined') return null;
+  if (globalThis.window === undefined) return null;
   try {
     return globalThis.sessionStorage.getItem(key);
   } catch {
@@ -60,7 +60,7 @@ export function readSessionStorage(key: string): string | null {
  * Best-effort write to sessionStorage. Silent on quota / privacy errors.
  */
 export function writeSessionStorage(key: string, value: string): void {
-  if (typeof globalThis.window === 'undefined') return;
+  if (globalThis.window === undefined) return;
   try {
     globalThis.sessionStorage.setItem(key, value);
   } catch {
@@ -72,7 +72,7 @@ export function writeSessionStorage(key: string, value: string): void {
  * Best-effort delete from sessionStorage. Silent on errors.
  */
 export function clearSessionStorage(key: string): void {
-  if (typeof globalThis.window === 'undefined') return;
+  if (globalThis.window === undefined) return;
   try {
     globalThis.sessionStorage.removeItem(key);
   } catch {

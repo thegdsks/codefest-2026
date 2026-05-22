@@ -59,7 +59,7 @@ async function parseJsonSafe(response: Response): Promise<Record<string, unknown
 }
 
 function maybeExpireSession(status: number, init?: RequestInit): void {
-  if (status !== 401 || typeof globalThis.window === 'undefined') return;
+  if (status !== 401 || globalThis.window === undefined) return;
   const isBearerAuth = (
     init?.headers as Record<string, string> | undefined
   )?.Authorization?.startsWith('Bearer ');

@@ -139,7 +139,7 @@ export function CustomerProvider({ children }: Readonly<{ children: ReactNode }>
   }, [completeLogin]);
 
   useEffect(() => {
-    if (typeof globalThis.window === 'undefined') return;
+    if (globalThis.window === undefined) return;
     const handleExpired = () => {
       clearSessionStorage(SESSION_STORAGE_KEY);
       setIsLoggedIn(false);
