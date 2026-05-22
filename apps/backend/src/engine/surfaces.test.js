@@ -34,8 +34,9 @@ describe('evaluateSurfaces', () => {
   });
 
   test('PROPERTY_PRESTIGE_ADVANCE is HIDDEN when already Platinum', () => {
+    // loyaltyScore must be >= 50000 so getCurrentTier returns Platinum
     const result = evaluateSurfaces({
-      profile: baseProfile({ tier: 'Platinum' }),
+      profile: baseProfile({ tier: 'Platinum', loyaltyScore: 60000 }),
       state: baseState(),
       nowSec: NOW,
     });
@@ -46,7 +47,7 @@ describe('evaluateSurfaces', () => {
 
   test('PROPERTY_PRESTIGE_ADVANCE is COMPLETED when platinumReachedAt within 60s', () => {
     const result = evaluateSurfaces({
-      profile: baseProfile({ tier: 'Platinum' }),
+      profile: baseProfile({ tier: 'Platinum', loyaltyScore: 60000 }),
       state: baseState({ platinumReachedAt: NOW - 30 }),
       nowSec: NOW,
     });
@@ -106,8 +107,9 @@ describe('evaluateSurfaces', () => {
   });
 
   test('MFA_ENROLLMENT_NUDGE is HIDDEN when Silver', () => {
+    // loyaltyScore must be < 25000 so getCurrentTier returns Silver
     const result = evaluateSurfaces({
-      profile: baseProfile({ tier: 'Silver' }),
+      profile: baseProfile({ tier: 'Silver', loyaltyScore: 10000 }),
       state: baseState(),
       nowSec: NOW,
     });
@@ -126,8 +128,9 @@ describe('evaluateSurfaces', () => {
   });
 
   test('MFA_ENROLLMENT_NUDGE is SHOWN for Platinum without mfaSecret', () => {
+    // loyaltyScore must be >= 50000 so getCurrentTier returns Platinum
     const result = evaluateSurfaces({
-      profile: baseProfile({ tier: 'Platinum', loyaltyScore: 1000, mfaSecret: null }),
+      profile: baseProfile({ tier: 'Platinum', loyaltyScore: 60000, mfaSecret: null }),
       state: baseState(),
       nowSec: NOW,
     });
@@ -208,62 +211,69 @@ describe('evaluateSurfaces', () => {
     assert.equal(s.state, 'COMPLETED');
   });
 
-  test('returns all 7 surfaces in every call', () => {
+  test('returns all 6 surfaces in every call', () => {
     const result = evaluateSurfaces({ profile: baseProfile(), state: baseState(), nowSec: NOW });
-    assert.equal(result.length, 7);
+    assert.equal(result.length, 6);
   });
 
-  test('PROPERTY_PERSONALIZED_OFFER is PENDING when dwell < 5s and Gold', () => {
+  // ------------------------------------------------------------------
+  // Dual-shape recentBooking (P0-2)
+  // ------------------------------------------------------------------
+
+  test('BOOKING_CONFIRMATION_OFFER SHOWN when state has nested recentBooking.bookedAt', () => {
+    // Seed shape: { recentBooking: { bookedAt: <epochSec> } }
     const result = evaluateSurfaces({
-      profile: baseProfile({ tier: 'Gold' }),
-      state: baseState({ propertyDwellMs: 2000, currentPropertyId: 'prop-001' }),
+      profile: baseProfile(),
+      state: baseState({
+        recentBooking: { propertyId: 'PROP#42', nights: 3, bookedAt: NOW - 60 },
+      }),
       nowSec: NOW,
     });
-    const s = result.find((r) => r.surfaceId === 'PROPERTY_PERSONALIZED_OFFER');
-    assert.equal(s.state, 'PENDING');
-    assert.equal(s.context.propertyId, 'prop-001');
+    const s = result.find((r) => r.surfaceId === 'BOOKING_CONFIRMATION_OFFER');
+    assert.equal(s.state, 'SHOWN', 'nested recentBooking.bookedAt should trigger SHOWN');
   });
 
-  test('PROPERTY_PERSONALIZED_OFFER is SHOWN when dwell > 5s and Gold', () => {
+  test('BOOKING_CONFIRMATION_OFFER flat recentBookingAt takes precedence over nested', () => {
     const result = evaluateSurfaces({
-      profile: baseProfile({ tier: 'Gold' }),
-      state: baseState({ propertyDwellMs: 8000, currentPropertyId: 'prop-001' }),
+      profile: baseProfile(),
+      state: baseState({
+        recentBookingAt: NOW - 30,
+        recentBooking: { bookedAt: NOW - 99999 }, // stale nested should be ignored
+      }),
       nowSec: NOW,
     });
-    const s = result.find((r) => r.surfaceId === 'PROPERTY_PERSONALIZED_OFFER');
-    assert.equal(s.state, 'SHOWN');
+    const s = result.find((r) => r.surfaceId === 'BOOKING_CONFIRMATION_OFFER');
+    assert.equal(s.state, 'SHOWN', 'flat recentBookingAt should win when present');
   });
 
-  test('PROPERTY_PERSONALIZED_OFFER is HIDDEN when booking flow active', () => {
+  // ------------------------------------------------------------------
+  // Tier consistency: surfaces derive from loyaltyScore not profile.tier (P1-1)
+  // ------------------------------------------------------------------
+
+  test('PROPERTY_PRESTIGE_ADVANCE is HIDDEN for Diamond persona (120000 pts)', () => {
+    // priya033: loyaltyScore=120000 -> Diamond (>= 100000 threshold)
     const result = evaluateSurfaces({
-      profile: baseProfile({ tier: 'Gold' }),
-      state: baseState({ propertyDwellMs: 8000, bookingFlowActive: true }),
+      profile: baseProfile({ tier: 'Platinum', loyaltyScore: 120000 }),
+      state: baseState(),
       nowSec: NOW,
     });
-    const s = result.find((r) => r.surfaceId === 'PROPERTY_PERSONALIZED_OFFER');
-    assert.equal(s.state, 'HIDDEN');
-    assert.ok(s.reason.includes('booking flow'));
+    const s = result.find((r) => r.surfaceId === 'PROPERTY_PRESTIGE_ADVANCE');
+    // Diamond is top-tier so isPlat flag should be true -> HIDDEN
+    assert.equal(s.state, 'HIDDEN', 'Diamond tier should hide prestige advance surface');
+    assert.equal(
+      s.context.currentTier,
+      'Diamond',
+      'currentTier in context should reflect computed tier from loyaltyScore'
+    );
   });
 
-  test('PROPERTY_PERSONALIZED_OFFER is HIDDEN when recently booked', () => {
+  test('displayTier is Diamond when loyaltyScore >= 100000 even if profile.tier says Platinum', () => {
     const result = evaluateSurfaces({
-      profile: baseProfile({ tier: 'Gold' }),
-      state: baseState({ propertyDwellMs: 8000, recentBookingAt: NOW - 60 }),
+      profile: baseProfile({ tier: 'Platinum', loyaltyScore: 100000 }),
+      state: baseState(),
       nowSec: NOW,
     });
-    const s = result.find((r) => r.surfaceId === 'PROPERTY_PERSONALIZED_OFFER');
-    assert.equal(s.state, 'HIDDEN');
-    assert.ok(s.reason.includes('recently booked'));
-  });
-
-  test('PROPERTY_PERSONALIZED_OFFER is HIDDEN for Silver tier', () => {
-    const result = evaluateSurfaces({
-      profile: baseProfile({ tier: 'Silver' }),
-      state: baseState({ propertyDwellMs: 8000 }),
-      nowSec: NOW,
-    });
-    const s = result.find((r) => r.surfaceId === 'PROPERTY_PERSONALIZED_OFFER');
-    assert.equal(s.state, 'HIDDEN');
-    assert.ok(s.reason.includes('eligible'));
+    const s = result.find((r) => r.surfaceId === 'PROPERTY_PRESTIGE_ADVANCE');
+    assert.equal(s.context.currentTier, 'Diamond');
   });
 });

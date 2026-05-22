@@ -79,8 +79,10 @@ function surfaceColorClass(surface: EngagementSurface): string {
   return 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30';
 }
 
-function ruleToSurface(action: RuleAction): EngagementSurface {
-  return action.surface as EngagementSurface;
+function ruleToSurface(action: RuleAction | undefined): EngagementSurface {
+  // Defensive: seeded rules use event.params.surface, the visual-editor shape
+  // uses action.surface. Either path may be missing on partial drafts.
+  return ((action?.surface as EngagementSurface | undefined) ?? 'none') as EngagementSurface;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,8 +90,11 @@ function ruleToSurface(action: RuleAction): EngagementSurface {
 // ---------------------------------------------------------------------------
 
 function buildTriggerDescription(rule: EngagementRule): string {
-  const conditions = rule.whenConditions.rules;
-  const whoConditions = rule.whoConditions.rules;
+  // Two rule shapes coexist: the visual-editor shape with
+  // whenConditions/whoConditions, and the seeded json-rules-engine shape
+  // with conditions.all. Guard both so the viewer does not crash on either.
+  const conditions = rule.whenConditions?.rules ?? [];
+  const whoConditions = rule.whoConditions?.rules ?? [];
 
   const parts: string[] = [];
 
@@ -265,7 +270,9 @@ export default function RuleExperienceViewer({ rule, open, onClose }: RuleExperi
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  const copy = rule?.action.fallbackCopy ?? '';
+  // Guard: action may be undefined on partially drafted rules saved before the
+  // action field was required by the schema.
+  const copy = rule?.action?.fallbackCopy ?? '';
   const slot: WireframeSlot = surface !== 'none' ? surfaceToSlot(surface) : 'banner';
   const triggerDescription = rule ? buildTriggerDescription(rule) : '';
   const colorClass = surfaceColorClass(surface);
