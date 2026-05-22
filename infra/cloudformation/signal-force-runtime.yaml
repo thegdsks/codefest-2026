@@ -1,0 +1,585 @@
+Description: Signal Force - runtime (Lambda, HTTP API, fraud alert, dashboard)
+Resources:
+  FraudAlertTopic64F9CC35:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: signal-force fraud alerts
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+    Metadata:
+      aws:cdk:path: signal-force-runtime/FraudAlertTopic/Resource
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Demo topic for internal fraud notifications. AWS SDK and Lambda
+            publish over TLS by default. SSE will be revisited when the topic carries
+            real user data.
+          id: AwsSolutions-SNS3
+        - reason: Demo topic. KMS-managed encryption deferred until the topic carries
+            production payloads.
+          id: AwsSolutions-SNS2
+  ApiLambdaLogGroup3846CFFB:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 1
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: signal-force-runtime/ApiLambdaLogGroup/Resource
+  ApiLambdaServiceRole1CC7D0F3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - Fn::Join:
+        - ''
+        - - 'arn:'
+          - Ref: AWS::Partition
+          - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+    Metadata:
+      aws:cdk:path: signal-force-runtime/ApiLambda/ServiceRole/Resource
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Node.js 18 is the documented runtime for this hackathon (see AGENTS.md).
+            Bump tracked as post-event work before Lambda EOL.
+          id: AwsSolutions-L1
+        - reason: AWSLambdaBasicExecutionRole is the CDK default for Lambda CloudWatch
+            Logs access and is acceptable.
+          id: AwsSolutions-IAM4
+          applies_to:
+          - Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - reason: GSI wildcards are required by Table.grantReadWriteData so the function
+            can query the indexes attached to each table.
+          id: AwsSolutions-IAM5
+          applies_to:
+          - Resource::<UserProfileTable61BB5480.Arn>/index/*
+          - Resource::<UserSessionTableCD18DD22.Arn>/index/*
+          - Resource::<DecisionStoreTable3E281CE6.Arn>/index/*
+        - reason: Bedrock foundation-model and inference-profile ARNs use a model-family
+            wildcard so the function works across Haiku 4.5 minor versions without
+            redeploy.
+          id: AwsSolutions-IAM5
+          applies_to:
+          - Resource::arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5*
+          - Resource::arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5*
+        - reason: 'X-Ray PutTraceSegments and PutTelemetryRecords cannot be scoped
+            to specific resource ARNs (AWS docs require Resource: *). Enabled by lambda.Tracing.ACTIVE
+            so the runtime function appears in X-Ray traces.'
+          id: AwsSolutions-IAM5
+          applies_to:
+          - Resource::*
+  ApiLambdaServiceRoleDefaultPolicyF1B57697:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Action:
+          - xray:PutTelemetryRecords
+          - xray:PutTraceSegments
+          Effect: Allow
+          Resource: '*'
+        - Action:
+          - dynamodb:BatchGetItem
+          - dynamodb:BatchWriteItem
+          - dynamodb:ConditionCheckItem
+          - dynamodb:DeleteItem
+          - dynamodb:DescribeTable
+          - dynamodb:GetItem
+          - dynamodb:GetRecords
+          - dynamodb:GetShardIterator
+          - dynamodb:PutItem
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:UpdateItem
+          Effect: Allow
+          Resource:
+          - Fn::ImportValue: signal-force-dynamodb:ExportsOutputFnGetAttDecisionStoreTable3E281CE6Arn70033280
+          - Fn::ImportValue: signal-force-dynamodb:ExportsOutputFnGetAttEngagementRulesTableE2AC6BE6Arn143A6038
+          - Fn::ImportValue: signal-force-dynamodb:ExportsOutputFnGetAttUserActivityTableC1B8BF25Arn5B2CBB62
+          - Fn::ImportValue: signal-force-dynamodb:ExportsOutputFnGetAttUserProfileTable61BB5480Arn8F33ED73
+          - Fn::ImportValue: signal-force-dynamodb:ExportsOutputFnGetAttUserSessionTableCD18DD22Arn426FD013
+          - Fn::ImportValue: signal-force-dynamodb:ExportsOutputFnGetAttUserStateTable339B87E4Arn69FBB1B1
+          - Fn::Join:
+            - ''
+            - - Fn::ImportValue: signal-force-dynamodb:ExportsOutputFnGetAttDecisionStoreTable3E281CE6Arn70033280
+              - /index/*
+          - Fn::Join:
+            - ''
+            - - Fn::ImportValue: signal-force-dynamodb:ExportsOutputFnGetAttUserProfileTable61BB5480Arn8F33ED73
+              - /index/*
+          - Fn::Join:
+            - ''
+            - - Fn::ImportValue: signal-force-dynamodb:ExportsOutputFnGetAttUserSessionTableCD18DD22Arn426FD013
+              - /index/*
+        - Action: sns:Publish
+          Effect: Allow
+          Resource:
+            Ref: FraudAlertTopic64F9CC35
+        - Action:
+          - bedrock:Converse
+          - bedrock:InvokeModel
+          Effect: Allow
+          Resource:
+          - arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5*
+          - arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5*
+          Sid: BedrockHaikuAccess
+        Version: '2012-10-17'
+      PolicyName: ApiLambdaServiceRoleDefaultPolicyF1B57697
+      Roles:
+      - Ref: ApiLambdaServiceRole1CC7D0F3
+    Metadata:
+      aws:cdk:path: signal-force-runtime/ApiLambda/ServiceRole/DefaultPolicy/Resource
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Node.js 18 is the documented runtime for this hackathon (see AGENTS.md).
+            Bump tracked as post-event work before Lambda EOL.
+          id: AwsSolutions-L1
+        - reason: AWSLambdaBasicExecutionRole is the CDK default for Lambda CloudWatch
+            Logs access and is acceptable.
+          id: AwsSolutions-IAM4
+          applies_to:
+          - Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - reason: GSI wildcards are required by Table.grantReadWriteData so the function
+            can query the indexes attached to each table.
+          id: AwsSolutions-IAM5
+          applies_to:
+          - Resource::<UserProfileTable61BB5480.Arn>/index/*
+          - Resource::<UserSessionTableCD18DD22.Arn>/index/*
+          - Resource::<DecisionStoreTable3E281CE6.Arn>/index/*
+        - reason: Bedrock foundation-model and inference-profile ARNs use a model-family
+            wildcard so the function works across Haiku 4.5 minor versions without
+            redeploy.
+          id: AwsSolutions-IAM5
+          applies_to:
+          - Resource::arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5*
+          - Resource::arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5*
+        - reason: 'X-Ray PutTraceSegments and PutTelemetryRecords cannot be scoped
+            to specific resource ARNs (AWS docs require Resource: *). Enabled by lambda.Tracing.ACTIVE
+            so the runtime function appears in X-Ray traces.'
+          id: AwsSolutions-IAM5
+          applies_to:
+          - Resource::*
+  ApiLambda91D2282D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Architectures:
+      - arm64
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-123456789012-us-east-1
+        S3Key: eb413b05f563fc070d0160c83ea70230f5b82dfe6c58c8caeb3ac119095a3fbe.zip
+      Environment:
+        Variables:
+          BEDROCK_MODEL_ID: us.anthropic.claude-haiku-4-5-20251001-v1:0
+          CLIENT_ID: demoClient
+          CLIENT_SECRET: demoSecret
+          DEMO_MODE: '1'
+          FRAUD_ALERT_TOPIC_ARN:
+            Ref: FraudAlertTopic64F9CC35
+          FRAUD_SCORE_THRESHOLD: '60'
+          MFA_MODE: static
+          MFA_OTP: '123456'
+          TABLE_DECISION_STORE:
+            Fn::ImportValue: signal-force-dynamodb:ExportsOutputRefDecisionStoreTable3E281CE6A2DD5580
+          TABLE_ENGAGEMENT_RULES:
+            Fn::ImportValue: signal-force-dynamodb:ExportsOutputRefEngagementRulesTableE2AC6BE6BEF31A01
+          TABLE_USER_ACTIVITY:
+            Fn::ImportValue: signal-force-dynamodb:ExportsOutputRefUserActivityTableC1B8BF2556CE349F
+          TABLE_USER_PROFILE:
+            Fn::ImportValue: signal-force-dynamodb:ExportsOutputRefUserProfileTable61BB54804A17922C
+          TABLE_USER_SESSION:
+            Fn::ImportValue: signal-force-dynamodb:ExportsOutputRefUserSessionTableCD18DD225383278D
+          TABLE_USER_STATE:
+            Fn::ImportValue: signal-force-dynamodb:ExportsOutputRefUserStateTable339B87E474F22B71
+      Handler: index.main
+      LoggingConfig:
+        LogGroup:
+          Ref: ApiLambdaLogGroup3846CFFB
+      MemorySize: 512
+      Role:
+        Fn::GetAtt:
+        - ApiLambdaServiceRole1CC7D0F3
+        - Arn
+      Runtime: nodejs18.x
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+      Timeout: 10
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+    - ApiLambdaServiceRoleDefaultPolicyF1B57697
+    - ApiLambdaServiceRole1CC7D0F3
+    Metadata:
+      aws:cdk:path: signal-force-runtime/ApiLambda/Resource
+      aws:asset:path: asset.eb413b05f563fc070d0160c83ea70230f5b82dfe6c58c8caeb3ac119095a3fbe
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Node.js 18 is the documented runtime for this hackathon (see AGENTS.md).
+            Bump tracked as post-event work before Lambda EOL.
+          id: AwsSolutions-L1
+  ApiLambdaCurrentVersion1AF76D5A8af8a084f4010f3d12b624d4eef51536:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName:
+        Ref: ApiLambda91D2282D
+    Metadata:
+      aws:cdk:path: signal-force-runtime/ApiLambda/CurrentVersion/Resource
+      aws:cdk:do-not-refactor: true
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Node.js 18 is the documented runtime for this hackathon (see AGENTS.md).
+            Bump tracked as post-event work before Lambda EOL.
+          id: AwsSolutions-L1
+  LiveAlias9B8FFEA9:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName:
+        Ref: ApiLambda91D2282D
+      FunctionVersion:
+        Fn::GetAtt:
+        - ApiLambdaCurrentVersion1AF76D5A8af8a084f4010f3d12b624d4eef51536
+        - Version
+      Name: live
+    Metadata:
+      aws:cdk:path: signal-force-runtime/LiveAlias/Resource
+  ApiF70053CD:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      CorsConfiguration:
+        AllowHeaders:
+        - '*'
+        AllowMethods:
+        - '*'
+        AllowOrigins:
+        - '*'
+      Name: Api
+      ProtocolType: HTTP
+      Tags:
+        Project: signal-force
+        Stage: dev
+    Metadata:
+      aws:cdk:path: signal-force-runtime/Api/Resource
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Authorization is handled in-Lambda by the Basic Auth + static MFA
+            OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event
+            (see docs/architecture.md upgrade path).
+          id: AwsSolutions-APIG4
+  ApiDefaultStage189A7074:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      AccessLogSettings:
+        DestinationArn:
+          Fn::GetAtt:
+          - ApiAccessLogGroupCEA70788
+          - Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","integrationErrorMessage":"$context.integrationErrorMessage"}'
+      ApiId:
+        Ref: ApiF70053CD
+      AutoDeploy: true
+      DefaultRouteSettings:
+        DetailedMetricsEnabled: true
+        ThrottlingBurstLimit: 40
+        ThrottlingRateLimit: 20
+      StageName: $default
+      Tags:
+        Project: signal-force
+        Stage: dev
+    Metadata:
+      aws:cdk:path: signal-force-runtime/Api/DefaultStage/Resource
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Authorization is handled in-Lambda by the Basic Auth + static MFA
+            OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event
+            (see docs/architecture.md upgrade path).
+          id: AwsSolutions-APIG4
+  ApiANYproxyAliasIntegration4127CB25:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: ApiF70053CD
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Ref: LiveAlias9B8FFEA9
+      PayloadFormatVersion: '2.0'
+    Metadata:
+      aws:cdk:path: signal-force-runtime/Api/ANY--{proxy+}/AliasIntegration/Resource
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Authorization is handled in-Lambda by the Basic Auth + static MFA
+            OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event
+            (see docs/architecture.md upgrade path).
+          id: AwsSolutions-APIG4
+  ApiANYproxyAliasIntegrationPermissionF2543BA8:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: LiveAlias9B8FFEA9
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+        - ''
+        - - 'arn:aws:execute-api:us-east-1:123456789012:'
+          - Ref: ApiF70053CD
+          - /*/*/{proxy+}
+    Metadata:
+      aws:cdk:path: signal-force-runtime/Api/ANY--{proxy+}/AliasIntegration-Permission
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Authorization is handled in-Lambda by the Basic Auth + static MFA
+            OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event
+            (see docs/architecture.md upgrade path).
+          id: AwsSolutions-APIG4
+  ApiANYproxyA4087D62:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ApiF70053CD
+      AuthorizationType: NONE
+      RouteKey: ANY /{proxy+}
+      Target:
+        Fn::Join:
+        - ''
+        - - integrations/
+          - Ref: ApiANYproxyAliasIntegration4127CB25
+    Metadata:
+      aws:cdk:path: signal-force-runtime/Api/ANY--{proxy+}/Resource
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Authorization is handled in-Lambda by the Basic Auth + static MFA
+            OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event
+            (see docs/architecture.md upgrade path).
+          id: AwsSolutions-APIG4
+  ApiANYAliasIntegrationPermission566F53C8:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: LiveAlias9B8FFEA9
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+        - ''
+        - - 'arn:aws:execute-api:us-east-1:123456789012:'
+          - Ref: ApiF70053CD
+          - /*/*/
+    Metadata:
+      aws:cdk:path: signal-force-runtime/Api/ANY--/AliasIntegration-Permission
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Authorization is handled in-Lambda by the Basic Auth + static MFA
+            OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event
+            (see docs/architecture.md upgrade path).
+          id: AwsSolutions-APIG4
+  ApiANYCA91118A:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ApiF70053CD
+      AuthorizationType: NONE
+      RouteKey: ANY /
+      Target:
+        Fn::Join:
+        - ''
+        - - integrations/
+          - Ref: ApiANYproxyAliasIntegration4127CB25
+    Metadata:
+      aws:cdk:path: signal-force-runtime/Api/ANY--/Resource
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Authorization is handled in-Lambda by the Basic Auth + static MFA
+            OTP flow documented in AGENTS.md. Replace with Cognito + WAF post-event
+            (see docs/architecture.md upgrade path).
+          id: AwsSolutions-APIG4
+  ApiAccessLogGroupCEA70788:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 7
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: signal-force-runtime/ApiAccessLogGroup/Resource
+  SignalForceDemoDashboard0BD4C064:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardBody:
+        Fn::Join:
+        - ''
+        - - '{"start":"-PT1H","widgets":[{"type":"metric","width":12,"height":6,"x":0,"y":0,"properties":{"view":"timeSeries","title":"Lambda
+            invocations and errors","region":"'
+          - Ref: AWS::Region
+          - '","metrics":[["AWS/Lambda","Invocations","FunctionName","'
+          - Ref: ApiLambda91D2282D
+          - '",{"label":"Invocations","period":60,"stat":"Sum"}],["AWS/Lambda","Errors","FunctionName","'
+          - Ref: ApiLambda91D2282D
+          - '",{"label":"Errors","period":60,"stat":"Sum","yAxis":"right"}]],"yAxis":{}}},{"type":"metric","width":12,"height":6,"x":12,"y":0,"properties":{"view":"timeSeries","title":"Lambda
+            duration p50 / p95","region":"'
+          - Ref: AWS::Region
+          - '","metrics":[["AWS/Lambda","Duration","FunctionName","'
+          - Ref: ApiLambda91D2282D
+          - '",{"label":"p50","period":60,"stat":"p50"}],["AWS/Lambda","Duration","FunctionName","'
+          - Ref: ApiLambda91D2282D
+          - '",{"label":"p95","period":60,"stat":"p95"}]],"yAxis":{}}},{"type":"metric","width":12,"height":6,"x":0,"y":6,"properties":{"view":"timeSeries","title":"API
+            Gateway 4xx / 5xx","region":"'
+          - Ref: AWS::Region
+          - '","metrics":[["AWS/ApiGateway","4xx","ApiId","'
+          - Ref: ApiF70053CD
+          - '",{"label":"4xx","period":60,"stat":"Sum"}],["AWS/ApiGateway","5xx","ApiId","'
+          - Ref: ApiF70053CD
+          - '",{"label":"5xx","period":60,"stat":"Sum"}]],"yAxis":{}}},{"type":"metric","width":12,"height":6,"x":12,"y":6,"properties":{"view":"timeSeries","title":"LLM
+            invocations (stacked area) and latency p95","region":"'
+          - Ref: AWS::Region
+          - '","stacked":true,"metrics":[["SignalForce","LLMInvocations",{"label":"LLM
+            Invocations","period":60,"stat":"Sum"}],["SignalForce","LLMLatencyMs",{"label":"LLM
+            Latency p95 (ms)","period":60,"stat":"p95","yAxis":"right"}]],"yAxis":{"left":{"label":"Count","showUnits":false},"right":{"label":"ms","showUnits":false}}}}]}'
+      DashboardName: signal-force-runtime
+    Metadata:
+      aws:cdk:path: signal-force-runtime/SignalForceDemoDashboard/Resource
+  LambdaErrorAlarm646BFA4C:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: FraudAlertTopic64F9CC35
+      AlarmDescription: Lambda emitted a 5xx during the codefest demo. Check CloudWatch
+        Logs for the root cause.
+      AlarmName: signal-force-lambda-5xx
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+      - Name: FunctionName
+        Value:
+          Ref: ApiLambda91D2282D
+      EvaluationPeriods: 1
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Period: 60
+      Statistic: Sum
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+      Threshold: 1
+      TreatMissingData: notBreaching
+    Metadata:
+      aws:cdk:path: signal-force-runtime/LambdaErrorAlarm/Resource
+  ApiGateway5xxAlarm4F808175:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: FraudAlertTopic64F9CC35
+      AlarmDescription: API Gateway 5xx during demo. Likely a Lambda integration failure
+        or timeout.
+      AlarmName: signal-force-api-5xx
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+      - Name: ApiId
+        Value:
+          Ref: ApiF70053CD
+      EvaluationPeriods: 1
+      MetricName: 5xx
+      Namespace: AWS/ApiGateway
+      Period: 60
+      Statistic: Sum
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+      Threshold: 1
+      TreatMissingData: notBreaching
+    Metadata:
+      aws:cdk:path: signal-force-runtime/ApiGateway5xxAlarm/Resource
+  LlmBudgetAlarmC4D0C674:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: FraudAlertTopic64F9CC35
+      AlarmDescription: LLM invocations exceeded 200/hr. Check for bug loops or unexpected
+        traffic. Tune LLM_GUARD_MAX_CALLS and LLM_GUARD_WINDOW_SEC env vars if thresholds
+        need adjustment.
+      AlarmName: signal-force-llm-budget
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      MetricName: LLMInvocations
+      Namespace: SignalForce
+      Period: 3600
+      Statistic: Sum
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+      Threshold: 200
+      TreatMissingData: notBreaching
+    Metadata:
+      aws:cdk:path: signal-force-runtime/LlmBudgetAlarm/Resource
+  ApiUrlParam8AD347B3:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: HTTP API endpoint for the signal-force runtime stack
+      Name: /signal-force/dev/api-url
+      Tags:
+        Project: signal-force
+        Stage: dev
+      Type: String
+      Value:
+        Fn::GetAtt:
+        - ApiF70053CD
+        - ApiEndpoint
+    Metadata:
+      aws:cdk:path: signal-force-runtime/ApiUrlParam/Resource
+Outputs:
+  ApiUrl:
+    Value:
+      Fn::GetAtt:
+      - ApiF70053CD
+      - ApiEndpoint
+    Export:
+      Name: signal-force-runtime:ApiUrl
+  LambdaFunctionName:
+    Value:
+      Ref: ApiLambda91D2282D
+    Export:
+      Name: signal-force-runtime:LambdaFunctionName
+  FraudAlertTopicArn:
+    Value:
+      Ref: FraudAlertTopic64F9CC35
+    Export:
+      Name: signal-force-runtime:FraudAlertTopicArn
+  LiveAliasArn:
+    Value:
+      Ref: LiveAlias9B8FFEA9
+    Export:
+      Name: signal-force-runtime:LiveAliasArn
+  DashboardUrl:
+    Value: https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards:name=signal-force-runtime
+    Export:
+      Name: signal-force-runtime:DashboardUrl
