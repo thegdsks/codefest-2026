@@ -49,9 +49,15 @@ export const DESTINATIONS: Destination[] = [
 ];
 
 export const PARTNERS: Partner[] = [
-  { id: 'aeroglobal', name: 'AeroGlobal', ratio: '3:1 Ratio', icon: 'flight_takeoff' },
-  { id: 'skyhigh', name: 'SkyHigh Rewards', ratio: '3:1 Ratio', icon: 'cloud' },
-  { id: 'elite', name: 'Elite Voyages', ratio: '3:1 Ratio', icon: 'sailing' },
+  {
+    id: 'aeroglobal',
+    name: 'AeroGlobal Flight Plan',
+    ratio: '3:1',
+    sfcPerPoint: 3,
+    icon: 'flight_takeoff',
+  },
+  { id: 'skyhigh', name: 'SkyHigh Rewards', ratio: '2:1', sfcPerPoint: 2, icon: 'cloud' },
+  { id: 'elite', name: 'Elite Voyages', ratio: '5:1', sfcPerPoint: 5, icon: 'sailing' },
 ];
 
 export const MOCK_USER: UserProfile = {
