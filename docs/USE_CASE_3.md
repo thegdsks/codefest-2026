@@ -1,8 +1,22 @@
 # Use Case 3: Behavior-Driven Smart Promotions
 
+Last updated: 2026-05-21
+
 Signal Force detects real-time visitor behavior (rage clicks, dwell stalls, points staring,
 abandoned flows) and surfaces personalized promotions without any hard-coded promo copy in
 the frontend.
+
+---
+
+## Contents
+
+- [Architecture flow](#architecture-flow)
+- [Demo walkthrough](#demo-walkthrough)
+- [Manual signal triggers](#manual-signal-triggers-demo-panel)
+- [Admin panel](#admin-panel)
+- [AI Mode](#ai-mode-l2-surface-prioritization)
+- [Smoke test](#curl-smoke-test)
+- [Known limitations](#known-limitations)
 
 ---
 
@@ -32,7 +46,7 @@ EngagementProvider              surfaces map (nudge_banner, offer_modal, help_to
 DynamicOfferCard / NudgeBanner / OfferModal / HelpTooltip renders in UI
 ```
 
-Numbered summary:
+How it works:
 
 1. `EngagementProvider` (in `engagement-wrapper.tsx`) calls `mountCapture` on mount,
    which attaches all four detectors to the document automatically.
@@ -56,19 +70,19 @@ Numbered summary:
 - Frontend running at `http://localhost:3000` (or deployed URL)
 - Backend running and env vars set (`NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_CLIENT_ID`,
   `NEXT_PUBLIC_CLIENT_SECRET`)
-- A customer account in DynamoDB (seed data includes `loyalty@example.com`)
+- A customer account in DynamoDB (seed data includes `user001` through `user038`)
 
 ### Steps
 
-1. Log in as a customer (e.g. `loyalty@example.com`).
+1. Log in as a customer (e.g. `user020` / `Password1`).
 2. Navigate to `/profile`. The "Your Offers" card shows a placeholder until a signal fires.
 3. Open the Demo Panel (gear icon, bottom-right). Under "Trigger Engagement Signal", click
    one of the four buttons. The response box shows the decision inline.
 4. Within 2-3 seconds, the profile page's offer card (or a nudge banner) updates with the
    engine-generated copy.
 5. Navigate to `/property/paris` to see the `DynamicOfferCard` on the property page.
-6. Open `/admin/decisions` in a separate tab. The Live Engagement Stream table should
-   show the fired signal within 5 seconds.
+6. Open `/admin/decisions` in a separate tab. The Live Engagement Stream table shows the
+   fired signal within 5 seconds.
 
 ---
 
@@ -160,9 +174,8 @@ Click "Pause" to freeze the view for comparison.
 
 ## AI Mode (L2 surface prioritization)
 
-In addition to the rule-driven engagement signals above, the surface eligibility endpoint
-supports an `?aiMode=on` query parameter that activates the L2 AI surface prioritizer
-(`engine/ai-surface-prioritizer.js`).
+The surface eligibility endpoint supports an `?aiMode=on` query parameter that activates
+the L2 AI surface prioritizer (`engine/ai-surface-prioritizer.js`).
 
 When `aiMode=on`, each surface in the response gains three additional fields:
 
@@ -186,9 +199,9 @@ curl -H 'Authorization: Bearer tok_xxxxxxxx' \
 
 The customer DemoPanel exposes an AI Mode toggle that sets this parameter on each poll.
 
-## Curl smoke test
+---
 
-Replace `<BASE_URL>`, `<B64_CREDS>`, `<USER_ID>` before running.
+## Curl smoke test
 
 ```bash
 BASE_URL="https://signal.glinr.com/api"
@@ -216,3 +229,7 @@ Expected: the call returns a decision with `action: "OFFER"` or `"NUDGE"`.
 - Static MFA OTP (`123456`) is used in demo mode. Set `MFA_MODE=totp` in production.
 - `abandoned_flow_step` requires a page navigation to fire from the SDK automatically.
   The Demo Panel button fires it directly without navigation.
+
+---
+
+Related: [DEMO_RUNBOOK.md](./DEMO_RUNBOOK.md) | [rule-editor.md](./rule-editor.md) | [api-quickstart.md](./api-quickstart.md)

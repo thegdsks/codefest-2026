@@ -1,5 +1,7 @@
 # Test Personas Playbook
 
+Last updated: 2026-05-21
+
 All demo personas use password `Password1`.
 
 ## Quick Reference Table
@@ -238,3 +240,7 @@ To add only the new personas without touching existing data, use `--purge-first`
 ```bash
 node scripts/seed-ddb.js --table=UserProfile,UserActivity,UserState,DecisionStore --purge-first
 ```
+
+---
+
+Related: [DEMO_RUNBOOK.md](./DEMO_RUNBOOK.md) | [api-quickstart.md](./api-quickstart.md)

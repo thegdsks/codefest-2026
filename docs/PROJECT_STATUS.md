@@ -1,6 +1,8 @@
 # Signal Force - Project Status
 
-**Date:** 2026-05-21 16:00 CT | **Demo:** 2026-05-22 | **Team:** 5 (1 infra, 3 product/dev, 1 PM)
+Last updated: 2026-05-21
+
+**Demo:** 2026-05-22 | **Team:** 5 (1 infra, 3 product/dev, 1 PM)
 
 Signal Force is a fraud-aware loyalty decision platform built for Marriott Codefest 2026. A single
 decision engine classifies every customer action (login, transfer, page visit) through a layered
@@ -16,7 +18,7 @@ v2 TypeScript (DynamoDB PAY_PER_REQUEST, Lambda arm64, Budgets alarm).
 
 ---
 
-## Shipped (Done)
+## Shipped
 
 ### Engine lane
 
@@ -93,7 +95,7 @@ v2 TypeScript (DynamoDB PAY_PER_REQUEST, Lambda arm64, Budgets alarm).
 | One-button deploy scripts | `npm run deploy:aws` and `npm run deploy:vercel` in `apps/backend` |
 | `MFA_MODE=static` Lambda env | Lets judges use OTP `123456` without an authenticator app |
 | `DEMO_MODE=1` Lambda env | Activates reseed endpoint and DemoPanel controls |
-| LiteLLM env vars in CDK | `LITELLM_API_BASE`, `LITELLM_API_KEY`, `LITELLM_FALLBACK_MODELS` passed through runtime stack |
+| LiteLLM env vars in CDK | `LITELLM_BASE_URL`, `LITELLM_API_KEY`, `LITELLM_MODEL` passed through runtime stack |
 | Favicon, OG image | `/public/favicon.ico` and `/public/og-image.png` for social card and browser tab |
 | Vercel Analytics | `@vercel/analytics` component active on customer surface |
 
@@ -103,8 +105,8 @@ v2 TypeScript (DynamoDB PAY_PER_REQUEST, Lambda arm64, Budgets alarm).
 |---|---|
 | `docs/architecture.md` | Full system design: engine pipeline, DynamoDB access patterns, scale model, cost at Bonvoy scale |
 | `docs/deployment.md` | Step-by-step AWS + Vercel deployment runbook |
-| `docs/api-quickstart.md` | HTTP examples for every major route category (in progress - stale base URL) |
-| `docs/openapi.yaml` | OpenAPI 3.0 spec (in progress - not yet synced to all 42 routes) |
+| `docs/api-quickstart.md` | HTTP examples for every major route category |
+| `docs/openapi.yaml` | OpenAPI 3.0 spec |
 | `docs/USE_CASE_3.md` | Behavior-driven smart promotions design doc |
 | `docs/rule-editor.md` | Admin rule editor user guide |
 | `seed_data/` | 30-record BatchWriteItem JSON per table; includes demo story rule and enriched trace fields |
@@ -121,7 +123,7 @@ v2 TypeScript (DynamoDB PAY_PER_REQUEST, Lambda arm64, Budgets alarm).
 | UC3 - behavior-driven smart promotions | HIGH | Engagement detectors wired on all five customer pages; 8 ACTIVE rules in DDB |
 | UC4 - AI-augmented surface prioritization | HIGH | `aiMode=on` live on surface-eligibility; fraud explainer on every BLOCK/REVIEW/MFA decision |
 
-## PRs merged since last status update (PRs #86-#125)
+## PRs merged since last status update (PRs #86-#146)
 
 Key items:
 
@@ -142,12 +144,13 @@ Key items:
 | #121 | AI fraud explainer + AI surface prioritizer (backend) |
 | #122 | AI Mode toggle, verdict pills, DecisionDrawer AI Analysis panel (frontend) |
 | #124 | AI prioritizer timeout raised 3s to 6s |
-
-## In flight (this branch)
-
-Current branch: `docs/refresh-all-to-current-main`
-
-- All docs updated to reflect shipped state as of 2026-05-21 16:00 CT
+| #136 | BLOCK flow end-to-end + UC3 inline bubble nudges |
+| #137 | Two-step booking flow and AI personalized offer surface |
+| #138 | Session guard on protected customer routes |
+| #142 | Signal visibility, booking shape, tier consistency, ErrorBoundary |
+| #144 | Login side-by-side layout and surface deep-linking |
+| #145 | Signal history view and richer decision row labels |
+| #146 | Wider impossible-travel windows and auto-clear block on persona select |
 
 ---
 
@@ -159,9 +162,8 @@ Ordered by demo impact:
 2. **Demo rehearsal smoke test against live URL** - Run `npm run rehearsal` against `https://signal.glinr.com` to confirm reseed, login, MFA, and transfer all return 200 on the deployed stack. Catches env var drift before judges arrive.
 3. **Seed judges accounts on live DynamoDB** - Confirm `user001` and `user002` exist in the deployed UserProfile table with the demo story rule pre-trigger. If the rehearsal script reseeds destructively, verify judge account passwords survive.
 4. **OG image and social card refresh** - The current `og-image.png` is a placeholder. A real card improves the judges' first impression when they paste the URL into Slack or a browser.
-5. **Vercel preview "Blocked" status checks** - Preview deployments block on status checks not relevant to the demo. Disable or scope the checks so preview branches do not show false red in the PR list judges might see.
-6. **Add a judges quick-start 30-second loop in the README** - A numbered, time-annotated walk-through (sign in 0:00, transfer 0:30, admin 0:60) so judges know exactly where to look and in what order.
-7. **Lambda cold-start warm-up cron** - A CloudWatch Events rule pinging `/health` every 5 minutes keeps the Lambda warm. At current PAY_PER_REQUEST rates this costs under $0.01 for the demo window and eliminates the 1-2 s first-request delay. Only add if budget headroom allows.
+5. **Add a judges quick-start 30-second loop in the README** - A numbered, time-annotated walk-through (sign in 0:00, transfer 0:30, admin 0:60) so judges know exactly where to look and in what order.
+6. **Lambda cold-start warm-up cron** - A CloudWatch Events rule pinging `/health` every 5 minutes keeps the Lambda warm. At current PAY_PER_REQUEST rates this costs under $0.01 for the demo window and eliminates the 1-2 s first-request delay. Only add if budget headroom allows.
 
 ---
 
@@ -186,8 +188,7 @@ These are concrete next steps if the project continued for another week:
 2. **Judge account passwords** - The rehearsal reseed overwrites seed data. If a judge signs in before the demo and the host runs reseed, the session is invalidated. Decide: reseed only at demo start, or use a separate judge account that reseed does not touch.
 3. **Static demo video fallback** - If the live URL is unreachable during the judges' session, do we have a screen recording as a fallback? Three minutes of the full flow recorded locally would cover a network outage.
 4. **Admin Basic Auth distribution** - Judges need `demoClient:demoSecret` to open `/admin`. Decide how to hand this off (printed card, slide, QR code) without it appearing in any public communication before the event.
-5. **LLM path for the demo** - The demo defaults to `MFA_MODE=static` and `DEMO_MODE=1`. Confirm whether `LITELLM_API_BASE` is set in the deployed Lambda so the AI explainer fires during the live demo. If LiteLLM is not reachable, the engine falls back to the rule-only path silently - which is fine, but the fraud explainer panel will be empty.
-6. **Warm-up cron cost approval** - Adding a CloudWatch Events rule for Lambda warm-up is a 1-hour task. Is it within the team's remaining cost-cap headroom? See the cost snapshot below.
+5. **LLM path for the demo** - The demo defaults to `MFA_MODE=static` and `DEMO_MODE=1`. Confirm whether `LITELLM_BASE_URL` is set in the deployed Lambda so the AI explainer fires during the live demo. If LiteLLM is not reachable, the engine falls back to the rule-only path silently - which is fine, but the fraud explainer panel will be empty.
 
 ---
 
@@ -198,7 +199,7 @@ All figures are estimates. Actual spend requires checking the AWS Cost Explorer 
 | Item | Env var / config | Default | Actual spend |
 |---|---|---|---|
 | LLM daily budget ceiling | `LLM_DAILY_BUDGET_USD` | 250 USD | TBD - check LiteLLM proxy dashboard |
-| LiteLLM model | `LITELLM_FALLBACK_MODELS` | (unset) | TBD |
+| LiteLLM model | `LITELLM_MODEL` | (unset) | TBD |
 | LiteLLM timeout | `LITELLM_TIMEOUT_MS` | 8000 ms | n/a |
 | Session TTL | `SESSION_TTL_SEC` | 1800 s | n/a |
 | DynamoDB | PAY_PER_REQUEST, 6 tables | - | TBD - AWS Cost Explorer |
@@ -217,7 +218,7 @@ To get the actual numbers: open the AWS Console, go to Cost Explorer, set the da
 # Install all workspace dependencies (run from repo root)
 npm install
 
-# Run backend test suite (356 tests)
+# Run backend test suite
 npm --workspace=apps/backend test
 
 # Run end-to-end demo rehearsal against configured API_BASE
@@ -227,3 +228,7 @@ npm --workspace=apps/backend run rehearsal
 gh pr create --title "feat: <description>" --body "$(cat .git/last-prepush-report.md)"
 gh pr merge --squash --delete-branch
 ```
+
+---
+
+Related: [DEMO_RUNBOOK.md](./DEMO_RUNBOOK.md) | [architecture.md](./architecture.md) | [TEST_PERSONAS.md](./TEST_PERSONAS.md)
