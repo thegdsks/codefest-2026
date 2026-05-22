@@ -92,7 +92,7 @@ export default function Header() {
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 shrink-0">
           {isLoggedIn ? (
             <div className="flex items-center gap-4">
               {/* Loyalty pill + dropdown */}
@@ -152,9 +152,9 @@ export default function Header() {
           <button
             type="button"
             onClick={() => go(isLoggedIn ? '/profile' : '/search')}
-            className="bg-black hover:bg-[#775a19] text-white text-xs font-sans font-semibold tracking-widest px-6 py-3 uppercase transition-all duration-300 hover:shadow-md cursor-pointer active:scale-95 border-none"
+            className="shrink-0 bg-black hover:bg-[#775a19] text-white text-xs font-sans font-semibold tracking-widest px-5 py-3 uppercase transition-all duration-300 hover:shadow-md cursor-pointer active:scale-95 border-none"
           >
-            {isLoggedIn ? 'My Stays' : 'Book Now'}
+            {isLoggedIn ? 'My Stays' : 'Book'}
           </button>
         </div>
       </nav>
