@@ -18,7 +18,7 @@ import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
 import { useTrackedEngagement } from '@/lib/hotel/use-tracked-engagement';
 
 function formatPhone(code?: string, number?: string) {
-  if (!number || number.trim() === '') return '—';
+  if (!number || number.trim() === '') return '-';
   const cleaned = number.replace(/\D/g, '');
   if (cleaned.length === 10) {
     const formatted = `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;

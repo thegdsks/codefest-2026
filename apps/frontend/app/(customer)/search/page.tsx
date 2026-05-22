@@ -21,7 +21,7 @@ export default function SearchScreen() {
   }
   const trackSearch = useCallback((query: string) => trackerRef.current?.(query), []);
   const [destinationInput, setDestinationInput] = useState('');
-  const [dates, setDates] = useState('Oct 14 — Oct 21');
+  const [dates, setDates] = useState('Oct 14 - Oct 21');
   const [isFocused, setIsFocused] = useState<string | null>(null);
 
   const runSearch = (query: string) => {

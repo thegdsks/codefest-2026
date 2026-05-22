@@ -1,5 +1,5 @@
 // Single-accent design tokens for admin chrome.
-// Accent: indigo-500 (#6366F1) — matches Linear's restrained single-purple approach
+// Accent: indigo-500 (#6366F1) - matches Linear's restrained single-purple approach
 // and Stripe's high-contrast pattern with one brand color, no gradient on chrome.
 // Gradients are reserved for data emphasis (ProgressBar fill) only.
 
@@ -18,7 +18,7 @@ export const adminTheme = {
   textDim: 'text-zinc-500',
 } as const;
 
-// Hex reference (for documentation only — use Tailwind classes above in JSX):
+// Hex reference (for documentation only - use Tailwind classes above in JSX):
 // accent hex:  #6366F1  (indigo-500)
 // surface0 hex: #09090B (zinc-950)
 // surface2 hex: #18181B (zinc-900)

@@ -41,7 +41,7 @@ function ResultsInner() {
   const { surfaces } = useSurfaceEligibility();
   const resultsPrestigeSurface = surfaces['RESULTS_PRESTIGE_ADVANCE'];
   const searchQuery = searchParams.get('q') ?? 'Provence';
-  const dateRange = searchParams.get('dates') ?? 'Oct 14 — Oct 21';
+  const dateRange = searchParams.get('dates') ?? 'Oct 14 - Oct 21';
 
   // Rage click: user frantically clicking results without booking
   useEffect(() => {

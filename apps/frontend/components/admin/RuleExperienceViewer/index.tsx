@@ -17,7 +17,7 @@ type CustomerPage = '/property' | '/results' | '/profile' | '/transfer' | '/sear
 type WireframeSlot = 'banner' | 'modal' | 'tooltip' | 'inline_card';
 
 // The surface types from the AI suggestion schema. The RuleAction.surface field
-// uses a simplified set ('banner' | 'modal' | 'tooltip') — we map both here.
+// uses a simplified set ('banner' | 'modal' | 'tooltip') - we map both here.
 type EngagementSurface =
   | 'nudge_banner'
   | 'offer_modal'
