@@ -59,7 +59,7 @@ export default function SuccessScreen() {
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
                 Date &amp; Timestamp
               </span>
-              <span className="text-gray-800 font-medium font-mono">{txDate} — 14:32 UTC</span>
+              <span className="text-gray-800 font-medium font-mono">{txDate} - 14:32 UTC</span>
             </div>
             <div>
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">

@@ -78,7 +78,7 @@ export default function SurfaceBubbleHost() {
 
   if (!isLoggedIn || !session) return null;
 
-  // Prevent lint warning about unused dismissCount — reading it ensures re-render.
+  // Prevent lint warning about unused dismissCount - reading it ensures re-render.
   void dismissCount;
 
   // Match pathname prefix so /property/[id] still excludes /property's inline surfaces.

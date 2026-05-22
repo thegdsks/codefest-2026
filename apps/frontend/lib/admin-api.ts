@@ -307,7 +307,7 @@ export interface DecisionsQuery {
   type?: string;
   userId?: string;
   limit?: number;
-  /** ISO timestamp cursor — only return decisions after this point */
+  /** ISO timestamp cursor - only return decisions after this point */
   since?: string;
 }
 

@@ -68,7 +68,7 @@ export default function PropertyReviews({ config }: PropertyReviewsProps) {
                 EW
               </div>
               <span className="text-[10px] font-bold text-gray-900 uppercase tracking-widest font-sans">
-                Eleanor W. — London
+                Eleanor W. - London
               </span>
             </div>
           </div>
@@ -95,7 +95,7 @@ export default function PropertyReviews({ config }: PropertyReviewsProps) {
                 MK
               </div>
               <span className="text-[10px] font-bold text-gray-900 uppercase tracking-widest font-sans">
-                Marcus K. — New York
+                Marcus K. - New York
               </span>
             </div>
           </div>
@@ -121,7 +121,7 @@ export default function PropertyReviews({ config }: PropertyReviewsProps) {
                 SA
               </div>
               <span className="text-[10px] font-bold text-gray-900 uppercase tracking-widest font-sans">
-                Sophie A. — Tokyo
+                Sophie A. - Tokyo
               </span>
             </div>
           </div>

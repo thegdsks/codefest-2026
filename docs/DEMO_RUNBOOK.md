@@ -89,14 +89,14 @@ When opening a FRAUD_TRANSFER, FRAUD_LOGIN, or MFA_VERIFY decision with action B
 
 Tell this story:
 
-1. **Open the customer site (http://localhost:3000)** — show a normal flow: login as `user020`, browse search/results, view a property.
-2. **Land on the property page** — the Prestige Advance Benefit card is there with the live "300 pts from Platinum" copy from the engine. Mention "this card is rule-driven, the engine is deciding to show it."
-3. **Open DemoPanel** — show the Surface Eligibility section. 3 SHOWN, 3 HIDDEN.
-4. **Toggle AI Mode** — AI verdict pills appear. Say "the LLM ranks the surfaces and says PROMOTE this one, DEMOTE that one because the user is 0.4% profile complete which is too noisy a signal."
-5. **Click Make Platinum** — watch Prestige cards flip COMPLETED, Profile Catalyst HIDE. The DemoPanel shows the state change in real time.
-6. **Switch to admin (`/admin`)** — show the live activity feed. The USER_MUTATION demo event from step 5 is at the top with the operator action.
-7. **Trigger a high-risk transfer** (DemoPanel: Force high-risk + transfer 20K) — watch the FRAUD_TRANSFER BLOCK decision appear in the feed within 3 seconds.
-8. **Click the BLOCK decision** — Decision Drawer opens. AI Analysis panel shows the LLM paragraph explaining why this was blocked, the specific risk factors, the analyst recommendation.
+1. **Open the customer site (http://localhost:3000)** - show a normal flow: login as `user020`, browse search/results, view a property.
+2. **Land on the property page** - the Prestige Advance Benefit card is there with the live "300 pts from Platinum" copy from the engine. Mention "this card is rule-driven, the engine is deciding to show it."
+3. **Open DemoPanel** - show the Surface Eligibility section. 3 SHOWN, 3 HIDDEN.
+4. **Toggle AI Mode** - AI verdict pills appear. Say "the LLM ranks the surfaces and says PROMOTE this one, DEMOTE that one because the user is 0.4% profile complete which is too noisy a signal."
+5. **Click Make Platinum** - watch Prestige cards flip COMPLETED, Profile Catalyst HIDE. The DemoPanel shows the state change in real time.
+6. **Switch to admin (`/admin`)** - show the live activity feed. The USER_MUTATION demo event from step 5 is at the top with the operator action.
+7. **Trigger a high-risk transfer** (DemoPanel: Force high-risk + transfer 20K) - watch the FRAUD_TRANSFER BLOCK decision appear in the feed within 3 seconds.
+8. **Click the BLOCK decision** - Decision Drawer opens. AI Analysis panel shows the LLM paragraph explaining why this was blocked, the specific risk factors, the analyst recommendation.
 
 The whole story takes 4-5 minutes and shows rules + AI + live engine + operator transparency in one continuous flow.
 

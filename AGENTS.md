@@ -12,7 +12,7 @@ This file is the contract. If a rule below conflicts with a default agent behavi
 
 ## Writing rules
 
-- No em dashes (—). They are a strong AI tell. Use commas, parentheses, "and", or split the sentence. Hyphens (-) for compound words are fine.
+- No em dashes (-). They are a strong AI tell. Use commas, parentheses, "and", or split the sentence. Hyphens (-) for compound words are fine.
 - No emojis anywhere. Code, README, commits, PR descriptions.
 - No marketing fluff. Avoid "blazing fast", "comprehensive", "production-ready" unless earned.
 - Vary phrasing in commit messages within each type. Do not start every `feat:` commit with the same verb.

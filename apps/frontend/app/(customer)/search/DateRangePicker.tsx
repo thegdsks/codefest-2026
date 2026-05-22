@@ -31,7 +31,7 @@ function formatRange(from: Date, to: Date | null): string {
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
   const f = from.toLocaleDateString('en-US', opts);
   if (!to) return f;
-  return `${f} — ${to.toLocaleDateString('en-US', opts)}`;
+  return `${f} - ${to.toLocaleDateString('en-US', opts)}`;
 }
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ function MonthGrid({
   const count = daysInMonth(year, month);
   const offset = firstDayOffset(year, month);
 
-  // effective range end — show hover preview before user picks second date
+  // effective range end - show hover preview before user picks second date
   const effectiveTo = range.from && !range.to && hover && hover > range.from ? hover : range.to;
 
   const cells: Array<Date | null> = [
@@ -188,12 +188,12 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   }, [open]);
 
   function handleDay(date: Date) {
-    // First click — or restarting after a complete range
+    // First click - or restarting after a complete range
     if (!range.from || (range.from && range.to)) {
       setRange({ from: date, to: null });
       return;
     }
-    // Second click — complete or swap
+    // Second click - complete or swap
     if (sameDay(date, range.from)) return; // ignore same-day click
     if (date < range.from) {
       setRange({ from: date, to: range.from });

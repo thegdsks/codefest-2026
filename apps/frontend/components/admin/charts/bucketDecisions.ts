@@ -3,7 +3,7 @@ import type { DecisionRow } from '@/lib/admin-api';
 export type ActionKey = 'ALLOW' | 'BLOCK' | 'MFA' | 'REVIEW' | 'OFFER' | 'NUDGE' | string;
 
 export interface DecisionBucket {
-  /** Unix epoch milliseconds — start of the bucket */
+  /** Unix epoch milliseconds - start of the bucket */
   ts: number;
   ALLOW: number;
   BLOCK: number;
@@ -111,7 +111,7 @@ export function sparklineSeries(
   });
 }
 
-/** Window helpers — converts a Window string to milliseconds for both window and bucket. */
+/** Window helpers - converts a Window string to milliseconds for both window and bucket. */
 export function windowToMs(w: '5m' | '1h' | '6h' | '24h' | '7d' | '30d'): {
   windowMs: number;
   bucketMs: number;
