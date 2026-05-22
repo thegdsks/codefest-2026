@@ -8,6 +8,7 @@ import {
   Phone,
   PhoneSlash,
 } from '@phosphor-icons/react';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
 import ProgressBar from '@/components/admin/ProgressBar';
@@ -148,26 +149,28 @@ export default function UsersPage() {
         ) : (
           <ul className="divide-y divide-[var(--border)]">
             {users.map((user) => (
-              <li
-                key={user.userId}
-                className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm"
-              >
-                <div className="col-span-3">
-                  <div className="font-mono text-xs text-[var(--text)]">{user.userId}</div>
-                  <div className="text-xs text-[var(--text-dim)]">{user.username}</div>
-                </div>
-                <div className="col-span-2 text-xs text-[var(--text-muted)]">
-                  {user.tier ?? '-'}
-                </div>
-                <div className="col-span-1 text-right tabular-nums text-sm text-[var(--text)]">
-                  {user.loyaltyScore ?? '-'}
-                </div>
-                <div className="col-span-4">
-                  <CompletionCell value={user.profileCompletion} />
-                </div>
-                <div className="col-span-2">
-                  <VerifyIcons user={user} />
-                </div>
+              <li key={user.userId}>
+                <Link
+                  href={`/admin/users/${encodeURIComponent(user.userId)}`}
+                  className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm motion-safe:transition-colors hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]/70"
+                >
+                  <div className="col-span-3">
+                    <div className="font-mono text-xs text-[var(--text)]">{user.userId}</div>
+                    <div className="text-xs text-[var(--text-dim)]">{user.username}</div>
+                  </div>
+                  <div className="col-span-2 text-xs text-[var(--text-muted)]">
+                    {user.tier ?? '-'}
+                  </div>
+                  <div className="col-span-1 text-right tabular-nums text-sm text-[var(--text)]">
+                    {user.loyaltyScore ?? '-'}
+                  </div>
+                  <div className="col-span-4">
+                    <CompletionCell value={user.profileCompletion} />
+                  </div>
+                  <div className="col-span-2">
+                    <VerifyIcons user={user} />
+                  </div>
+                </Link>
               </li>
             ))}
           </ul>
