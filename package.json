@@ -23,6 +23,8 @@
     "smoke": "node scripts/smoke.mjs",
     "smoke:quick": "node scripts/smoke.mjs --quick",
     "smoke:test": "node --test scripts/smoke.test.mjs",
+    "scenarios": "node scripts/scenarios.mjs",
+    "demo:check": "node scripts/smoke.mjs --quick && node scripts/scenarios.mjs",
     "rehearsal": "node scripts/rehearsal.mjs"
   },
   "devDependencies": {
