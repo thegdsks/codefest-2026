@@ -1,0 +1,279 @@
+Description: Signal Force - DynamoDB tables
+Resources:
+  UserProfileTable61BB5480:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: userId
+        AttributeType: S
+      - AttributeName: username
+        AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+      - IndexName: username-index
+        KeySchema:
+        - AttributeName: username
+          KeyType: HASH
+        Projection:
+          ProjectionType: ALL
+      KeySchema:
+      - AttributeName: userId
+        KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TableName: UserProfile
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: signal-force-dynamodb/UserProfileTable/Resource
+  UserSessionTableCD18DD22:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: sessionId
+        AttributeType: S
+      - AttributeName: userId
+        AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+      - IndexName: userId-index
+        KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        Projection:
+          ProjectionType: ALL
+      KeySchema:
+      - AttributeName: sessionId
+        KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TableName: UserSession
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: signal-force-dynamodb/UserSessionTable/Resource
+  UserActivityTableC1B8BF25:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: userId
+        AttributeType: S
+      - AttributeName: activityTime
+        AttributeType: N
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+      - AttributeName: userId
+        KeyType: HASH
+      - AttributeName: activityTime
+        KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TableName: UserActivity
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: signal-force-dynamodb/UserActivityTable/Resource
+  DecisionStoreTable3E281CE6:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: decisionId
+        AttributeType: S
+      - AttributeName: userId
+        AttributeType: S
+      - AttributeName: timestamp
+        AttributeType: N
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+      - IndexName: userId-timestamp-index
+        KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+        Projection:
+          ProjectionType: ALL
+      KeySchema:
+      - AttributeName: decisionId
+        KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TableName: DecisionStore
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: signal-force-dynamodb/DecisionStoreTable/Resource
+  UserStateTable339B87E4:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: userId
+        AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+      - AttributeName: userId
+        KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TableName: UserState
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: signal-force-dynamodb/UserStateTable/Resource
+  EngagementRulesTableE2AC6BE6:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: ruleId
+        AttributeType: S
+      - AttributeName: version
+        AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+      - AttributeName: ruleId
+        KeyType: HASH
+      - AttributeName: version
+        KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TableName: EngagementRules
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: signal-force-dynamodb/EngagementRulesTable/Resource
+Outputs:
+  UserProfileTableName:
+    Value:
+      Ref: UserProfileTable61BB5480
+    Export:
+      Name: signal-force-dynamodb:UserProfileTableName
+  UserSessionTableName:
+    Value:
+      Ref: UserSessionTableCD18DD22
+    Export:
+      Name: signal-force-dynamodb:UserSessionTableName
+  UserActivityTableName:
+    Value:
+      Ref: UserActivityTableC1B8BF25
+    Export:
+      Name: signal-force-dynamodb:UserActivityTableName
+  DecisionStoreTableName:
+    Value:
+      Ref: DecisionStoreTable3E281CE6
+    Export:
+      Name: signal-force-dynamodb:DecisionStoreTableName
+  UserStateTableName:
+    Value:
+      Ref: UserStateTable339B87E4
+    Export:
+      Name: signal-force-dynamodb:UserStateTableName
+  EngagementRulesTableName:
+    Value:
+      Ref: EngagementRulesTableE2AC6BE6
+    Export:
+      Name: signal-force-dynamodb:EngagementRulesTableName
+  ExportsOutputFnGetAttUserProfileTable61BB5480Arn8F33ED73:
+    Value:
+      Fn::GetAtt:
+      - UserProfileTable61BB5480
+      - Arn
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputFnGetAttUserProfileTable61BB5480Arn8F33ED73
+  ExportsOutputFnGetAttUserSessionTableCD18DD22Arn426FD013:
+    Value:
+      Fn::GetAtt:
+      - UserSessionTableCD18DD22
+      - Arn
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputFnGetAttUserSessionTableCD18DD22Arn426FD013
+  ExportsOutputFnGetAttUserActivityTableC1B8BF25Arn5B2CBB62:
+    Value:
+      Fn::GetAtt:
+      - UserActivityTableC1B8BF25
+      - Arn
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputFnGetAttUserActivityTableC1B8BF25Arn5B2CBB62
+  ExportsOutputFnGetAttDecisionStoreTable3E281CE6Arn70033280:
+    Value:
+      Fn::GetAtt:
+      - DecisionStoreTable3E281CE6
+      - Arn
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputFnGetAttDecisionStoreTable3E281CE6Arn70033280
+  ExportsOutputFnGetAttUserStateTable339B87E4Arn69FBB1B1:
+    Value:
+      Fn::GetAtt:
+      - UserStateTable339B87E4
+      - Arn
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputFnGetAttUserStateTable339B87E4Arn69FBB1B1
+  ExportsOutputFnGetAttEngagementRulesTableE2AC6BE6Arn143A6038:
+    Value:
+      Fn::GetAtt:
+      - EngagementRulesTableE2AC6BE6
+      - Arn
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputFnGetAttEngagementRulesTableE2AC6BE6Arn143A6038
+  ExportsOutputRefDecisionStoreTable3E281CE6A2DD5580:
+    Value:
+      Ref: DecisionStoreTable3E281CE6
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputRefDecisionStoreTable3E281CE6A2DD5580
+  ExportsOutputRefEngagementRulesTableE2AC6BE6BEF31A01:
+    Value:
+      Ref: EngagementRulesTableE2AC6BE6
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputRefEngagementRulesTableE2AC6BE6BEF31A01
+  ExportsOutputRefUserActivityTableC1B8BF2556CE349F:
+    Value:
+      Ref: UserActivityTableC1B8BF25
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputRefUserActivityTableC1B8BF2556CE349F
+  ExportsOutputRefUserProfileTable61BB54804A17922C:
+    Value:
+      Ref: UserProfileTable61BB5480
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputRefUserProfileTable61BB54804A17922C
+  ExportsOutputRefUserSessionTableCD18DD225383278D:
+    Value:
+      Ref: UserSessionTableCD18DD22
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputRefUserSessionTableCD18DD225383278D
+  ExportsOutputRefUserStateTable339B87E474F22B71:
+    Value:
+      Ref: UserStateTable339B87E4
+    Export:
+      Name: signal-force-dynamodb:ExportsOutputRefUserStateTable339B87E474F22B71
