@@ -1575,3 +1575,160 @@ describe('getActivityFeed', () => {
     assert.ok(body.data.events[0].timestamp > body.data.events[1].timestamp);
   });
 });
+
+// ---------------------------------------------------------------------------
+// listSignals
+// ---------------------------------------------------------------------------
+
+function makeSignal(overrides = {}) {
+  return {
+    userId: 'USER#001',
+    activityType: 'ENGAGEMENT_SIGNAL',
+    activityTime: Date.now() - 1000,
+    signal: 'rage_click',
+    target: '#submit-btn',
+    count: 5,
+    score: 60,
+    action: 'NUDGE',
+    sessionId: 'tok-abc',
+    context: { clickCount: 5 },
+    ...overrides,
+  };
+}
+
+describe('listSignals', () => {
+  test('returns signal rows sorted by activityTime desc', async () => {
+    const now = Date.now();
+    const items = [
+      makeSignal({ activityTime: now - 5000, signal: 'rage_click' }),
+      makeSignal({ activityTime: now - 1000, signal: 'dwell_no_action' }),
+    ];
+    loadAdmin(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.listSignals(event, 'cid-sig-1');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.ok(Array.isArray(body.data.signals));
+    assert.equal(body.data.count, 2);
+    assert.ok(body.data.signals[0].activityTime >= body.data.signals[1].activityTime);
+  });
+
+  test('projects contextSummary for rage_click', async () => {
+    const items = [makeSignal({ signal: 'rage_click', context: { clickCount: 8 } })];
+    loadAdmin(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.listSignals(event, 'cid-sig-2');
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.signals[0].contextSummary, '8 clicks');
+  });
+
+  test('projects contextSummary for dwell_no_action', async () => {
+    const items = [makeSignal({ signal: 'dwell_no_action', context: { dwellMs: 45000 } })];
+    loadAdmin(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.listSignals(event, 'cid-sig-3');
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.signals[0].contextSummary, '45000ms dwell');
+  });
+
+  test('projects contextSummary for abandoned_flow_step', async () => {
+    const items = [
+      makeSignal({
+        signal: 'abandoned_flow_step',
+        context: { step: 'amount', flow: 'transfer' },
+      }),
+    ];
+    loadAdmin(fakeDdb({ scanItems: items }));
+
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.listSignals(event, 'cid-sig-4');
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.signals[0].contextSummary, 'step=amount, flow=transfer');
+  });
+
+  test('rejects unknown window with 400', async () => {
+    loadAdmin(fakeDdb({ scanItems: [] }));
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: { window: 'bad' },
+    };
+    const resp = await admin.listSignals(event, 'cid-sig-5');
+    assert.equal(resp.statusCode, 400);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.error.code, 'VALIDATION_ERROR');
+  });
+
+  test('returns 403 for non-admin caller', async () => {
+    const token = Buffer.from('nobody:x').toString('base64');
+    loadAdmin(fakeDdb({}));
+    const event = {
+      headers: { authorization: `Basic ${token}` },
+      queryStringParameters: {},
+    };
+    const resp = await admin.listSignals(event, 'cid-sig-6');
+    assert.equal(resp.statusCode, 403);
+  });
+
+  test('window=1h is accepted and returns data', async () => {
+    const now = Date.now();
+    loadAdmin(fakeDdb({ scanItems: [makeSignal({ activityTime: now - 100 })] }));
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: { window: '1h' },
+    };
+    const resp = await admin.listSignals(event, 'cid-sig-7');
+    assert.equal(resp.statusCode, 200);
+    const body = JSON.parse(resp.body);
+    assert.equal(body.data.window, '1h');
+  });
+
+  test('response includes expected projection fields', async () => {
+    const now = Date.now();
+    const items = [
+      makeSignal({
+        activityTime: now - 500,
+        signal: 'points_balance_stare',
+        target: '#balance-tile',
+        score: 55,
+        action: 'NUDGE',
+        sessionId: 'sess-xyz',
+        ruleId: 'rule-001',
+        trustScore: 70,
+        scrollDepth: 0.8,
+        context: { stareMs: 12000 },
+      }),
+    ];
+    loadAdmin(fakeDdb({ scanItems: items }));
+    const event = {
+      headers: { authorization: 'Basic ZGVtb0NsaWVudDpkZW1vU2VjcmV0' },
+      queryStringParameters: {},
+    };
+    const resp = await admin.listSignals(event, 'cid-sig-8');
+    const body = JSON.parse(resp.body);
+    const sig = body.data.signals[0];
+    assert.equal(sig.signal, 'points_balance_stare');
+    assert.equal(sig.target, '#balance-tile');
+    assert.equal(sig.score, 55);
+    assert.equal(sig.action, 'NUDGE');
+    assert.equal(sig.sessionId, 'sess-xyz');
+    assert.equal(sig.ruleId, 'rule-001');
+    assert.equal(sig.trustScore, 70);
+    assert.equal(sig.scrollDepth, 0.8);
+    assert.equal(sig.contextSummary, '12000ms stare');
+  });
+});

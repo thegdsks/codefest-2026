@@ -17,6 +17,7 @@ const { getAiConfig } = require('./ai-config');
 const { mutateDemoUser } = require('./demo-actions');
 const { writeDemoEvent, listDemoEvents } = require('./demo-events');
 const { getActivityFeed } = require('./activity-feed');
+const { listSignals } = require('./signals');
 const { setDdb, extractIdFromPath } = require('./shared');
 
 /**
@@ -56,6 +57,8 @@ module.exports = {
   listDemoEvents,
   // activity feed
   getActivityFeed,
+  // signals
+  listSignals,
   // helpers (re-exported for test assertions in admin.test.js)
   extractIdFromPath,
   // test seam

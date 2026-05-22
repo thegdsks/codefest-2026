@@ -169,6 +169,7 @@ async function route(event, correlationId) {
     return admin.listDemoEvents(event, correlationId);
   if (method === 'GET' && p === '/admin/activity-feed')
     return admin.getActivityFeed(event, correlationId);
+  if (method === 'GET' && p === '/admin/signals') return admin.listSignals(event, correlationId);
 
   // Engagement routes
   if (method === 'POST' && p === '/engagement/event') return trackEvent(event, correlationId);

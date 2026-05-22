@@ -10,6 +10,7 @@ import {
   SquaresFour,
   TextAlignLeft,
   Users,
+  WaveSawtooth,
 } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -51,6 +52,7 @@ const SECTIONS: NavSection[] = [
         icon: ChartLineUp,
         badgeKey: 'decisions',
       },
+      { href: '/admin/signals', label: 'Signal history', icon: WaveSawtooth },
       { href: '/admin/sessions', label: 'Auth sessions', icon: ShieldCheck, badgeKey: 'sessions' },
     ],
   },
