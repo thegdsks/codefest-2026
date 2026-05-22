@@ -286,13 +286,18 @@ function LoginScreenInner() {
     }
   };
 
-  const handlePersonaSelect = (persona: TestPersona) => {
+  const handlePersonaSelect = async (persona: TestPersona) => {
     setUsername(persona.username);
     setPassword(persona.password);
     setError(null);
-    setTimeout(() => {
-      formRef.current?.requestSubmit();
-    }, 0);
+    // Pre-emptively clear any stale BLOCK so every persona click starts clean.
+    // Best-effort: clear-block is a no-op when the user is not blocked.
+    try {
+      await clearUserBlock(persona.userId);
+    } catch {
+      // Non-fatal; proceed to login regardless.
+    }
+    formRef.current?.requestSubmit();
   };
 
   const handleRecentUserSelect = (recentUsername: string) => {
