@@ -74,13 +74,41 @@ spec that excludes `/admin/*` paths.
 
 ## Postman import
 
-The OpenAPI spec at `docs/openapi.yaml` is the canonical Postman source for this
-project. There is no separate `*.postman_collection.json` file in the repo.
+A ready-to-use Postman collection and environment live in `docs/postman/`:
 
-To import: open Postman, click "Import", choose "File" or paste the raw
-`docs/openapi.yaml` content. Postman will generate a collection with one request
-per operation, pre-populated with example values from the spec.
+- `docs/postman/signal-force.postman_collection.json` - Postman v2.1 collection,
+  one folder per API surface (Auth, Customer, Engagement, Admin, AI, Demo).
+- `docs/postman/signal-force.postman_environment.json` - environment with
+  pre-filled production values.
 
-Gateway auth (`demoClient:demoSecret`) should be set as a Basic Auth collection
-variable so it applies to all requests. Bearer tokens must be set manually on
-customer-route requests after a `POST /auth/login` + `POST /auth/mfa/verify` flow.
+### Quick import steps
+
+1. Open Postman.
+2. Click **Import** (top-left).
+3. Drag `signal-force.postman_collection.json` onto the import dialog, then
+   repeat for `signal-force.postman_environment.json`.
+4. Select the **Signal Force - Production** environment from the environment
+   dropdown (top-right corner).
+5. Open **Auth > Login**, click **Send**. The test script captures `mfaSessionId`
+   automatically.
+6. Open **Auth > MFA Verify**, click **Send**. The test script captures
+   `bearerToken` automatically.
+7. All customer and engagement requests now work without further manual setup.
+
+### Variables
+
+| Variable | Source | Notes |
+|---|---|---|
+| `baseUrl` | Environment | Default: production API Gateway URL |
+| `clientId` | Environment | `demoClient` |
+| `clientSecret` | Environment (secret) | `demoSecret` |
+| `basicAuth` | Computed at runtime | Set by collection pre-request script |
+| `bearerToken` | Captured by test script | Populated by Auth/MFA Verify |
+| `userId` | Environment | Default: `USER#031` (maya031) |
+
+### Using the OpenAPI spec instead
+
+If you prefer to generate a collection from the spec, open Postman, click
+"Import", choose "File" or paste the raw `docs/openapi.yaml` content. Postman
+generates one request per operation from the spec. You will need to configure
+the `basicAuth` and `bearerToken` variables manually on the generated collection.

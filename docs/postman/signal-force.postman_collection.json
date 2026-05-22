@@ -1,0 +1,1301 @@
+{
+  "info": {
+    "_postman_id": "sf-v1-collection-2026",
+    "name": "Signal Force API",
+    "description": "Signal Force fraud-aware loyalty platform. One folder per API surface. Bearer token is acquired via Auth/Login + Auth/MFA Verify then stored in the {{bearerToken}} variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "{{baseUrl}}"
+    },
+    {
+      "key": "mfaSessionId",
+      "value": ""
+    },
+    {
+      "key": "decisionId",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Compute basicAuth from clientId + clientSecret at collection level",
+          "const clientId = pm.environment.get('clientId') || pm.collectionVariables.get('clientId') || 'demoClient';",
+          "const clientSecret = pm.environment.get('clientSecret') || pm.collectionVariables.get('clientSecret') || 'demoSecret';",
+          "const encoded = btoa(clientId + ':' + clientSecret);",
+          "pm.environment.set('basicAuth', 'Basic ' + encoded);",
+          "// Default userId if not set",
+          "if (!pm.environment.get('userId') && !pm.collectionVariables.get('userId')) {",
+          "  pm.environment.set('userId', 'USER#031');",
+          "}"
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints. Run Login first, then MFA Verify to obtain a bearer token.",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"maya031\",\n  \"password\": \"Password1\",\n  \"location\": \"Austin\",\n  \"deviceId\": \"postman-device-001\",\n  \"deviceType\": \"desktop\",\n  \"browser\": \"Chrome\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticate a loyalty member. Returns a sessionId for MFA verify when the fraud engine requires a challenge, or a direct access token for low-risk logins."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const d = b.data || b;",
+                  "pm.test('has status field', () => pm.expect(d).to.have.property('status'));",
+                  "if (d.token) pm.collectionVariables.set('bearerToken', d.token);",
+                  "if (d.sessionId) pm.collectionVariables.set('mfaSessionId', d.sessionId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "MFA Verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{mfaSessionId}}\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/mfa/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "mfa", "verify"]
+            },
+            "description": "Complete MFA challenge from Login. Accepts a TOTP code or the static demo OTP (123456 in demo mode). Stores the bearer token in {{bearerToken}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const d = b.data || b;",
+                  "pm.test('has token', () => pm.expect(d).to.have.property('token'));",
+                  "if (d.token) pm.collectionVariables.set('bearerToken', d.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "MFA Enroll (start)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/mfa/enroll",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "mfa", "enroll"]
+            },
+            "description": "Begin TOTP enrollment for a user. Returns a provisioning URI and QR code seed to display in an authenticator app."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "MFA Confirm Enroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"otp\": \"<6-digit TOTP code>\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/mfa/confirm-enroll",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "mfa", "confirm-enroll"]
+            },
+            "description": "Confirm TOTP enrollment by submitting a valid code from the authenticator app. Locks the secret into the user profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Revoke the current bearer token. The ACCESS session row is deleted from DynamoDB."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Session Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/session",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "session"]
+            },
+            "description": "Return metadata for the current session (token expiry, userId, sessionId, MFA path used)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Customer",
+      "description": "Customer-facing loyalty endpoints. All require a valid Bearer token (obtain via Auth/Login + Auth/MFA Verify).",
+      "item": [
+        {
+          "name": "Loyalty Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customer/loyalty-summary?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["customer", "loyalty-summary"],
+              "query": [
+                { "key": "userId", "value": "{{userId}}" }
+              ]
+            },
+            "description": "Return the full loyalty picture: tier, points balance, progress to next tier, tier benefits, and recent points-affecting transactions."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('has currentTier', () => pm.expect(b.data).to.have.property('currentTier'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Surface Eligibility",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customer/surface-eligibility?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["customer", "surface-eligibility"],
+              "query": [
+                { "key": "userId", "value": "{{userId}}" }
+              ]
+            },
+            "description": "Evaluate which engagement surfaces (nudges, offers, prestige, catalyst) are eligible for the user. Uses rule-based engine only."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Surface Eligibility (AI Mode)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customer/surface-eligibility?userId={{userId}}&aiMode=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["customer", "surface-eligibility"],
+              "query": [
+                { "key": "userId", "value": "{{userId}}" },
+                { "key": "aiMode", "value": "true" }
+              ]
+            },
+            "description": "Same as Surface Eligibility but passes eligible surfaces through the LLM prioritizer to reorder and annotate them with AI rationale."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transfer Draft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"recipientId\": \"USER#002\",\n  \"amount\": 500\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customer/transfers/draft",
+              "host": ["{{baseUrl}}"],
+              "path": ["customer", "transfers", "draft"]
+            },
+            "description": "Save a pending transfer draft to UserState. Used for the TRANSFER_ABANDON_OFFER surface (fires when draft age exceeds 60 seconds)."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Execute Transfer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"recipientId\": \"USER#002\",\n  \"amount\": 100,\n  \"channel\": \"APP\",\n  \"deviceFingerprint\": \"postman-fp-001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/transfer",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "transfer"]
+            },
+            "description": "Execute a points transfer. The fraud engine evaluates amount, velocity, and device fingerprint. High-risk transfers may require an MFA challenge (action: MFA) or be blocked outright."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Property Availability",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customer/properties/PROP%2342/availability?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["customer", "properties", "PROP%2342", "availability"],
+              "query": [
+                { "key": "userId", "value": "{{userId}}" }
+              ]
+            },
+            "description": "Check room availability for a property. Returns available room types and a sold-out flag for fully-booked demo properties."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Property Personalized Offer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customer/properties/PROP%2342/personalized-offer?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["customer", "properties", "PROP%2342", "personalized-offer"],
+              "query": [
+                { "key": "userId", "value": "{{userId}}" }
+              ]
+            },
+            "description": "Return an AI-composed personalized offer for a property, incorporating the member's tier, recent activity, and the LLM offer-composer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"propertyId\": \"PROP#42\",\n  \"checkIn\": \"2026-08-01\",\n  \"checkOut\": \"2026-08-03\",\n  \"nights\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customer/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["customer", "bookings"]
+            },
+            "description": "Record a booking. Writes a recentBooking entry to UserState which triggers the BOOKING_CONFIRMATION_OFFER surface within a 5-minute window."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"updates\": {\n    \"preferredLanguage\": \"en\",\n    \"phone\": \"+1-555-000-0001\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customer/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["customer", "profile"]
+            },
+            "description": "Update mutable fields on the customer profile. Affects the profile completeness score and may change surface eligibility."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Engagement",
+      "description": "Signal ingestion endpoints. Bearer auth required. Events feed the fraud engine and the AI surface prioritizer.",
+      "item": [
+        {
+          "name": "Track Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"signal\": \"page_view\",\n  \"userId\": \"{{userId}}\",\n  \"sessionId\": \"postman-session-001\",\n  \"params\": {\n    \"page\": \"home\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/engagement/event",
+              "host": ["{{baseUrl}}"],
+              "path": ["engagement", "event"]
+            },
+            "description": "Ingest a single behavioral signal. Common signals: page_view, rage_click (count + elementId), dwell_no_action, search_no_results."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Track Events (batch)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"sessionId\": \"postman-session-001\",\n  \"events\": [\n    { \"signal\": \"page_view\", \"params\": { \"page\": \"transfer\" } },\n    { \"signal\": \"dwell_no_action\", \"params\": { \"seconds\": 45 } }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/engagement/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["engagement", "events"]
+            },
+            "description": "Ingest multiple behavioral signals in one call. Processed sequentially by the engagement engine."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Internal admin endpoints. Basic Auth ({{basicAuth}}) required. Not exposed to members.",
+      "item": [
+        {
+          "name": "Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "metrics"]
+            },
+            "description": "Return aggregate KPIs: decisions by action, recent signal counts, session counts."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decisions (list)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/decisions",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "decisions"]
+            },
+            "description": "List all fraud and engagement decisions, newest first. Supports ?userId= filter."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const decisions = (b.data && b.data.decisions) || b.data || [];",
+                  "pm.test('decisions is array', () => pm.expect(decisions).to.be.an('array'));",
+                  "if (decisions.length > 0) pm.collectionVariables.set('decisionId', decisions[0].decisionId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decisions (by userId)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/decisions?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "decisions"],
+              "query": [
+                { "key": "userId", "value": "{{userId}}" }
+              ]
+            },
+            "description": "Filter decisions to a single member. Useful for reviewing a member's full decision history during a demo."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Release Decision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/decisions/{{decisionId}}/release",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "decisions", "{{decisionId}}", "release"]
+            },
+            "description": "Release a held decision (REVIEW/MFA actions) so the member can proceed. Sets released:true on the DecisionStore row."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "sessions"]
+            },
+            "description": "List active ACCESS sessions across all members. Each row shows userId, token suffix, login time, and expiry."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const sessions = (b.data && b.data.sessions) || b.data || [];",
+                  "pm.test('sessions is array', () => pm.expect(sessions).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"]
+            },
+            "description": "List all user profiles with tier, points, block status, and MFA enrollment state."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const users = (b.data && b.data.users) || b.data || [];",
+                  "pm.test('users is array', () => pm.expect(users).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/rules",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "rules"]
+            },
+            "description": "List all engagement rules stored in DynamoDB (EngagementRules table)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const rules = (b.data && b.data.rules) || b.data || [];",
+                  "pm.test('rules is array', () => pm.expect(rules).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "AI Config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/ai-config",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "ai-config"]
+            },
+            "description": "Return the active AI model configuration: activeModelId, temperature, fallback settings."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Activity Feed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/activity-feed",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "activity-feed"]
+            },
+            "description": "Unified real-time feed of logins, transfers, decisions, and engagement events across all users."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Signals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/signals",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "signals"]
+            },
+            "description": "List recent behavioral signals ingested via /engagement/event and /engagement/events, grouped by type."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clear User Block",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/clear-block",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", "{{userId}}", "clear-block"]
+            },
+            "description": "Clear a member's block flag and reset the isUnderReview state. Used during live demo to restore blocked personas."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "description": "AI-assisted admin endpoints. Basic Auth required.",
+      "item": [
+        {
+          "name": "AI Suggest Rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"High-value transfer with unknown device fingerprint from a new location\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/rules/ai-suggest",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "rules", "ai-suggest"]
+            },
+            "description": "Generate a new engagement rule suggestion from a natural-language context description using the LLM. Returns a draft rule JSON ready for review."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Demo",
+      "description": "Demo-only helper endpoints for live presentation. Basic Auth required.",
+      "item": [
+        {
+          "name": "Mutate Demo User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"mutation\": { \"loyaltyScore\": 1500 }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/demo-actions/mutate-user",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "demo-actions", "mutate-user"]
+            },
+            "description": "Apply a preset mutation to a user for demo purposes. Actions: clear-block, force-block, reset-transfers, set-tier."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Write Demo Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{basicAuth}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"SIGNAL_TRIGGER\",\n  \"actor\": \"postman\",\n  \"payload\": {\n    \"source\": \"postman\",\n    \"userId\": \"{{userId}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/demo-events",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "demo-events"]
+            },
+            "description": "Write a demo event to the DemoEvents store. Used to seed the activity feed with synthetic events for demo narration."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('userId')) pm.collectionVariables.set('userId', 'USER#031');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Unauthenticated liveness probe. Returns {status: 'ok'}. Safe to hit from load balancers and monitoring."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('status ok', () => pm.expect(b.status).to.equal('ok'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -21,6 +21,8 @@
     "seed:reset": "node scripts/seed-ddb.js",
     "snapshot:demo": "bash scripts/snapshot-demo.sh",
     "smoke": "node scripts/smoke.mjs",
+    "smoke:quick": "node scripts/smoke.mjs --quick",
+    "smoke:test": "node --test scripts/smoke.test.mjs",
     "rehearsal": "node scripts/rehearsal.mjs"
   },
   "devDependencies": {
