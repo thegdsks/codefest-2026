@@ -61,23 +61,36 @@ async function writeDemoEvent(event, correlationId) {
   const tsSec = timestamp ? Math.floor(Number(timestamp) / 1000) : nowSec();
   const activityId = `DEMO#${randomUUID()}`;
 
+  // UserActivity key schema: userId (PK) + activityTime (SK, Number).
+  // Demo events are operator-scoped so they share a synthetic userId; the
+  // activityTime carries the real epoch milliseconds for ordering.
+  const ownerUserId =
+    payload &&
+    typeof payload === 'object' &&
+    'userId' in payload &&
+    typeof payload.userId === 'string'
+      ? payload.userId
+      : 'DEMO#operator';
+  const activityTime = tsSec * 1000;
+
   await getDdb().send(
     new PutCommand({
       TableName: CFG.tUserActivity,
       Item: {
+        userId: ownerUserId,
+        activityTime,
         activityId,
         activityType: 'DEMO_EVENT',
         type,
         actor: actor || 'demo',
         payload: payload || {},
-        timestamp: tsSec,
         createdAt: nowSec(),
       },
     })
   );
 
   return json(201, correlationId, {
-    data: { activityId, type, actor, timestamp: tsSec },
+    data: { activityId, type, actor, timestamp: tsSec, userId: ownerUserId },
   });
 }
 
