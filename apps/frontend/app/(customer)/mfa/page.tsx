@@ -23,6 +23,9 @@ function MfaScreenInner() {
 
   useEffect(() => {
     setCode(DEMO_OTP.split(''));
+    // Autofocus the first cell when the challenge starts so judges can type
+    // immediately without clicking, and screen readers announce the field.
+    inputsRef.current[0]?.focus();
   }, []);
 
   useEffect(() => {
@@ -135,6 +138,10 @@ function MfaScreenInner() {
                   inputsRef.current[idx] = el;
                 }}
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete={idx === 0 ? 'one-time-code' : 'off'}
+                aria-label={`Verification code digit ${idx + 1} of 6`}
                 maxLength={1}
                 value={digit}
                 onPaste={handlePaste}
@@ -146,11 +153,13 @@ function MfaScreenInner() {
             ))}
           </div>
 
-          {error && (
-            <div className="bg-[#fff4f4] border border-red-200 text-red-700 text-xs font-sans px-4 py-3 rounded-sm animate-fade-in">
-              {error}
-            </div>
-          )}
+          <div aria-live="polite" aria-atomic="true" role={error ? 'alert' : undefined}>
+            {error && (
+              <div className="bg-[#fff4f4] border border-red-200 text-red-700 text-xs font-sans px-4 py-3 rounded-sm animate-fade-in">
+                {error}
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-col items-center gap-6 pt-6">
             <button

@@ -1,3 +1,4 @@
+import { clearSessionStorage } from './hotel/safe-storage';
 import type { ApiErrorDetail, ApiResult } from './types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -27,8 +28,8 @@ function dispatchApiError(
   message: string,
   correlationId: string
 ): void {
-  if (typeof window === 'undefined') return;
-  window.dispatchEvent(
+  if (typeof globalThis.window === 'undefined') return;
+  globalThis.dispatchEvent(
     new CustomEvent('sf:api-error', { detail: { path, code, message, correlationId } })
   );
 }
@@ -58,13 +59,13 @@ async function parseJsonSafe(response: Response): Promise<Record<string, unknown
 }
 
 function maybeExpireSession(status: number, init?: RequestInit): void {
-  if (status !== 401 || typeof window === 'undefined') return;
+  if (status !== 401 || globalThis.window === undefined) return;
   const isBearerAuth = (
     init?.headers as Record<string, string> | undefined
   )?.Authorization?.startsWith('Bearer ');
   if (!isBearerAuth) return;
-  sessionStorage.removeItem('sf.session');
-  window.dispatchEvent(new CustomEvent('sf:session-expired'));
+  clearSessionStorage('sf.session');
+  globalThis.dispatchEvent(new CustomEvent('sf:session-expired'));
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
