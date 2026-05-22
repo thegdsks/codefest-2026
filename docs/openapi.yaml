@@ -3,7 +3,7 @@ info:
   title: Signal Force API
   version: 0.1.1
   license:
-    name: Private - Marriott Codefest 2026 demo
+    name: Private - demo
     identifier: LicenseRef-private
   description: >
     Fraud-aware loyalty platform demo. L1 deterministic rules with L2 LLM
@@ -69,8 +69,8 @@ components:
       description: Time window for filtering decisions or metrics.
       schema:
         type: string
-        enum: ['1h', '24h', '7d']
-        default: '24h'
+        enum: ["1h", "24h", "7d"]
+        default: "24h"
 
   schemas:
     # ------------------------------------------------------------------
@@ -85,7 +85,7 @@ components:
           description: >
             Echo of the X-Correlation-Id request header. Empty string when
             the header was absent.
-          example: 'req-abc123'
+          example: "req-abc123"
         error:
           type: object
           required: [code, message]
@@ -97,14 +97,14 @@ components:
             message:
               type: string
               description: Human-readable detail.
-              example: 'Missing required field: username'
+              example: "Missing required field: username"
 
     # ------------------------------------------------------------------
     # Decision
     # ------------------------------------------------------------------
     EngineLayer:
       type: string
-      enum: ['L1', 'L1+L2']
+      enum: ["L1", "L1+L2"]
       description: >
         L1 - fast rule-based heuristic only.
         L1+L2 - L1 raised a gray-zone score (40-70) so the event was escalated
@@ -131,12 +131,13 @@ components:
 
     DecisionAction:
       type: string
-      enum: ['ALLOW', 'BLOCK', 'MFA', 'REVIEW', 'OFFER', 'NUDGE', 'HOLD', 'RELEASE']
+      enum:
+        ["ALLOW", "BLOCK", "MFA", "REVIEW", "OFFER", "NUDGE", "HOLD", "RELEASE"]
       description: Outcome written by the engine.
 
     RiskLevel:
       type: string
-      enum: ['LOW', 'MEDIUM', 'HIGH']
+      enum: ["LOW", "MEDIUM", "HIGH"]
 
     Decision:
       type: object
@@ -160,14 +161,14 @@ components:
         decisionId:
           type: string
           description: Partition key. Format DEC#<epoch-ms> for normal rows, DEC#REL#<uuid> for release rows.
-          example: 'DEC#1716211200000'
+          example: "DEC#1716211200000"
         userId:
           type: string
-          example: 'USER#001'
+          example: "USER#001"
         decisionType:
-          $ref: '#/components/schemas/DecisionType'
+          $ref: "#/components/schemas/DecisionType"
         action:
-          $ref: '#/components/schemas/DecisionAction'
+          $ref: "#/components/schemas/DecisionAction"
         score:
           type: number
           format: double
@@ -176,7 +177,7 @@ components:
           description: Risk or engagement score from the engine.
           example: 48
         riskLevel:
-          $ref: '#/components/schemas/RiskLevel'
+          $ref: "#/components/schemas/RiskLevel"
         reason:
           type: string
           description: Machine-readable reason code (reasonCode in the engine).
@@ -186,14 +187,14 @@ components:
           description: Human-readable explanation (reasonText in the engine).
           example: Rapid location change detected
         engineLayer:
-          $ref: '#/components/schemas/EngineLayer'
+          $ref: "#/components/schemas/EngineLayer"
         channel:
           type: string
           description: Decision channel (AUTH, EARN_REDEEM, OFFERS, PROFILE, ADMIN).
           example: AUTH
         correlationId:
           type: string
-          example: 'req-abc123'
+          example: "req-abc123"
         isFinalDecision:
           type: boolean
           example: true
@@ -215,7 +216,7 @@ components:
         originalDecisionId:
           type: string
           description: Present on DECISION_RELEASE rows only - references the decision that was released.
-          example: 'DEC#1716211100000'
+          example: "DEC#1716211100000"
         aiExplanation:
           type: object
           description: >
@@ -241,8 +242,8 @@ components:
               maxItems: 6
               description: Specific signals that contributed to the decision.
               example:
-                - 'Transfer amount 7,500 points exceeds 24h pattern'
-                - 'Device fingerprint not seen in last 30 days'
+                - "Transfer amount 7,500 points exceeds 24h pattern"
+                - "Device fingerprint not seen in last 30 days"
             recommendation:
               type: string
               maxLength: 300
@@ -305,7 +306,7 @@ components:
           type: string
           nullable: true
           description: The EngagementRules PK that triggered this surface, or null.
-          example: 'RULE#TIER_GAP_NUDGE'
+          example: "RULE#TIER_GAP_NUDGE"
         reason:
           type: string
           description: Human-readable explanation of why the state was set.
@@ -334,7 +335,7 @@ components:
           nullable: true
           description: Action the DemoPanel can fire to flip this surface to a new state.
           allOf:
-            - $ref: '#/components/schemas/SurfaceNextAction'
+            - $ref: "#/components/schemas/SurfaceNextAction"
         aiAction:
           type: string
           enum: [PROMOTE, KEEP, DEMOTE, HIDE, SWAP]
@@ -366,11 +367,20 @@ components:
       description: >
         Safe projection of a UserProfile row. The passwordHash field is
         never included in API responses.
-      required: [userId, username, tier, loyaltyScore, profileCompletion, emailVerified, phoneVerified]
+      required:
+        [
+          userId,
+          username,
+          tier,
+          loyaltyScore,
+          profileCompletion,
+          emailVerified,
+          phoneVerified,
+        ]
       properties:
         userId:
           type: string
-          example: 'USER#001'
+          example: "USER#001"
         username:
           type: string
           example: user001
@@ -402,7 +412,7 @@ components:
       properties:
         userId:
           type: string
-          example: 'USER#001'
+          example: "USER#001"
         percent:
           type: integer
           minimum: 0
@@ -414,7 +424,7 @@ components:
           items:
             type: string
           description: Attribute names that are absent or null on the profile row.
-          example: ['phone', 'homeAddress', 'tier']
+          example: ["phone", "homeAddress", "tier"]
         nudgeText:
           type: string
           description: Suggested copy to display to the user as a nudge prompt.
@@ -429,7 +439,7 @@ components:
       properties:
         offerId:
           type: string
-          example: 'OFF#001'
+          example: "OFF#001"
         title:
           type: string
           example: Free night award + 2000 points
@@ -448,7 +458,7 @@ components:
       properties:
         nudgeId:
           type: string
-          example: 'NUDGE#PROFILE'
+          example: "NUDGE#PROFILE"
         message:
           type: string
           description: Copy to display to the user. May be LLM-generated (L2) or a static template (L1).
@@ -474,7 +484,7 @@ components:
           description: Number of transfer events in the current rolling 1-hour window.
           example: 2
         lastLoginLocation:
-          type: ['string', 'null']
+          type: ["string", "null"]
           description: Location string from the most recent successful login, or null.
           example: New York
 
@@ -501,11 +511,11 @@ components:
         recipientId:
           type: string
           description: Recipient user ID for TRANSFER events; empty string for others.
-          example: 'USER#002'
+          example: "USER#002"
         searchQuery:
           type: string
           description: Reserved for future search activity tracking. Currently always empty.
-          example: ''
+          example: ""
 
     DashboardUser:
       type: object
@@ -513,7 +523,7 @@ components:
       properties:
         userId:
           type: string
-          example: 'USER#001'
+          example: "USER#001"
         tier:
           type: string
           example: GOLD
@@ -567,16 +577,16 @@ components:
           description: Decisions that escalated to the L2 LLM router.
           example: 44
         by_type:
-          $ref: '#/components/schemas/MetricsByType'
+          $ref: "#/components/schemas/MetricsByType"
         by_action:
-          $ref: '#/components/schemas/MetricsByAction'
+          $ref: "#/components/schemas/MetricsByAction"
 
     AdminMetrics:
       type: object
       required: [totals, costEstimateUsd, asOf]
       properties:
         totals:
-          $ref: '#/components/schemas/MetricsTotals'
+          $ref: "#/components/schemas/MetricsTotals"
         costEstimateUsd:
           type: number
           format: double
@@ -587,7 +597,7 @@ components:
           description: Unix epoch seconds when the snapshot was taken.
           example: 1716214800
         guard:
-          $ref: '#/components/schemas/BudgetGuard'
+          $ref: "#/components/schemas/BudgetGuard"
 
     # ------------------------------------------------------------------
     # Engagement
@@ -642,7 +652,7 @@ components:
                   type: string
                   enum: [ALLOW, NUDGE, OFFER, HINT]
                 surface:
-                  $ref: '#/components/schemas/EngagementSurface'
+                  $ref: "#/components/schemas/EngagementSurface"
                 score:
                   type: integer
                   minimum: 0
@@ -656,17 +666,17 @@ components:
         ruleId:
           type: string
           description: Partition key. Auto-generated (RULE#<uuid-prefix>) on create.
-          example: 'RULE#a1b2c3d4'
+          example: "RULE#a1b2c3d4"
         version:
           type: string
           description: >
             Sort key. Always 'latest' for the current live row.
             ISO-8601 timestamp string for immutable history entries.
-          example: 'latest'
+          example: "latest"
         name:
           type: string
           description: Human-readable rule name shown in the admin UI.
-          example: 'Points balance stare - 8s offer'
+          example: "Points balance stare - 8s offer"
         status:
           type: string
           enum: [ACTIVE, DRAFT, ARCHIVED]
@@ -674,7 +684,7 @@ components:
             Only ACTIVE rules are evaluated per event. DRAFT rules are visible
             in the admin UI but do not fire. ARCHIVED rules are hidden by default.
         definition:
-          $ref: '#/components/schemas/EngagementRuleDefinition'
+          $ref: "#/components/schemas/EngagementRuleDefinition"
         createdAt:
           type: integer
           description: Unix epoch seconds when the rule was first written.
@@ -737,7 +747,14 @@ components:
                   enum: [ALLOW, NUDGE, OFFER, HINT, BLOCK, REVIEW, MFA]
                 surface:
                   type: string
-                  enum: [nudge_banner, offer_modal, help_tooltip, inline_help_tooltip, none]
+                  enum:
+                    [
+                      nudge_banner,
+                      offer_modal,
+                      help_tooltip,
+                      inline_help_tooltip,
+                      none,
+                    ]
                 score:
                   type: number
                   minimum: 0
@@ -755,7 +772,6 @@ components:
 # ==============================================================================
 
 paths:
-
   # ----------------------------------------------------------------------------
   # Auth
   # ----------------------------------------------------------------------------
@@ -800,7 +816,7 @@ paths:
                 ipAddress:
                   type: string
                   description: Client IP address. Optional; recorded in activity log.
-                  example: '203.0.113.42'
+                  example: "203.0.113.42"
                 deviceType:
                   type: string
                   description: Device category (e.g. mobile, desktop). Optional.
@@ -810,7 +826,7 @@ paths:
                   description: Browser identifier. Optional.
                   example: Chrome/124
       responses:
-        '200':
+        "200":
           description: >
             Login processed. Inspect data.status for the outcome.
             status=SUCCESS means the user is authenticated.
@@ -834,17 +850,17 @@ paths:
                             enum: [SUCCESS]
                           userId:
                             type: string
-                            example: 'USER#001'
+                            example: "USER#001"
                           sessionId:
                             type: string
-                            example: 'SESSION#a1b2c3d4'
+                            example: "SESSION#a1b2c3d4"
                           token:
                             type: string
                             description: >
                               Opaque bearer access token (base64url). Pass as
                               `Authorization: Bearer <token>` on all
                               subsequent customer endpoint calls.
-                            example: 'k7sH2Wq...redacted...vNc'
+                            example: "k7sH2Wq...redacted...vNc"
                           expiresAt:
                             type: integer
                             description: Unix seconds at which the token expires (sliding window).
@@ -862,7 +878,7 @@ paths:
                             example: GEO_VELOCITY
                           sessionId:
                             type: string
-                            example: 'SESSION#a1b2c3d4'
+                            example: "SESSION#a1b2c3d4"
                           mfa:
                             type: object
                             required: [type, expiresInSeconds]
@@ -873,40 +889,40 @@ paths:
                               expiresInSeconds:
                                 type: integer
                                 example: 300
-        '400':
+        "400":
           description: Validation error - required field missing or invalid.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Invalid username or password.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               example:
-                correlationId: ''
+                correlationId: ""
                 error:
                   code: INVALID_CREDENTIALS
                   message: Invalid username/password
-        '403':
+        "403":
           description: Account is blocked by a prior fraud decision.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               example:
-                correlationId: ''
+                correlationId: ""
                 error:
                   code: ACCOUNT_BLOCKED
                   message: Access denied. Account temporarily blocked.
-        '500':
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /auth/mfa/verify:
     post:
@@ -930,13 +946,13 @@ paths:
                 sessionId:
                   type: string
                   description: Value returned by POST /auth/login.
-                  example: 'SESSION#a1b2c3d4'
+                  example: "SESSION#a1b2c3d4"
                 otp:
                   type: string
                   description: 6-digit TOTP code (or the static fallback when MFA_MODE=static).
-                  example: '492013'
+                  example: "492013"
       responses:
-        '200':
+        "200":
           description: OTP accepted; login complete and a bearer token is issued.
           content:
             application/json:
@@ -966,40 +982,40 @@ paths:
                       expiresAt:
                         type: integer
                         description: Unix seconds at which the token expires.
-        '400':
+        "400":
           description: Validation error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: OTP invalid.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               example:
-                correlationId: ''
+                correlationId: ""
                 error:
                   code: OTP_INVALID
                   message: OTP invalid
-        '404':
+        "404":
           description: Session not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               example:
-                correlationId: ''
+                correlationId: ""
                 error:
                   code: SESSION_NOT_FOUND
                   message: Session not found
-        '500':
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /auth/mfa/enroll:
     post:
@@ -1014,7 +1030,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Enrollment started. Display the QR code to the user.
           content:
             application/json:
@@ -1026,11 +1042,18 @@ paths:
                     type: string
                   data:
                     type: object
-                    required: [otpauthUrl, qrCodePngBase64, recoveryCodes, issuer, username]
+                    required:
+                      [
+                        otpauthUrl,
+                        qrCodePngBase64,
+                        recoveryCodes,
+                        issuer,
+                        username,
+                      ]
                     properties:
                       otpauthUrl:
                         type: string
-                        example: 'otpauth://totp/SignalForce:user001?secret=JBSWY3DPEHPK3PXP&issuer=SignalForce'
+                        example: "otpauth://totp/SignalForce:user001?secret=JBSWY3DPEHPK3PXP&issuer=SignalForce"
                       qrCodePngBase64:
                         type: string
                         description: >
@@ -1048,12 +1071,12 @@ paths:
                       username:
                         type: string
                         example: user001
-        '401':
+        "401":
           description: Missing or invalid bearer token.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /auth/mfa/confirm-enroll:
     post:
@@ -1077,9 +1100,9 @@ paths:
                 code:
                   type: string
                   description: 6-digit TOTP code generated from the pending secret.
-                  example: '492013'
+                  example: "492013"
       responses:
-        '200':
+        "200":
           description: MFA enrollment confirmed.
           content:
             application/json:
@@ -1096,23 +1119,23 @@ paths:
                       status:
                         type: string
                         enum: [ENROLLED]
-        '400':
+        "400":
           description: No pending enrollment for this user.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               example:
-                correlationId: ''
+                correlationId: ""
                 error:
                   code: NO_PENDING_ENROLLMENT
                   message: No pending MFA enrollment for this user
-        '401':
+        "401":
           description: Bearer missing, or confirmation code rejected.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /auth/mfa/recover:
     post:
@@ -1140,7 +1163,7 @@ paths:
                   type: string
                   description: One of the recovery codes from a prior enroll. Case-insensitive.
       responses:
-        '200':
+        "200":
           description: Recovery code accepted, MFA disabled, token issued.
           content:
             application/json:
@@ -1152,7 +1175,14 @@ paths:
                     type: string
                   data:
                     type: object
-                    required: [status, token, expiresAt, recoveryCodesRemaining, message]
+                    required:
+                      [
+                        status,
+                        token,
+                        expiresAt,
+                        recoveryCodesRemaining,
+                        message,
+                      ]
                     properties:
                       status:
                         type: string
@@ -1165,12 +1195,12 @@ paths:
                         type: integer
                       message:
                         type: string
-        '401':
+        "401":
           description: Invalid credentials or invalid recovery code.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /auth/logout:
     post:
@@ -1184,14 +1214,14 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '204':
+        "204":
           description: Session revoked (or already gone).
-        '401':
+        "401":
           description: Bearer missing or invalid.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /auth/session:
     get:
@@ -1204,7 +1234,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Current session metadata.
           content:
             application/json:
@@ -1216,7 +1246,8 @@ paths:
                     type: string
                   data:
                     type: object
-                    required: [userId, issuedAt, expiresAt, lastActivityAt, mfaVerified]
+                    required:
+                      [userId, issuedAt, expiresAt, lastActivityAt, mfaVerified]
                     properties:
                       userId:
                         type: string
@@ -1228,12 +1259,12 @@ paths:
                         type: integer
                       mfaVerified:
                         type: boolean
-        '401':
+        "401":
           description: Bearer missing or invalid.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Transactions
@@ -1259,11 +1290,11 @@ paths:
                 userId:
                   type: string
                   description: Sender user ID.
-                  example: 'USER#001'
+                  example: "USER#001"
                 recipientId:
                   type: string
                   description: Recipient user ID.
-                  example: 'USER#002'
+                  example: "USER#002"
                 amount:
                   type: number
                   description: Points to transfer. Must be a positive finite number.
@@ -1273,7 +1304,7 @@ paths:
                   description: Originating channel. Defaults to APP.
                   example: APP
       responses:
-        '200':
+        "200":
           description: Transfer processed. Inspect data.status for the outcome.
           content:
             application/json:
@@ -1294,7 +1325,7 @@ paths:
                             enum: [SUCCESS]
                           transferId:
                             type: string
-                            example: 'XFER#a1b2c3d4'
+                            example: "XFER#a1b2c3d4"
                           message:
                             type: string
                             example: Transfer completed
@@ -1307,39 +1338,39 @@ paths:
                             enum: [UNDER_REVIEW]
                           transferId:
                             type: string
-                            example: 'XFER#a1b2c3d4'
+                            example: "XFER#a1b2c3d4"
                           reason:
                             type: string
                             example: SUSPICIOUS_TRANSFER_PATTERN
-        '400':
+        "400":
           description: Validation error - missing or invalid field.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Transfer blocked (sender blocked or high-risk transfer).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               example:
-                correlationId: ''
+                correlationId: ""
                 error:
                   code: TRANSFER_BLOCKED
                   message: Transfer blocked due to high fraud risk
-        '404':
+        "404":
           description: Sender or recipient not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # User
@@ -1353,9 +1384,9 @@ paths:
         Returns a safe projection of the UserProfile row. The passwordHash field
         is never included.
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: Profile found.
           content:
             application/json:
@@ -1366,31 +1397,31 @@ paths:
                   correlationId:
                     type: string
                   data:
-                    $ref: '#/components/schemas/UserProfile'
-        '400':
+                    $ref: "#/components/schemas/UserProfile"
+        "400":
           description: Missing userId query parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: User not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /user/profile-completeness:
     get:
@@ -1404,9 +1435,9 @@ paths:
         A PROFILE_COMPLETENESS decision row is written on every call so the
         admin metrics endpoint can track this call type.
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: Completeness data returned.
           content:
             application/json:
@@ -1417,31 +1448,31 @@ paths:
                   correlationId:
                     type: string
                   data:
-                    $ref: '#/components/schemas/ProfileCompleteness'
-        '400':
+                    $ref: "#/components/schemas/ProfileCompleteness"
+        "400":
           description: Missing userId parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: User not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Offers
@@ -1457,9 +1488,9 @@ paths:
         no offer is surfaced (e.g. user is in a cooldown window or does not
         meet the score threshold).
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: One or more offers available.
           content:
             application/json:
@@ -1475,12 +1506,12 @@ paths:
                     properties:
                       userId:
                         type: string
-                        example: 'USER#001'
+                        example: "USER#001"
                       offers:
                         type: array
                         items:
-                          $ref: '#/components/schemas/Offer'
-        '204':
+                          $ref: "#/components/schemas/Offer"
+        "204":
           description: >
             No offers available for this user right now. The response body is
             present and contains an empty offers array (non-standard; follows
@@ -1503,30 +1534,30 @@ paths:
                         type: array
                         items: {}
                         maxItems: 0
-        '400':
+        "400":
           description: Missing userId parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: User not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /offers/action:
     post:
@@ -1546,16 +1577,16 @@ paths:
               properties:
                 userId:
                   type: string
-                  example: 'USER#001'
+                  example: "USER#001"
                 offerId:
                   type: string
-                  example: 'OFF#001'
+                  example: "OFF#001"
                 action:
                   type: string
                   enum: [IMPRESSION, CLICK, BOOK]
                   description: Interaction type.
       responses:
-        '200':
+        "200":
           description: Interaction tracked.
           content:
             application/json:
@@ -1572,30 +1603,30 @@ paths:
                       status:
                         type: string
                         enum: [TRACKED]
-        '400':
+        "400":
           description: Validation error - missing field or invalid action value.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: User not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Nudges
@@ -1612,9 +1643,9 @@ paths:
 
         The nudge message may be LLM-generated when the engine routes to L2.
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: One or more nudges active.
           content:
             application/json:
@@ -1630,12 +1661,12 @@ paths:
                     properties:
                       userId:
                         type: string
-                        example: 'USER#001'
+                        example: "USER#001"
                       nudges:
                         type: array
                         items:
-                          $ref: '#/components/schemas/Nudge'
-        '204':
+                          $ref: "#/components/schemas/Nudge"
+        "204":
           description: >
             No nudges for this user. The response body is present with an empty
             nudges array (follows the current handler implementation).
@@ -1657,30 +1688,30 @@ paths:
                         type: array
                         items: {}
                         maxItems: 0
-        '400':
+        "400":
           description: Missing userId parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: User not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /nudges/action:
     post:
@@ -1699,16 +1730,16 @@ paths:
               properties:
                 userId:
                   type: string
-                  example: 'USER#001'
+                  example: "USER#001"
                 nudgeId:
                   type: string
-                  example: 'NUDGE#PROFILE'
+                  example: "NUDGE#PROFILE"
                 action:
                   type: string
                   enum: [SHOWN, DISMISSED, COMPLETED]
                   description: Interaction type.
       responses:
-        '200':
+        "200":
           description: Interaction recorded.
           content:
             application/json:
@@ -1725,30 +1756,30 @@ paths:
                       status:
                         type: string
                         enum: [UPDATED]
-        '400':
+        "400":
           description: Validation error - missing field or invalid action value.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: User not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Dashboard
@@ -1766,9 +1797,9 @@ paths:
         Offer and nudge eligibility is evaluated inline using the same
         thresholds as the dedicated /offers and /nudges endpoints.
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: Dashboard data returned.
           content:
             application/json:
@@ -1780,49 +1811,50 @@ paths:
                     type: string
                   data:
                     type: object
-                    required: [user, fraudStatus, offers, nudges, recentActivity]
+                    required:
+                      [user, fraudStatus, offers, nudges, recentActivity]
                     properties:
                       user:
-                        $ref: '#/components/schemas/DashboardUser'
+                        $ref: "#/components/schemas/DashboardUser"
                       fraudStatus:
-                        $ref: '#/components/schemas/FraudStatus'
+                        $ref: "#/components/schemas/FraudStatus"
                       offers:
                         type: array
                         items:
-                          $ref: '#/components/schemas/Offer'
+                          $ref: "#/components/schemas/Offer"
                       nudges:
                         type: array
                         items:
-                          $ref: '#/components/schemas/Nudge'
+                          $ref: "#/components/schemas/Nudge"
                       recentActivity:
                         type: array
                         maxItems: 10
                         items:
-                          $ref: '#/components/schemas/ActivityItem'
-        '400':
+                          $ref: "#/components/schemas/ActivityItem"
+        "400":
           description: Missing userId parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: User not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Admin - Decisions
@@ -1841,14 +1873,14 @@ paths:
         Without userId it performs a table Scan (acceptable for the demo scale).
       x-internal-only: true
       parameters:
-        - $ref: '#/components/parameters/Window'
+        - $ref: "#/components/parameters/Window"
         - name: type
           in: query
           required: false
           description: >
             Filter by decisionType. Must be one of the valid enum values.
           schema:
-            $ref: '#/components/schemas/DecisionType'
+            $ref: "#/components/schemas/DecisionType"
         - name: userId
           in: query
           required: false
@@ -1866,7 +1898,7 @@ paths:
             maximum: 200
             default: 50
       responses:
-        '200':
+        "200":
           description: Decision list returned.
           content:
             application/json:
@@ -1883,40 +1915,40 @@ paths:
                       decisions:
                         type: array
                         items:
-                          $ref: '#/components/schemas/Decision'
+                          $ref: "#/components/schemas/Decision"
                       count:
                         type: integer
                         description: Number of rows returned (after limit is applied).
                         example: 10
-        '400':
+        "400":
           description: Invalid window or type parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               example:
-                correlationId: ''
+                correlationId: ""
                 error:
                   code: FORBIDDEN
                   message: Admin access required
-        '500':
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /admin/metrics:
     get:
@@ -1928,9 +1960,9 @@ paths:
         proxy cost, and a snapshot of the budget guard counters.
       x-internal-only: true
       parameters:
-        - $ref: '#/components/parameters/Window'
+        - $ref: "#/components/parameters/Window"
       responses:
-        '200':
+        "200":
           description: Metrics snapshot returned.
           content:
             application/json:
@@ -1941,31 +1973,31 @@ paths:
                   correlationId:
                     type: string
                   data:
-                    $ref: '#/components/schemas/AdminMetrics'
-        '400':
+                    $ref: "#/components/schemas/AdminMetrics"
+        "400":
           description: Invalid window parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Admin - Release
@@ -1993,7 +2025,7 @@ paths:
             type: string
             example: DEC%231716211200000
       responses:
-        '200':
+        "200":
           description: Decision released and user unblocked.
           content:
             application/json:
@@ -2012,46 +2044,46 @@ paths:
                         example: true
                       originalDecisionId:
                         type: string
-                        example: 'DEC#1716211200000'
+                        example: "DEC#1716211200000"
                       releasedAt:
                         type: integer
                         description: Unix epoch seconds when the release was written.
                         example: 1716214800
-        '400':
+        "400":
           description: Missing or invalid id path parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Decision not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               example:
-                correlationId: ''
+                correlationId: ""
                 error:
                   code: NOT_FOUND
-                  message: 'Decision not found: DEC#1716211200000'
-        '500':
+                  message: "Decision not found: DEC#1716211200000"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Admin - Users
@@ -2089,7 +2121,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: User page returned.
           content:
             application/json:
@@ -2106,37 +2138,37 @@ paths:
                       users:
                         type: array
                         items:
-                          $ref: '#/components/schemas/UserProfile'
+                          $ref: "#/components/schemas/UserProfile"
                       nextCursor:
-                        type: ['string', 'null']
+                        type: ["string", "null"]
                         description: >
                           Opaque cursor for the next page. Null when the list is
                           exhausted.
                         example: eyJ1c2VySWQiOiJVU0VSIzAxMCJ9
-        '400':
+        "400":
           description: Invalid cursor value.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /admin/sessions:
     get:
@@ -2156,10 +2188,10 @@ paths:
         - name: active
           in: query
           required: false
-          description: 'true to include only non-expired sessions, false for expired.'
+          description: "true to include only non-expired sessions, false for expired."
           schema:
             type: string
-            enum: ['true', 'false']
+            enum: ["true", "false"]
         - name: limit
           in: query
           required: false
@@ -2168,7 +2200,7 @@ paths:
             default: 100
             maximum: 500
       responses:
-        '200':
+        "200":
           description: Session list.
           content:
             application/json:
@@ -2186,7 +2218,16 @@ paths:
                         type: array
                         items:
                           type: object
-                          required: [sessionId, userId, issuedAt, expiresAt, lastActivityAt, mfaVerified, active]
+                          required:
+                            [
+                              sessionId,
+                              userId,
+                              issuedAt,
+                              expiresAt,
+                              lastActivityAt,
+                              mfaVerified,
+                              active,
+                            ]
                           properties:
                             sessionId:
                               type: string
@@ -2215,18 +2256,18 @@ paths:
                         type: integer
                       filters:
                         type: object
-        '400':
+        "400":
           description: Validation error (invalid `active` value).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Caller is not an admin.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /admin/sessions/{sessionId}/revoke:
     post:
@@ -2243,20 +2284,20 @@ paths:
           schema:
             type: string
       responses:
-        '204':
+        "204":
           description: Session revoked (or already gone).
-        '400':
+        "400":
           description: sessionId missing from path.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Caller is not an admin.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /admin/mfa-status:
     get:
@@ -2267,7 +2308,7 @@ paths:
         notEnrolled counts plus an enrolled percentage. Powers the
         "MFA adoption" tile on the admin dashboard.
       responses:
-        '200':
+        "200":
           description: MFA adoption snapshot.
           content:
             application/json:
@@ -2279,7 +2320,8 @@ paths:
                     type: string
                   data:
                     type: object
-                    required: [total, enrolled, pending, notEnrolled, enrolledPercent]
+                    required:
+                      [total, enrolled, pending, notEnrolled, enrolledPercent]
                     properties:
                       total:
                         type: integer
@@ -2292,12 +2334,12 @@ paths:
                       enrolledPercent:
                         type: number
                         description: enrolled / total * 100, rounded to one decimal.
-        '403':
+        "403":
           description: Caller is not an admin.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /health:
     get:
@@ -2309,7 +2351,7 @@ paths:
         required.
       security: []
       responses:
-        '200':
+        "200":
           description: Service is up.
           content:
             application/json:
@@ -2362,13 +2404,13 @@ paths:
               required: [signal, userId, sessionId]
               properties:
                 signal:
-                  $ref: '#/components/schemas/EngagementSignal'
+                  $ref: "#/components/schemas/EngagementSignal"
                 userId:
                   type: string
-                  example: 'USER#001'
+                  example: "USER#001"
                 sessionId:
                   type: string
-                  example: 'SESSION#a1b2c3d4'
+                  example: "SESSION#a1b2c3d4"
                 params:
                   type: object
                   additionalProperties: true
@@ -2376,7 +2418,7 @@ paths:
                     dwellMs: 9000
                     pointsBalance: 12400
       responses:
-        '200':
+        "200":
           description: Event evaluated.
           content:
             application/json:
@@ -2388,18 +2430,19 @@ paths:
                     type: string
                   data:
                     type: object
-                    required: [surface, copy, reasonCode, engineLayer, score, action]
+                    required:
+                      [surface, copy, reasonCode, engineLayer, score, action]
                     properties:
                       surface:
-                        $ref: '#/components/schemas/EngagementSurface'
+                        $ref: "#/components/schemas/EngagementSurface"
                       copy:
                         type: string
-                        example: 'Your 12,400 points can book two nights in Lisbon.'
+                        example: "Your 12,400 points can book two nights in Lisbon."
                       reasonCode:
                         type: string
                         example: POINTS_STARE_HIGH
                       engineLayer:
-                        $ref: '#/components/schemas/EngineLayer'
+                        $ref: "#/components/schemas/EngineLayer"
                       score:
                         type: integer
                         minimum: 0
@@ -2411,25 +2454,25 @@ paths:
                       decisionId:
                         type: string
                         nullable: true
-                        example: 'DEC#ENG#a1b2c3d4'
-        '400':
+                        example: "DEC#ENG#a1b2c3d4"
+        "400":
           description: Validation error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid bearer token.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Admin - Engagement Rules
@@ -2448,7 +2491,7 @@ paths:
             type: string
             enum: [ACTIVE, DRAFT, ARCHIVED]
       responses:
-        '200':
+        "200":
           description: Rule list returned.
           content:
             application/json:
@@ -2465,27 +2508,27 @@ paths:
                       rules:
                         type: array
                         items:
-                          $ref: '#/components/schemas/EngagementRule'
+                          $ref: "#/components/schemas/EngagementRule"
                       count:
                         type: integer
-        '400':
+        "400":
           description: Invalid status parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Not an admin.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
     post:
       operationId: adminCreateRule
@@ -2505,9 +2548,9 @@ paths:
                   type: string
                   enum: [ACTIVE, DRAFT, ARCHIVED]
                 definition:
-                  $ref: '#/components/schemas/EngagementRuleDefinition'
+                  $ref: "#/components/schemas/EngagementRuleDefinition"
       responses:
-        '201':
+        "201":
           description: Rule created.
           content:
             application/json:
@@ -2522,25 +2565,25 @@ paths:
                     required: [rule]
                     properties:
                       rule:
-                        $ref: '#/components/schemas/EngagementRule'
-        '400':
+                        $ref: "#/components/schemas/EngagementRule"
+        "400":
           description: Validation error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Not an admin.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /admin/rules/{id}:
     get:
@@ -2555,7 +2598,7 @@ paths:
             type: string
             example: RULE%23a1b2c3d4
       responses:
-        '200':
+        "200":
           description: Rule found.
           content:
             application/json:
@@ -2570,31 +2613,31 @@ paths:
                     required: [rule]
                     properties:
                       rule:
-                        $ref: '#/components/schemas/EngagementRule'
-        '400':
+                        $ref: "#/components/schemas/EngagementRule"
+        "400":
           description: Missing path parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Not an admin.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Rule not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
     put:
       operationId: adminUpdateRule
@@ -2621,9 +2664,9 @@ paths:
                   type: string
                   enum: [ACTIVE, DRAFT, ARCHIVED]
                 definition:
-                  $ref: '#/components/schemas/EngagementRuleDefinition'
+                  $ref: "#/components/schemas/EngagementRuleDefinition"
       responses:
-        '200':
+        "200":
           description: Rule updated.
           content:
             application/json:
@@ -2638,25 +2681,25 @@ paths:
                     required: [rule]
                     properties:
                       rule:
-                        $ref: '#/components/schemas/EngagementRule'
-        '400':
+                        $ref: "#/components/schemas/EngagementRule"
+        "400":
           description: Validation error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Not an admin.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /admin/rules/ai-suggest:
     post:
@@ -2681,9 +2724,9 @@ paths:
                   type: string
                   maxLength: 1000
                   description: Natural-language description of the desired rule.
-                  example: 'If a user stares at the points balance for over 8s, show a points-transfer nudge.'
+                  example: "If a user stares at the points balance for over 8s, show a points-transfer nudge."
       responses:
-        '200':
+        "200":
           description: Rule draft generated.
           content:
             application/json:
@@ -2694,31 +2737,31 @@ paths:
                   correlationId:
                     type: string
                   data:
-                    $ref: '#/components/schemas/EngagementRuleDraft'
-        '400':
+                    $ref: "#/components/schemas/EngagementRuleDraft"
+        "400":
           description: Missing or empty description.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Not an admin.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '503':
+                $ref: "#/components/schemas/Error"
+        "503":
           description: LiteLLM not configured or upstream call failed.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /admin/rules/test:
     post:
@@ -2739,14 +2782,14 @@ paths:
               required: [definition]
               properties:
                 definition:
-                  $ref: '#/components/schemas/EngagementRuleDefinition'
+                  $ref: "#/components/schemas/EngagementRuleDefinition"
                 windowSec:
                   type: integer
                   minimum: 1
                   default: 86400
                   description: Lookback window in seconds. Defaults to 24 hours.
       responses:
-        '200':
+        "200":
           description: Match count returned.
           content:
             application/json:
@@ -2783,24 +2826,24 @@ paths:
                             timestamp:
                               type: integer
                               nullable: true
-        '400':
+        "400":
           description: Validation error (missing definition or bad windowSec).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Not an admin.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Admin - Decisions (additional)
@@ -2819,12 +2862,12 @@ paths:
         Content-Disposition header is set for file download.
       x-internal-only: true
       parameters:
-        - $ref: '#/components/parameters/Window'
+        - $ref: "#/components/parameters/Window"
         - name: type
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/DecisionType'
+            $ref: "#/components/schemas/DecisionType"
         - name: userId
           in: query
           required: false
@@ -2839,7 +2882,7 @@ paths:
             enum: [json, csv]
             default: json
       responses:
-        '200':
+        "200":
           description: Decisions exported.
           content:
             application/json:
@@ -2856,36 +2899,36 @@ paths:
                       decisions:
                         type: array
                         items:
-                          $ref: '#/components/schemas/Decision'
+                          $ref: "#/components/schemas/Decision"
                       count:
                         type: integer
             text/csv:
               schema:
                 type: string
-        '400':
+        "400":
           description: Invalid window or type parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /admin/decisions/{id}:
     get:
@@ -2908,7 +2951,7 @@ paths:
             type: string
             example: DEC%231716211200000
       responses:
-        '200':
+        "200":
           description: Decision found.
           content:
             application/json:
@@ -2923,7 +2966,7 @@ paths:
                     required: [decision, auditTrail]
                     properties:
                       decision:
-                        $ref: '#/components/schemas/Decision'
+                        $ref: "#/components/schemas/Decision"
                       auditTrail:
                         type: array
                         items:
@@ -2969,36 +3012,36 @@ paths:
                           llmRationale:
                             type: string
                             nullable: true
-        '400':
+        "400":
           description: Missing or invalid id path parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Decision not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Admin - Users (additional)
@@ -3023,7 +3066,7 @@ paths:
             type: string
             example: USER%23001
       responses:
-        '200':
+        "200":
           description: Risk profile returned.
           content:
             application/json:
@@ -3035,11 +3078,18 @@ paths:
                     type: string
                   data:
                     type: object
-                    required: [userId, riskScore, storedRiskScore, asOf, recentDecisions]
+                    required:
+                      [
+                        userId,
+                        riskScore,
+                        storedRiskScore,
+                        asOf,
+                        recentDecisions,
+                      ]
                     properties:
                       userId:
                         type: string
-                        example: 'USER#001'
+                        example: "USER#001"
                       riskScore:
                         type: number
                         description: Decayed risk score at asOf time.
@@ -3061,7 +3111,15 @@ paths:
                         type: array
                         items:
                           type: object
-                          required: [decisionId, decisionType, action, score, riskLevel, timestamp]
+                          required:
+                            [
+                              decisionId,
+                              decisionType,
+                              action,
+                              score,
+                              riskLevel,
+                              timestamp,
+                            ]
                           properties:
                             decisionId:
                               type: string
@@ -3075,30 +3133,30 @@ paths:
                               type: string
                             timestamp:
                               type: integer
-        '400':
+        "400":
           description: Missing userId path parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Admin - AI config
@@ -3114,13 +3172,21 @@ paths:
         estimated cost per classify call for each model. Read-only in v1.
       x-internal-only: true
       responses:
-        '200':
+        "200":
           description: AI config returned.
           content:
             application/json:
               schema:
                 type: object
-                required: [correlationId, proxyConfigured, activeModelId, activeModelKnown, defaultModelId, models]
+                required:
+                  [
+                    correlationId,
+                    proxyConfigured,
+                    activeModelId,
+                    activeModelKnown,
+                    defaultModelId,
+                    models,
+                  ]
                 properties:
                   correlationId:
                     type: string
@@ -3139,19 +3205,19 @@ paths:
                   models:
                     type: array
                     items:
-                      $ref: '#/components/schemas/AiModel'
-        '401':
+                      $ref: "#/components/schemas/AiModel"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Admin - Dev / demo
@@ -3167,7 +3233,7 @@ paths:
         require DEMO_MODE to be active.
       x-internal-only: true
       responses:
-        '200':
+        "200":
           description: Dev config returned.
           content:
             application/json:
@@ -3180,18 +3246,18 @@ paths:
                   demoMode:
                     type: boolean
                     description: True when DEMO_MODE=1 is set on the Lambda.
-        '401':
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /admin/dev/reseed:
     post:
@@ -3203,13 +3269,14 @@ paths:
         Destructive: existing rows are overwritten.
       x-internal-only: true
       responses:
-        '200':
+        "200":
           description: Reseed completed.
           content:
             application/json:
               schema:
                 type: object
-                required: [correlationId, ok, tablesReset, itemsWritten, durationMs]
+                required:
+                  [correlationId, ok, tablesReset, itemsWritten, durationMs]
                 properties:
                   correlationId:
                     type: string
@@ -3221,7 +3288,14 @@ paths:
                     items:
                       type: string
                     description: Names of tables that were reset.
-                    example: [UserProfile, UserSession, UserActivity, DecisionStore, UserState]
+                    example:
+                      [
+                        UserProfile,
+                        UserSession,
+                        UserActivity,
+                        DecisionStore,
+                        UserState,
+                      ]
                   itemsWritten:
                     type: integer
                     example: 150
@@ -3229,24 +3303,24 @@ paths:
                     type: integer
                     description: Wall-clock time for the reseed in milliseconds.
                     example: 1240
-        '401':
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Admin check failed or DEMO_MODE is not enabled.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected reseed failure.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Admin - Demo actions
@@ -3275,7 +3349,7 @@ paths:
               properties:
                 userId:
                   type: string
-                  example: 'USER#001'
+                  example: "USER#001"
                 mutation:
                   type: object
                   description: One or more fields to mutate. Unknown fields are ignored.
@@ -3307,7 +3381,7 @@ paths:
                         trigger:
                           type: boolean
       responses:
-        '200':
+        "200":
           description: Mutation applied.
           content:
             application/json:
@@ -3333,40 +3407,40 @@ paths:
                             to: {}
                       activityId:
                         type: string
-                        example: 'DEMO#a1b2c3d4-e5f6'
+                        example: "DEMO#a1b2c3d4-e5f6"
                       mutatedAt:
                         type: integer
                         description: Unix epoch seconds.
-        '400':
+        "400":
           description: Validation error - missing userId or invalid mutation.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: User not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /admin/demo-events:
     post:
@@ -3410,7 +3484,7 @@ paths:
                     to server time.
                   example: 1716211200000
       responses:
-        '201':
+        "201":
           description: Event written.
           content:
             application/json:
@@ -3426,7 +3500,7 @@ paths:
                     properties:
                       activityId:
                         type: string
-                        example: 'DEMO#a1b2c3d4-e5f6'
+                        example: "DEMO#a1b2c3d4-e5f6"
                       type:
                         type: string
                       actor:
@@ -3434,24 +3508,24 @@ paths:
                       timestamp:
                         type: integer
                         description: Unix epoch seconds as stored.
-        '400':
+        "400":
           description: Missing or invalid type field.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
     get:
       operationId: adminListDemoEvents
@@ -3477,7 +3551,7 @@ paths:
             maximum: 50
             default: 50
       responses:
-        '200':
+        "200":
           description: Demo events returned.
           content:
             application/json:
@@ -3494,21 +3568,21 @@ paths:
                       events:
                         type: array
                         items:
-                          $ref: '#/components/schemas/DemoEvent'
+                          $ref: "#/components/schemas/DemoEvent"
                       count:
                         type: integer
-        '401':
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Admin - Activity feed
@@ -3541,7 +3615,7 @@ paths:
             maximum: 100
             default: 100
       responses:
-        '200':
+        "200":
           description: Activity feed returned.
           content:
             application/json:
@@ -3558,31 +3632,31 @@ paths:
                       events:
                         type: array
                         items:
-                          $ref: '#/components/schemas/ActivityFeedItem'
+                          $ref: "#/components/schemas/ActivityFeedItem"
                       nextCursor:
                         type: integer
                         description: >
                           Epoch milliseconds of the newest event in this
                           page. Pass as since on the next poll.
                         example: 1716214800000
-        '401':
+        "401":
           description: Missing or invalid gateway Basic Auth.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Basic Auth subject is not in ADMIN_USERNAMES.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Customer - Surface eligibility
@@ -3609,17 +3683,17 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
         - name: aiMode
           in: query
           required: false
           description: '"on" (default) to include L2 AI verdict fields. "off" for deterministic output only.'
           schema:
             type: string
-            enum: ['on', 'off']
-            default: 'on'
+            enum: ["on", "off"]
+            default: "on"
       responses:
-        '200':
+        "200":
           description: Surface evaluations returned.
           content:
             application/json:
@@ -3635,11 +3709,11 @@ paths:
                     properties:
                       userId:
                         type: string
-                        example: 'USER#001'
+                        example: "USER#001"
                       surfaces:
                         type: array
                         items:
-                          $ref: '#/components/schemas/SurfaceEvaluation'
+                          $ref: "#/components/schemas/SurfaceEvaluation"
                       aiMode:
                         type: boolean
                         description: >
@@ -3650,30 +3724,30 @@ paths:
                         description: >
                           Present and true when aiMode=on was requested but
                           the LLM was unavailable or timed out.
-        '400':
+        "400":
           description: Missing userId parameter.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Missing or invalid bearer token.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: User not found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # ----------------------------------------------------------------------------
   # Transactions - MFA verify
@@ -3702,13 +3776,13 @@ paths:
                 challengeId:
                   type: string
                   description: The sessionId returned by POST /transactions/transfer when action is MFA_REQUIRED.
-                  example: 'SESSION#a1b2c3d4'
+                  example: "SESSION#a1b2c3d4"
                 otp:
                   type: string
                   description: 6-digit TOTP code (or static fallback 123456 when MFA_MODE=static).
-                  example: '492013'
+                  example: "492013"
       responses:
-        '200':
+        "200":
           description: Transfer MFA verified and transfer completed.
           content:
             application/json:
@@ -3727,7 +3801,7 @@ paths:
                         enum: [ALLOW]
                       transferId:
                         type: string
-                        example: 'XFER#a1b2c3d4'
+                        example: "XFER#a1b2c3d4"
                       completedAt:
                         type: integer
                         description: Unix epoch seconds when the transfer was executed.
@@ -3735,37 +3809,37 @@ paths:
                       mfaPath:
                         type: string
                         enum: [TRANSFER_RISK]
-        '400':
+        "400":
           description: Challenge not found, expired, already consumed, or wrong challengeType.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               example:
-                correlationId: ''
+                correlationId: ""
                 error:
                   code: MFA_CHALLENGE_INVALID
                   message: Transfer MFA challenge not found, expired, or already consumed
-        '401':
+        "401":
           description: OTP invalid or bearer missing.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               example:
-                correlationId: ''
+                correlationId: ""
                 error:
                   code: OTP_INVALID
                   message: OTP invalid
-        '404':
+        "404":
           description: Recipient no longer found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Unexpected server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"

@@ -22,19 +22,19 @@ This file is the contract. If a rule below conflicts with a default agent behavi
 
 Use one of these type prefixes on every commit subject:
 
-| Type | When |
-|---|---|
-| `feat` | New feature or capability |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
-| `chore` | Tooling, config, deps that do not change behavior |
-| `refactor` | Code restructure with no behavior change |
-| `perf` | Performance improvement |
-| `test` | Tests only |
-| `style` | Formatting only (no logic) |
-| `build` | Build system, packaging |
-| `ci` | CI configuration |
-| `revert` | Reverts a previous commit |
+| Type       | When                                              |
+| ---------- | ------------------------------------------------- |
+| `feat`     | New feature or capability                         |
+| `fix`      | Bug fix                                           |
+| `docs`     | Documentation only                                |
+| `chore`    | Tooling, config, deps that do not change behavior |
+| `refactor` | Code restructure with no behavior change          |
+| `perf`     | Performance improvement                           |
+| `test`     | Tests only                                        |
+| `style`    | Formatting only (no logic)                        |
+| `build`    | Build system, packaging                           |
+| `ci`       | CI configuration                                  |
+| `revert`   | Reverts a previous commit                         |
 
 Optional scope in parens. Optional `!` after the type or scope for a breaking change. Then `: ` and the imperative subject.
 
@@ -120,7 +120,7 @@ See `docs/architecture.md` for the full design, including how the engine splits 
 - Backend: Node.js 18 Lambda, Serverless Framework, DynamoDB PAY_PER_REQUEST. Migration to Python is the next major rewrite.
 - Frontend: Vite, React 18, TypeScript, Tailwind 3, React Router 6.
 - Infra: AWS CDK v2 in TypeScript. Three stacks: `signal-force-dynamodb`, `signal-force-budgets`, `signal-force-runtime`.
-- Decision LLM: Marriott-hosted LiteLLM proxy (OpenAI-compatible wire format), default model `us.anthropic.claude-haiku-4-5-20251001-v1:0` on Bedrock. The catalog of switchable models lives in `apps/backend/src/lib/aiModels.js` and is surfaced at `/admin/settings`. Called only on the warm lane. Direct Bedrock (Converse API) is the alternate production path; the CDK Bedrock IAM policy is kept for that future, unused on the demo path.
+- Decision LLM: hosted LiteLLM proxy (OpenAI-compatible wire format), default model `us.anthropic.claude-haiku-4-5-20251001-v1:0` on Bedrock. The catalog of switchable models lives in `apps/backend/src/lib/aiModels.js` and is surfaced at `/admin/settings`. Called only on the warm lane. Direct Bedrock (Converse API) is the alternate production path; the CDK Bedrock IAM policy is kept for that future, unused on the demo path.
 - Auth: HTTP Basic Auth at client level, app user creds in login body. Single static MFA OTP for the demo.
 
 Do not introduce alternatives (no Vue, no raw CloudFormation YAML, no Pulumi, no Yarn, no Bun) without a written justification in the PR.

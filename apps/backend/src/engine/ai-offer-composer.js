@@ -134,7 +134,7 @@ function buildPrompt({ profile, state, propertyId, propertyName, pricePerNight, 
     `  - discountPct must be ${bandInfo.discount} or 0 (do not invent higher discounts)\n` +
     '  - validUntilMin is how many minutes this offer stays valid (15-60 for urgency)\n' +
     '  - personalizationFactors is a list of plain-English explanations of why this offer was chosen\n' +
-    '  - Do NOT mention Marriott by name. Do NOT add em dashes.\n' +
+    '  - Do NOT mention by name. Do NOT add em dashes.\n' +
     '  - Do NOT invent facts not present in the context.'
   );
 }
@@ -187,7 +187,14 @@ async function composeOffer({
     return cached.result;
   }
 
-  const prompt = buildPrompt({ profile, state, propertyId, propertyName, pricePerNight, dwellMs });
+  const prompt = buildPrompt({
+    profile,
+    state,
+    propertyId,
+    propertyName,
+    pricePerNight,
+    dwellMs,
+  });
   const start = Date.now();
 
   try {

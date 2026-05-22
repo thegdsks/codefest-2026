@@ -2,18 +2,18 @@
 
 Last updated: 2026-05-21
 
-For the codefest demo and for teammates picking up the project mid-flight.
+For the demo and for teammates picking up the project mid-flight.
 
 ## TL;DR
 
 Signal Force is a fraud-aware loyalty platform with four demo-able stories:
 
-| Use Case | What it shows | Confidence |
-| --- | --- | --- |
-| UC1: Login risk + MFA | L1 fraud rules trigger MFA challenge; static OTP `123456` accepted | HIGH |
-| UC2: Points transfer monitoring | ALLOW / REVIEW / BLOCK ladder; release flow from admin | HIGH |
-| UC3: Behavior-driven offers | SDK signals (rage_click, dwell, etc.) trigger rule-matched offers | HIGH |
-| UC4: AI Mode | L2 LLM (Anthropic Haiku 4.5 via LiteLLM) ranks surfaces and explains fraud | HIGH |
+| Use Case                        | What it shows                                                              | Confidence |
+| ------------------------------- | -------------------------------------------------------------------------- | ---------- |
+| UC1: Login risk + MFA           | L1 fraud rules trigger MFA challenge; static OTP `123456` accepted         | HIGH       |
+| UC2: Points transfer monitoring | ALLOW / REVIEW / BLOCK ladder; release flow from admin                     | HIGH       |
+| UC3: Behavior-driven offers     | SDK signals (rage_click, dwell, etc.) trigger rule-matched offers          | HIGH       |
+| UC4: AI Mode                    | L2 LLM (Anthropic Haiku 4.5 via LiteLLM) ranks surfaces and explains fraud | HIGH       |
 
 ## URLs and access
 
@@ -161,16 +161,16 @@ curl -s -u "demoClient:demoSecret" "$API/admin/ai-config"
 
 Stored in DDB `EngagementRules` table. Eight ACTIVE rules drive the demo:
 
-| ruleId | When it fires | Surface |
-| --- | --- | --- |
-| `RULE#TIER_GAP_NUDGE` | pointsToNextTier within 10k, not Platinum | Prestige Advance card |
-| `RULE#PROFILE_INCOMPLETE_TIER_GAP` | profileCompletion < 90, not Platinum | Catalyst Elevate card |
-| `RULE#MFA_ENROLLMENT_GAP` | Gold/Platinum tier with no mfaSecret | MFA Enrollment nudge |
-| `RULE#TRANSFER_ABANDON_OFFER` | Transfer draft idle > 60s | 2x points retention offer |
-| `RULE#POST_BOOKING_UPSELL` | Booking confirmed within 5 min | Booking confirmation offer |
-| `RULE#POINTS_BALANCE_STARE` | dwellMs > threshold on points balance | Help nudge |
-| `RULE#RAGE_CLICK_GLOBAL` | 3+ clicks same area in 1s | Inline help tooltip |
-| `DEMO_HIGH_VALUE_UNSEEN_DEVICE` | High-value transfer from unseen device | Forces L1+L2 review |
+| ruleId                             | When it fires                             | Surface                    |
+| ---------------------------------- | ----------------------------------------- | -------------------------- |
+| `RULE#TIER_GAP_NUDGE`              | pointsToNextTier within 10k, not Platinum | Prestige Advance card      |
+| `RULE#PROFILE_INCOMPLETE_TIER_GAP` | profileCompletion < 90, not Platinum      | Catalyst Elevate card      |
+| `RULE#MFA_ENROLLMENT_GAP`          | Gold/Platinum tier with no mfaSecret      | MFA Enrollment nudge       |
+| `RULE#TRANSFER_ABANDON_OFFER`      | Transfer draft idle > 60s                 | 2x points retention offer  |
+| `RULE#POST_BOOKING_UPSELL`         | Booking confirmed within 5 min            | Booking confirmation offer |
+| `RULE#POINTS_BALANCE_STARE`        | dwellMs > threshold on points balance     | Help nudge                 |
+| `RULE#RAGE_CLICK_GLOBAL`           | 3+ clicks same area in 1s                 | Inline help tooltip        |
+| `DEMO_HIGH_VALUE_UNSEEN_DEVICE`    | High-value transfer from unseen device    | Forces L1+L2 review        |
 
 Re-seed after a fresh stack: `node scripts/seed-ddb.js --table=EngagementRules`.
 
@@ -189,7 +189,7 @@ npx cdk diff signal-force-runtime
 npx cdk deploy signal-force-runtime --require-approval broadening
 ```
 
-The LITELLM_* env vars are read from `process.env` at synth time, so the deploy command above bakes them into the Lambda environment block. Without those exports, `cdk deploy` will omit the keys and AI Mode goes dark.
+The LITELLM\_\* env vars are read from `process.env` at synth time, so the deploy command above bakes them into the Lambda environment block. Without those exports, `cdk deploy` will omit the keys and AI Mode goes dark.
 
 ### Frontend (Next.js dev)
 
@@ -211,14 +211,14 @@ AWS_REGION=us-east-1 node scripts/seed-ddb.js --table=EngagementRules
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| HTTP 401 on http://localhost:3000 | Orphan `serverless offline` bound to `::1:3000`, intercepting before Next.js | `pkill -f "serverless offline"` and retry |
-| `aiUnavailable: true` on surface-eligibility | LITELLM_* env vars missing on Lambda OR prioritizer LLM call timing out | Confirm with `/admin/ai-config` (`proxyConfigured: true`). Check CloudWatch for `[ai-surface-prioritizer] LLM call failed` |
-| Decision endpoint returns 500 on `?userId=` filter | Missing GSI or wrong KeyConditionExpression | Check `apps/backend/src/routes/admin/decisions.js` - userId-timestamp-index must be used and timestamp must be in KeyConditionExpression |
-| Mutate-user returns INTERNAL_ERROR | UserActivity table requires `activityTime` sort key, not `timestamp` | Already fixed in `apps/backend/src/routes/admin/demo-actions.js` |
-| MFA OTP `123456` rejected | `MFA_MODE` env var missing on Lambda | Already set in CDK; if a stack rebuild drops it, set context or env when running `cdk deploy` |
-| TopBar dec/s counter "bursts" | Stale React strict mode double-fire on raw setInterval | Already fixed - uses TanStack Query with refetchInterval + EMA smoothing |
+| Symptom                                            | Likely cause                                                                 | Fix                                                                                                                                      |
+| -------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP 401 on http://localhost:3000                  | Orphan `serverless offline` bound to `::1:3000`, intercepting before Next.js | `pkill -f "serverless offline"` and retry                                                                                                |
+| `aiUnavailable: true` on surface-eligibility       | LITELLM\_\* env vars missing on Lambda OR prioritizer LLM call timing out    | Confirm with `/admin/ai-config` (`proxyConfigured: true`). Check CloudWatch for `[ai-surface-prioritizer] LLM call failed`               |
+| Decision endpoint returns 500 on `?userId=` filter | Missing GSI or wrong KeyConditionExpression                                  | Check `apps/backend/src/routes/admin/decisions.js` - userId-timestamp-index must be used and timestamp must be in KeyConditionExpression |
+| Mutate-user returns INTERNAL_ERROR                 | UserActivity table requires `activityTime` sort key, not `timestamp`         | Already fixed in `apps/backend/src/routes/admin/demo-actions.js`                                                                         |
+| MFA OTP `123456` rejected                          | `MFA_MODE` env var missing on Lambda                                         | Already set in CDK; if a stack rebuild drops it, set context or env when running `cdk deploy`                                            |
+| TopBar dec/s counter "bursts"                      | Stale React strict mode double-fire on raw setInterval                       | Already fixed - uses TanStack Query with refetchInterval + EMA smoothing                                                                 |
 
 ## What was built this round (PR-by-PR highlights)
 

@@ -6,18 +6,18 @@ The repo has three logical apps. The CDK turns them into two deployable artifact
 
 ## What lives where
 
-| Logical app | Repo path | Build artifact | AWS service | CDK stack |
-|---|---|---|---|---|
-| Customer surface (SPA) | `apps/frontend/` | `dist/` (static bundle) | S3 + CloudFront | `signal-force-frontend` |
-| Studio admin console (`/admin` route) | same as above | same as above | same as above | same as above |
-| Decision engine | `apps/backend/` | folder zipped by Lambda asset | Lambda + API Gateway HTTP API | `signal-force-runtime` |
-| Storage (5 tables) | n/a (schema in CDK) | n/a (managed service) | DynamoDB, PAY_PER_REQUEST | `signal-force-dynamodb` |
-| Cost guardrails | n/a | n/a | AWS Budgets + SNS | `signal-force-budgets` |
-| Fraud alert pipe | n/a | n/a | SNS topic (subscribe via email) | `signal-force-runtime` |
-| Operational dashboard | n/a | n/a | CloudWatch dashboard | `signal-force-runtime` |
-| API URL handoff | n/a | n/a | SSM Parameter Store at `/signal-force/api-url` | `signal-force-runtime` |
-| SPA URL handoff | n/a | n/a | SSM Parameter Store at `/signal-force/spa-url` | `signal-force-frontend` |
-| Audit logging | n/a | n/a | CloudWatch Logs (1 day Lambda, 1 week API access) | `signal-force-runtime` |
+| Logical app                           | Repo path           | Build artifact                | AWS service                                       | CDK stack               |
+| ------------------------------------- | ------------------- | ----------------------------- | ------------------------------------------------- | ----------------------- |
+| Customer surface (SPA)                | `apps/frontend/`    | `dist/` (static bundle)       | S3 + CloudFront                                   | `signal-force-frontend` |
+| Studio admin console (`/admin` route) | same as above       | same as above                 | same as above                                     | same as above           |
+| Decision engine                       | `apps/backend/`     | folder zipped by Lambda asset | Lambda + API Gateway HTTP API                     | `signal-force-runtime`  |
+| Storage (5 tables)                    | n/a (schema in CDK) | n/a (managed service)         | DynamoDB, PAY_PER_REQUEST                         | `signal-force-dynamodb` |
+| Cost guardrails                       | n/a                 | n/a                           | AWS Budgets + SNS                                 | `signal-force-budgets`  |
+| Fraud alert pipe                      | n/a                 | n/a                           | SNS topic (subscribe via email)                   | `signal-force-runtime`  |
+| Operational dashboard                 | n/a                 | n/a                           | CloudWatch dashboard                              | `signal-force-runtime`  |
+| API URL handoff                       | n/a                 | n/a                           | SSM Parameter Store at `/signal-force/api-url`    | `signal-force-runtime`  |
+| SPA URL handoff                       | n/a                 | n/a                           | SSM Parameter Store at `/signal-force/spa-url`    | `signal-force-frontend` |
+| Audit logging                         | n/a                 | n/a                           | CloudWatch Logs (1 day Lambda, 1 week API access) | `signal-force-runtime`  |
 
 Two notes on this table:
 
@@ -97,7 +97,8 @@ The bucket name and distribution id come from the `BucketName` and `Distribution
    ```
 
    This creates a `CDKToolkit` stack with the asset S3 bucket and deploy role. Run once per account-region pair, not per stack.
-5. Demo path (LiteLLM): no Bedrock activation needed. The Marriott-hosted LiteLLM proxy already has Bedrock model access; the Lambda just needs `LITELLM_BASE_URL`, `LITELLM_API_KEY`, and `LITELLM_MODEL` set on it (use `./scripts/enable-litellm.sh` after the first `cdk deploy`).
+
+5. Demo path (LiteLLM): no Bedrock activation needed. The LiteLLM proxy already has Bedrock model access; the Lambda just needs `LITELLM_BASE_URL`, `LITELLM_API_KEY`, and `LITELLM_MODEL` set on it (use `./scripts/enable-litellm.sh` after the first `cdk deploy`).
 
    Production-path (direct Bedrock, alternate): only if `BEDROCK_DIRECT=1` or the equivalent feature flag is flipped, open Amazon Bedrock in `us-east-1` in the AWS Console and request model access for Claude Haiku 4.5. Manual approval takes a few minutes. The CDK already attaches the IAM policy.
 
@@ -150,14 +151,14 @@ The runtime API URL is published to SSM at `/signal-force/api-url`. The SPA URL 
 
 ## Inputs (env vars and context)
 
-| Variable | Stack | Required | Default | Notes |
-|---|---|---|---|---|
-| `BUDGET_ALERT_EMAIL` | budgets | recommended | `change-me@example.com` | Email to receive budget alerts. Confirm the SNS subscription. |
-| `FRAUD_ALERT_EMAIL` | runtime | no | none | If set, an email subscription is added at synth time. Otherwise subscribe manually via the `FraudAlertTopicArn` output. |
-| `CLIENT_ID` | runtime | no | `demoClient` | Basic Auth client ID. Override via CDK context `--context clientId=...` or env var. |
-| `CLIENT_SECRET` | runtime | no | `demoSecret` | Basic Auth client secret. Set via context or env. Do not commit real values. |
-| `MFA_OTP` | runtime | no | `123456` | Static OTP for the demo MFA flow. Set via context or env. |
-| `CDK_NAG` | all | no | enabled | Set to `off` to skip cdk-nag during synth for fast local iteration. CI should always run with nag on. |
+| Variable             | Stack   | Required    | Default                 | Notes                                                                                                                   |
+| -------------------- | ------- | ----------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `BUDGET_ALERT_EMAIL` | budgets | recommended | `change-me@example.com` | Email to receive budget alerts. Confirm the SNS subscription.                                                           |
+| `FRAUD_ALERT_EMAIL`  | runtime | no          | none                    | If set, an email subscription is added at synth time. Otherwise subscribe manually via the `FraudAlertTopicArn` output. |
+| `CLIENT_ID`          | runtime | no          | `demoClient`            | Basic Auth client ID. Override via CDK context `--context clientId=...` or env var.                                     |
+| `CLIENT_SECRET`      | runtime | no          | `demoSecret`            | Basic Auth client secret. Set via context or env. Do not commit real values.                                            |
+| `MFA_OTP`            | runtime | no          | `123456`                | Static OTP for the demo MFA flow. Set via context or env.                                                               |
+| `CDK_NAG`            | all     | no          | enabled                 | Set to `off` to skip cdk-nag during synth for fast local iteration. CI should always run with nag on.                   |
 
 ## Seeding DynamoDB
 
@@ -203,17 +204,17 @@ npx cdk destroy --all
 
 Realistic spend across the three stacks for the 48-hour demo:
 
-| Resource | Why it costs little | Estimate |
-|---|---|---|
-| DynamoDB PAY_PER_REQUEST | Demo traffic is tens to hundreds of requests | under $0.10 |
-| Lambda arm64 + HTTP API | A few thousand invocations at 512 MB | under $0.50 |
+| Resource                                    | Why it costs little                                                                                                                                 | Estimate                  |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| DynamoDB PAY_PER_REQUEST                    | Demo traffic is tens to hundreds of requests                                                                                                        | under $0.10               |
+| Lambda arm64 + HTTP API                     | A few thousand invocations at 512 MB                                                                                                                | under $0.50               |
 | LiteLLM proxy (Claude Haiku 4.5 on Bedrock) | Called only on the warm lane, capped by `FRAUD_SCORE_THRESHOLD`. Switchable to budget-tier models (Gemini Flash, Nova Lite) from `/admin/settings`. | under $5 with liberal use |
-| CloudWatch (logs + dashboard) | 1-day retention on Lambda, 1-week on API access logs | under $0.20 |
-| SNS | A handful of fraud alert emails | free tier |
-| AWS Budgets | First 2 free, third at $0.02/day | under $0.20 |
-| S3 (SPA bucket) | A few MB of static assets | under $0.01 |
-| CloudFront | New-account free tier covers 1 TB/month outbound for 12 months | $0 during demo |
-| CDK bootstrap S3 bucket | A few MB of asset storage | under $0.01 |
+| CloudWatch (logs + dashboard)               | 1-day retention on Lambda, 1-week on API access logs                                                                                                | under $0.20               |
+| SNS                                         | A handful of fraud alert emails                                                                                                                     | free tier                 |
+| AWS Budgets                                 | First 2 free, third at $0.02/day                                                                                                                    | under $0.20               |
+| S3 (SPA bucket)                             | A few MB of static assets                                                                                                                           | under $0.01               |
+| CloudFront                                  | New-account free tier covers 1 TB/month outbound for 12 months                                                                                      | $0 during demo            |
+| CDK bootstrap S3 bucket                     | A few MB of asset storage                                                                                                                           | under $0.01               |
 
 Total demo spend lands well under the $250 team cap, even with active LLM use.
 
