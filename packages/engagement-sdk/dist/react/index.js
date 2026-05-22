@@ -881,10 +881,19 @@ function EngagementProvider({
     }, config);
     captureRef.current = capture;
     const pollMs = config.pollIntervalMs ?? DEFAULT_POLL_MS;
+    const STOP_AFTER_EMPTY = 3;
+    let consecutiveEmpty = 0;
     async function poll() {
       const intervention = await client.getPending();
       if (intervention !== null) {
         setCurrentIntervention(intervention);
+        consecutiveEmpty = 0;
+        return;
+      }
+      consecutiveEmpty++;
+      if (consecutiveEmpty >= STOP_AFTER_EMPTY && pollRef.current !== null) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
       }
     }
     void poll();
