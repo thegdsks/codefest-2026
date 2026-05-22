@@ -9,7 +9,7 @@ import {
   PhoneSlash,
 } from '@phosphor-icons/react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import AuthGate from '@/components/admin/AuthGate';
 import ProgressBar from '@/components/admin/ProgressBar';
 import Skeleton from '@/components/admin/Skeleton';
@@ -20,7 +20,7 @@ const PAGE_SIZE = 25;
 
 const SKELETON_ROWS = ['u0', 'u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7'];
 
-function CompletionCell({ value }: { value?: number }) {
+function CompletionCell({ value }: Readonly<{ value?: number }>) {
   if (typeof value !== 'number') return <span className="text-[var(--text-dim)]">-</span>;
   const pct = Math.round(value * 100);
   return (
@@ -33,7 +33,7 @@ function CompletionCell({ value }: { value?: number }) {
   );
 }
 
-function VerifyIcons({ user }: { user: AdminUser }) {
+function VerifyIcons({ user }: Readonly<{ user: AdminUser }>) {
   return (
     <div className="flex items-center gap-2 text-[var(--text-dim)]">
       {user.emailVerified ? (
@@ -97,10 +97,63 @@ export default function UsersPage() {
 
   const onPrev = () => {
     if (cursorStack.length === 0) return;
-    const prev = cursorStack[cursorStack.length - 1];
+    const prev = cursorStack.at(-1);
     setCursorStack((s) => s.slice(0, -1));
     setCurrentCursor(prev === '' ? undefined : prev);
   };
+
+  let tableBody: ReactNode;
+  if (loading) {
+    tableBody = (
+      <div className="divide-y divide-[var(--border)]">
+        {SKELETON_ROWS.map((k) => (
+          <div key={k} className="grid grid-cols-12 gap-3 px-4 py-3">
+            <Skeleton className="col-span-3 h-4" />
+            <Skeleton className="col-span-2 h-4" />
+            <Skeleton className="col-span-1 h-4" />
+            <Skeleton className="col-span-4 h-4" />
+            <Skeleton className="col-span-2 h-4" />
+          </div>
+        ))}
+      </div>
+    );
+  } else if (users.length === 0) {
+    tableBody = (
+      <div className="px-4 py-10 text-center text-sm text-[var(--text-dim)]">
+        No user profiles found. Seed the table with{' '}
+        <code className="font-mono text-[var(--text-muted)]">seed_data/UserProfile.json</code> and
+        run the DynamoDB BatchWrite script.
+      </div>
+    );
+  } else {
+    tableBody = (
+      <ul className="divide-y divide-[var(--border)]">
+        {users.map((user) => (
+          <li key={user.userId}>
+            <Link
+              href={`/admin/users/${encodeURIComponent(user.userId)}`}
+              className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm motion-safe:transition-colors hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]/70"
+            >
+              <div className="col-span-3">
+                <div className="font-mono text-xs text-[var(--text)]">{user.userId}</div>
+                <div className="text-xs text-[var(--text-dim)]">{user.username}</div>
+              </div>
+              <div className="col-span-2 text-xs text-[var(--text-muted)]">{user.tier ?? '-'}</div>
+              <div className="col-span-1 text-right tabular-nums text-sm text-[var(--text)]">
+                {user.loyaltyScore ?? '-'}
+              </div>
+              <div className="col-span-4">
+                <CompletionCell value={user.profileCompletion} />
+              </div>
+              <div className="col-span-2">
+                <VerifyIcons user={user} />
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -128,53 +181,7 @@ export default function UsersPage() {
           <div className="col-span-2">Verified</div>
         </div>
 
-        {loading ? (
-          <div className="divide-y divide-[var(--border)]">
-            {SKELETON_ROWS.map((k) => (
-              <div key={k} className="grid grid-cols-12 gap-3 px-4 py-3">
-                <Skeleton className="col-span-3 h-4" />
-                <Skeleton className="col-span-2 h-4" />
-                <Skeleton className="col-span-1 h-4" />
-                <Skeleton className="col-span-4 h-4" />
-                <Skeleton className="col-span-2 h-4" />
-              </div>
-            ))}
-          </div>
-        ) : users.length === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-[var(--text-dim)]">
-            No user profiles found. Seed the table with{' '}
-            <code className="font-mono text-[var(--text-muted)]">seed_data/UserProfile.json</code>{' '}
-            and run the DynamoDB BatchWrite script.
-          </div>
-        ) : (
-          <ul className="divide-y divide-[var(--border)]">
-            {users.map((user) => (
-              <li key={user.userId}>
-                <Link
-                  href={`/admin/users/${encodeURIComponent(user.userId)}`}
-                  className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm motion-safe:transition-colors hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]/70"
-                >
-                  <div className="col-span-3">
-                    <div className="font-mono text-xs text-[var(--text)]">{user.userId}</div>
-                    <div className="text-xs text-[var(--text-dim)]">{user.username}</div>
-                  </div>
-                  <div className="col-span-2 text-xs text-[var(--text-muted)]">
-                    {user.tier ?? '-'}
-                  </div>
-                  <div className="col-span-1 text-right tabular-nums text-sm text-[var(--text)]">
-                    {user.loyaltyScore ?? '-'}
-                  </div>
-                  <div className="col-span-4">
-                    <CompletionCell value={user.profileCompletion} />
-                  </div>
-                  <div className="col-span-2">
-                    <VerifyIcons user={user} />
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+        {tableBody}
       </div>
 
       <div className="mt-4 flex items-center justify-end gap-2">
