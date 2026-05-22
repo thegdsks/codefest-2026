@@ -165,7 +165,9 @@ export function fetchSession(token: string): Promise<ApiResult<SessionData>> {
 export function transferPoints(
   token: string,
   userId: string,
-  amount: number
+  amount: number,
+  /** When true, sets forceHighRisk on this request (used by the demo security-audit checkbox). */
+  forceHighRiskOverride = false
 ): Promise<ApiResult<TransferData>> {
   const ctx = getDemoLoginContext();
 
@@ -182,7 +184,8 @@ export function transferPoints(
     }
   }
 
-  const forceHighRisk = getForceHighRiskTransfer();
+  // Combine the demo-context flags with any caller-supplied override.
+  const forceHighRisk = forceHighRiskOverride || getForceHighRiskTransfer();
   // Clear the flag immediately so it only affects this single transfer.
   setForceHighRiskTransfer(false);
 

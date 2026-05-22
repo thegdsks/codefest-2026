@@ -11,6 +11,8 @@ export interface TestPersona {
   points: number;
   profilePct: number;
   mfaEnrolled: boolean;
+  /** Pre-filled partner account ID for the transfer form. */
+  partnerAccountId: string;
 }
 
 export const TEST_PERSONAS: TestPersona[] = [
@@ -25,6 +27,7 @@ export const TEST_PERSONAS: TestPersona[] = [
     points: 1500,
     profilePct: 25,
     mfaEnrolled: false,
+    partnerAccountId: 'AG-7731021',
   },
   {
     userId: 'USER#032',
@@ -37,6 +40,7 @@ export const TEST_PERSONAS: TestPersona[] = [
     points: 49500,
     profilePct: 75,
     mfaEnrolled: false,
+    partnerAccountId: 'AG-4403291',
   },
   {
     userId: 'USER#033',
@@ -49,6 +53,7 @@ export const TEST_PERSONAS: TestPersona[] = [
     points: 120000,
     profilePct: 95,
     mfaEnrolled: true,
+    partnerAccountId: 'SH-9901834',
   },
   {
     userId: 'USER#034',
@@ -61,6 +66,7 @@ export const TEST_PERSONAS: TestPersona[] = [
     points: 32000,
     profilePct: 60,
     mfaEnrolled: true,
+    partnerAccountId: 'EV-5512047',
   },
   {
     userId: 'USER#035',
@@ -73,6 +79,7 @@ export const TEST_PERSONAS: TestPersona[] = [
     points: 4200,
     profilePct: 40,
     mfaEnrolled: false,
+    partnerAccountId: 'AG-3304512',
   },
   {
     userId: 'USER#036',
@@ -85,6 +92,7 @@ export const TEST_PERSONAS: TestPersona[] = [
     points: 18000,
     profilePct: 55,
     mfaEnrolled: true,
+    partnerAccountId: 'SH-6628103',
   },
   {
     userId: 'USER#037',
@@ -97,6 +105,7 @@ export const TEST_PERSONAS: TestPersona[] = [
     points: 88000,
     profilePct: 80,
     mfaEnrolled: true,
+    partnerAccountId: 'EV-1194823',
   },
   {
     userId: 'USER#038',
@@ -109,5 +118,6 @@ export const TEST_PERSONAS: TestPersona[] = [
     points: 8800,
     profilePct: 30,
     mfaEnrolled: false,
+    partnerAccountId: 'AG-8843761',
   },
 ];

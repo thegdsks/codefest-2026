@@ -24,6 +24,8 @@ export interface Partner {
   id: string;
   name: string;
   ratio: string;
+  /** SFC units per 1 partner point. e.g. 3 means 3 SFC = 1 partner point. */
+  sfcPerPoint: number;
   icon: string;
 }
 
