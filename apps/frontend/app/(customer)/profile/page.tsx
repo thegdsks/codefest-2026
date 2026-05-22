@@ -50,6 +50,22 @@ export default function ProfileScreen() {
     return detach;
   }, [trackEvent]);
 
+  // Hooks MUST be called unconditionally in the same order every render.
+  // These two useCallbacks used to live after the !isAuthenticated guard,
+  // which caused React error #310 when the auth state flipped on logout.
+  const handleInlineDismiss = useCallback(() => {
+    if (catalystSurface) {
+      dismiss(catalystSurface.surfaceId);
+    }
+    setInlineDismissed(true);
+  }, [catalystSurface]);
+
+  const handleInlineAction = useCallback(async () => {
+    if (!session || !catalystSurface?.nextAction?.delta) return;
+    await mutateDemoUser(session.userId, catalystSurface.nextAction.delta);
+    refetch();
+  }, [session, catalystSurface, refetch]);
+
   if (!isAuthenticated) return null;
 
   const coreFields = [
@@ -102,19 +118,6 @@ export default function ProfileScreen() {
     catalystSurface?.state === 'SHOWN' &&
     !inlineDismissed &&
     !isDismissed(catalystSurface.surfaceId);
-
-  const handleInlineDismiss = useCallback(() => {
-    if (catalystSurface) {
-      dismiss(catalystSurface.surfaceId);
-    }
-    setInlineDismissed(true);
-  }, [catalystSurface]);
-
-  const handleInlineAction = useCallback(async () => {
-    if (!session || !catalystSurface?.nextAction?.delta) return;
-    await mutateDemoUser(session.userId, catalystSurface.nextAction.delta);
-    refetch();
-  }, [session, catalystSurface, refetch]);
 
   return (
     <div className="bg-[#fbf9f8] min-h-screen pb-24 font-sans text-black">
