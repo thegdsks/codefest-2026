@@ -1,0 +1,130 @@
+Description: Signal Force - cost budgets and alerts
+Resources:
+  BudgetAlertTopicF20DF526:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: signal-force budget alerts
+      Tags:
+      - Key: Project
+        Value: signal-force
+      - Key: Stage
+        Value: dev
+    Metadata:
+      aws:cdk:path: signal-force-budgets/BudgetAlertTopic/Resource
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Budget alert topic publishes only from the AWS Budgets service.
+            Publishers are out of our control, and Budgets connects to SNS over TLS-encrypted
+            internal AWS service endpoints.
+          id: AwsSolutions-SNS3
+        - reason: Budget alert topic carries only cost metadata, not user data. KMS
+            encryption deferred.
+          id: AwsSolutions-SNS2
+  BudgetAlertTopicchangemeexamplecom1FBE832D:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: change-me@example.com
+      Protocol: email
+      TopicArn:
+        Ref: BudgetAlertTopicF20DF526
+    Metadata:
+      aws:cdk:path: signal-force-budgets/BudgetAlertTopic/change-me@example.com/Resource
+      cdk_nag:
+        rules_to_suppress:
+        - reason: Budget alert topic publishes only from the AWS Budgets service.
+            Publishers are out of our control, and Budgets connects to SNS over TLS-encrypted
+            internal AWS service endpoints.
+          id: AwsSolutions-SNS3
+        - reason: Budget alert topic carries only cost metadata, not user data. KMS
+            encryption deferred.
+          id: AwsSolutions-SNS2
+  Budget25:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetLimit:
+          Amount: 25
+          Unit: USD
+        BudgetName: signal-force-25usd
+        BudgetType: COST
+        TimeUnit: MONTHLY
+      NotificationsWithSubscribers:
+      - Notification:
+          ComparisonOperator: GREATER_THAN
+          NotificationType: ACTUAL
+          Threshold: 80
+          ThresholdType: PERCENTAGE
+        Subscribers:
+        - Address:
+            Ref: BudgetAlertTopicF20DF526
+          SubscriptionType: SNS
+      - Notification:
+          ComparisonOperator: GREATER_THAN
+          NotificationType: ACTUAL
+          Threshold: 100
+          ThresholdType: PERCENTAGE
+        Subscribers:
+        - Address:
+            Ref: BudgetAlertTopicF20DF526
+          SubscriptionType: SNS
+    Metadata:
+      aws:cdk:path: signal-force-budgets/Budget25
+  Budget100:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetLimit:
+          Amount: 100
+          Unit: USD
+        BudgetName: signal-force-100usd
+        BudgetType: COST
+        TimeUnit: MONTHLY
+      NotificationsWithSubscribers:
+      - Notification:
+          ComparisonOperator: GREATER_THAN
+          NotificationType: ACTUAL
+          Threshold: 80
+          ThresholdType: PERCENTAGE
+        Subscribers:
+        - Address:
+            Ref: BudgetAlertTopicF20DF526
+          SubscriptionType: SNS
+      - Notification:
+          ComparisonOperator: GREATER_THAN
+          NotificationType: ACTUAL
+          Threshold: 100
+          ThresholdType: PERCENTAGE
+        Subscribers:
+        - Address:
+            Ref: BudgetAlertTopicF20DF526
+          SubscriptionType: SNS
+    Metadata:
+      aws:cdk:path: signal-force-budgets/Budget100
+  Budget200:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetLimit:
+          Amount: 200
+          Unit: USD
+        BudgetName: signal-force-200usd
+        BudgetType: COST
+        TimeUnit: MONTHLY
+      NotificationsWithSubscribers:
+      - Notification:
+          ComparisonOperator: GREATER_THAN
+          NotificationType: FORECASTED
+          Threshold: 100
+          ThresholdType: PERCENTAGE
+        Subscribers:
+        - Address:
+            Ref: BudgetAlertTopicF20DF526
+          SubscriptionType: SNS
+    Metadata:
+      aws:cdk:path: signal-force-budgets/Budget200
+Outputs:
+  BudgetAlertTopicArn:
+    Value:
+      Ref: BudgetAlertTopicF20DF526
+    Export:
+      Name: signal-force-budgets:BudgetAlertTopicArn
