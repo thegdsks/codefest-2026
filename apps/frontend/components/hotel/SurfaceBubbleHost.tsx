@@ -8,6 +8,7 @@
  * at bottom-left (avoiding the DemoPanel at bottom-right).
  */
 
+import { usePathname } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { useCustomer } from '@/components/hotel/CustomerProvider';
 import SurfaceBubble from '@/components/hotel/SurfaceBubble';
@@ -15,6 +16,15 @@ import { mutateDemoUser } from '@/lib/hotel/customer-api';
 import { dismiss, isDismissed } from '@/lib/hotel/surface-dismissal';
 import type { SurfaceEvaluation } from '@/lib/hotel/surface-types';
 import { useSurfaceEligibility } from '@/lib/hotel/use-surface-eligibility';
+
+// Routes that already render a specific surface inline. The floating bubble
+// host MUST exclude those surfaces on those routes to avoid the same nudge
+// rendering twice (one inline + one floating).
+const PAGE_INLINE_SURFACES: Record<string, readonly string[]> = {
+  '/profile': ['PROFILE_CATALYST_ELEVATE'],
+  '/property': ['PROPERTY_PRESTIGE_ADVANCE'],
+  '/results': ['RESULTS_PRESTIGE_ADVANCE'],
+};
 
 // Hard-coded priority order when aiPriority is absent (lower index = higher priority).
 const PRIORITY_ORDER = [
@@ -26,9 +36,12 @@ const PRIORITY_ORDER = [
   'RESULTS_PRESTIGE_ADVANCE',
 ];
 
-function pickTopSurface(surfaces: Record<string, SurfaceEvaluation>): SurfaceEvaluation | null {
+function pickTopSurface(
+  surfaces: Record<string, SurfaceEvaluation>,
+  excludeIds: readonly string[]
+): SurfaceEvaluation | null {
   const candidates = Object.values(surfaces).filter(
-    (s) => s.state === 'SHOWN' && !isDismissed(s.surfaceId)
+    (s) => s.state === 'SHOWN' && !isDismissed(s.surfaceId) && !excludeIds.includes(s.surfaceId)
   );
 
   if (candidates.length === 0) return null;
@@ -54,6 +67,7 @@ function pickTopSurface(surfaces: Record<string, SurfaceEvaluation>): SurfaceEva
 export default function SurfaceBubbleHost() {
   const { isLoggedIn, session } = useCustomer();
   const { surfaces, refetch } = useSurfaceEligibility();
+  const pathname = usePathname();
   // Counter used to trigger re-render after dismiss without re-fetching.
   const [dismissCount, setDismissCount] = useState(0);
 
@@ -67,7 +81,11 @@ export default function SurfaceBubbleHost() {
   // Prevent lint warning about unused dismissCount — reading it ensures re-render.
   void dismissCount;
 
-  const surface = pickTopSurface(surfaces);
+  // Match pathname prefix so /property/[id] still excludes /property's inline surfaces.
+  const excludeIds =
+    Object.entries(PAGE_INLINE_SURFACES).find(([prefix]) => pathname?.startsWith(prefix))?.[1] ??
+    [];
+  const surface = pickTopSurface(surfaces, excludeIds);
   if (!surface) return null;
 
   const handleAction = async () => {
