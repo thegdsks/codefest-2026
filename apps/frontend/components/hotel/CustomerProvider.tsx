@@ -67,9 +67,11 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     const dashUser = dash.data?.user;
     if (dashUser) {
       setUser((prev) => {
+        // The dashboard response only returns { userId, tier }. Points balance comes from
+        // GET /customer/loyalty-summary, which useLoyaltySummary fetches separately and
+        // uses as the source of truth. Do not overwrite prev.points here.
         const updated = {
           ...prev,
-          points: dashUser.pointsBalance,
           name: dashUser.name || prev.name,
           email: dashUser.email || prev.email,
         };
@@ -77,7 +79,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         recordRecentUser({
           username: userId,
           name: updated.name,
-          tier: updated.status || 'Silver',
+          tier: (updated.status as string | undefined) || 'Silver',
         });
         return updated;
       });
