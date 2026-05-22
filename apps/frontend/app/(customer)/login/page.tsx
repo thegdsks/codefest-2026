@@ -219,7 +219,7 @@ function LoginScreenInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get('next') ?? '/profile';
-  const { completeLogin, setPendingSessionId } = useCustomer();
+  const { completeLogin, setPendingSessionId, isLoggedIn, isHydrated, logout } = useCustomer();
   const [username, setUsername] = useState('user001');
   const [password, setPassword] = useState('Password1');
   const [showPassword, setShowPassword] = useState(false);
@@ -230,6 +230,14 @@ function LoginScreenInner() {
   const formRef = useRef<HTMLFormElement>(null);
   const [blockData, setBlockData] = useState<LoginBlockData | null>(null);
   const [clearingBlock, setClearingBlock] = useState(false);
+
+  // If hydration restored a live session, do not strand the user on /login.
+  // Bounce them to whatever they were trying to reach (default /profile).
+  useEffect(() => {
+    if (isHydrated && isLoggedIn) {
+      router.replace(nextPath);
+    }
+  }, [isHydrated, isLoggedIn, nextPath, router]);
 
   useEffect(() => {
     getDevConfig()
@@ -243,12 +251,13 @@ function LoginScreenInner() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!username || !password) return;
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername || !password) return;
     setSubmitting(true);
     setError(null);
 
     const res = await loginRequest({
-      username,
+      username: trimmedUsername,
       password,
       ctx: getDemoLoginContext(),
       forceMfa: demoMode && forceMfa,
@@ -307,6 +316,22 @@ function LoginScreenInner() {
     setTimeout(() => {
       formRef.current?.requestSubmit();
     }, 0);
+  };
+
+  const handleResetSession = () => {
+    // Best-effort revoke + storage purge. Restores a clean logged-out view
+    // when a stale session is the reason the user wound up back at /login.
+    logout();
+    setError(null);
+    setBlockData(null);
+    setUsername('user001');
+    setPassword('Password1');
+  };
+
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Escape' && error) {
+      setError(null);
+    }
   };
 
   const demoMode_ = demoMode;
@@ -376,7 +401,13 @@ function LoginScreenInner() {
               </p>
             </div>
 
-            <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
+            <form
+              ref={formRef}
+              onSubmit={handleSubmit}
+              onKeyDown={handleFormKeyDown}
+              noValidate
+              className="space-y-8"
+            >
               <div className="relative group text-left">
                 <label
                   htmlFor="username"
@@ -391,6 +422,12 @@ function LoginScreenInner() {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    onBlur={(e) => setUsername(e.target.value.trim())}
+                    autoComplete="username"
+                    inputMode="email"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                    aria-invalid={Boolean(error)}
                     required
                     className="w-full bg-transparent border-none p-0 text-sm font-sans focus:ring-0 outline-none text-gray-800 font-medium py-2 placeholder:text-gray-300"
                     placeholder="user001"
@@ -420,6 +457,8 @@ function LoginScreenInner() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    aria-invalid={Boolean(error)}
                     required
                     className="w-full bg-transparent border-none p-0 text-sm font-sans focus:ring-0 outline-none text-gray-800 font-medium py-2 placeholder:text-gray-300"
                     placeholder="••••••••"
@@ -457,19 +496,43 @@ function LoginScreenInner() {
                 </div>
               )}
 
-              {error && (
-                <div className="bg-[#fff4f4] border border-red-200 text-red-700 text-xs font-sans px-4 py-3 rounded-sm animate-fade-in">
-                  {error}
-                </div>
-              )}
+              <div
+                aria-live="polite"
+                aria-atomic="true"
+                role={error ? 'alert' : undefined}
+                className="min-h-[0]"
+              >
+                {error && (
+                  <div className="bg-[#fff4f4] border border-red-200 text-red-700 text-xs font-sans px-4 py-3 rounded-sm animate-fade-in">
+                    {error}
+                  </div>
+                )}
+              </div>
 
               <div className="pt-4">
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="w-full bg-black hover:bg-[#775a19] text-white py-4.5 px-8 font-sans font-bold text-xs uppercase tracking-[0.2em] transition-all duration-300 cursor-pointer hover:shadow-lg active:scale-[0.98] border-b-2 border-transparent hover:border-[#ffdea5] disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  disabled={submitting || !username.trim() || !password}
+                  aria-busy={submitting}
+                  className="w-full bg-black hover:bg-[#775a19] text-white py-4.5 px-8 font-sans font-bold text-xs uppercase tracking-[0.2em] transition-all duration-300 cursor-pointer hover:shadow-lg active:scale-[0.98] border-b-2 border-transparent hover:border-[#ffdea5] disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {submitting ? 'Signing In...' : 'Sign In'}
+                  {submitting && (
+                    <span
+                      aria-hidden="true"
+                      className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin"
+                    />
+                  )}
+                  <span>{submitting ? 'Signing In...' : 'Sign In'}</span>
+                </button>
+              </div>
+
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={handleResetSession}
+                  className="font-sans text-[10px] font-bold text-gray-400 hover:text-[#775a19] uppercase tracking-widest cursor-pointer bg-transparent border-none"
+                >
+                  Reset / Use a different account
                 </button>
               </div>
             </form>

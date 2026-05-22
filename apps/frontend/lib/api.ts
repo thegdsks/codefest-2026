@@ -1,3 +1,4 @@
+import { clearSessionStorage } from './hotel/safe-storage';
 import type { ApiErrorDetail, ApiResult } from './types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -63,7 +64,7 @@ function maybeExpireSession(status: number, init?: RequestInit): void {
     init?.headers as Record<string, string> | undefined
   )?.Authorization?.startsWith('Bearer ');
   if (!isBearerAuth) return;
-  sessionStorage.removeItem('sf.session');
+  clearSessionStorage('sf.session');
   window.dispatchEvent(new CustomEvent('sf:session-expired'));
 }
 

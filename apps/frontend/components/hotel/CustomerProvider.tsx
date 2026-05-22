@@ -12,7 +12,15 @@ import {
 import { fetchDashboard, fetchSession, logout as revokeToken } from '@/lib/hotel/customer-api';
 import { MOCK_USER, PAST_STAYS } from '@/lib/hotel/data';
 import { recordRecentUser } from '@/lib/hotel/recent-users';
+import {
+  clearSessionStorage,
+  parseStoredSession,
+  readSessionStorage,
+  writeSessionStorage,
+} from '@/lib/hotel/safe-storage';
 import type { PastStay, TransferDetails, UserProfile } from '@/lib/hotel/types';
+
+const SESSION_STORAGE_KEY = 'sf.session';
 
 export interface Session {
   token: string;
@@ -58,10 +66,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     setIsLoggedIn(true);
     setPendingSessionId(null);
 
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('sf.session', JSON.stringify({ token, userId }));
-      document.cookie = `sf.token=${encodeURIComponent(token)}; path=/; SameSite=Lax`;
-    }
+    writeSessionStorage(SESSION_STORAGE_KEY, JSON.stringify({ token, userId }));
 
     const dash = await fetchDashboard(token, userId);
     const dashUser = dash.data?.user;
@@ -92,10 +97,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         console.error('[auth] logout revoke failed', err);
       });
     }
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('sf.session');
-      document.cookie = 'sf.token=; path=/; max-age=0; SameSite=Lax';
-    }
+    clearSessionStorage(SESSION_STORAGE_KEY);
     setIsLoggedIn(false);
     setSession(null);
     setPendingSessionId(null);
@@ -108,33 +110,38 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
       setIsHydrated(true);
       return;
     }
-    const stored = sessionStorage.getItem('sf.session');
-    if (!stored) {
+    // Defensive cleanup for users carrying the legacy sf.token cookie from
+    // builds that wrote it. The cookie is no longer authoritative; flush it
+    // so it cannot interfere with future routing decisions.
+    if (typeof document !== 'undefined' && document.cookie.includes('sf.token=')) {
+      document.cookie = 'sf.token=; path=/; max-age=0; SameSite=Lax';
+    }
+    const parsed = parseStoredSession(readSessionStorage(SESSION_STORAGE_KEY));
+    if (!parsed) {
+      // Corrupt or absent storage: ensure we do not keep a broken value
+      // around that would re-poison the next hydration attempt, and resolve
+      // hydration immediately so the UI can render a logged-out state.
+      clearSessionStorage(SESSION_STORAGE_KEY);
       setIsHydrated(true);
       return;
     }
-    try {
-      const parsed = JSON.parse(stored) as { token: string; userId: string };
-      if (parsed.token) {
-        completeLogin(parsed.token).finally(() => {
-          setIsHydrated(true);
-        });
-      } else {
+    // Always finish hydration, even when completeLogin throws or the network
+    // is offline; otherwise the whole tree stays in the "checking" state and
+    // pages that gate on isHydrated render nothing.
+    completeLogin(parsed.token)
+      .catch((err) => {
+        console.error('[auth] hydration completeLogin failed', err);
+        clearSessionStorage(SESSION_STORAGE_KEY);
+      })
+      .finally(() => {
         setIsHydrated(true);
-      }
-    } catch {
-      sessionStorage.removeItem('sf.session');
-      setIsHydrated(true);
-    }
+      });
   }, [completeLogin]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleExpired = () => {
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('sf.session');
-        document.cookie = 'sf.token=; path=/; max-age=0; SameSite=Lax';
-      }
+      clearSessionStorage(SESSION_STORAGE_KEY);
       setIsLoggedIn(false);
       setSession(null);
       setUser(MOCK_USER);
