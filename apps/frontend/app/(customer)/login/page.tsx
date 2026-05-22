@@ -493,8 +493,10 @@ function LoginScreenInner() {
             </div>
           </div>
 
-          {/* Mobile personas/recents below the form */}
-          <div className="w-full max-w-[520px]">
+          {/* Mobile personas/recents below the form (hidden on lg+ since
+              the right column owns it there). SidePanel itself contains both
+              variants, so we suppress on desktop via lg:hidden here. */}
+          <div className="w-full max-w-[520px] lg:hidden">
             <SidePanel
               onPersonaSelect={handlePersonaSelect}
               onRecentSelect={handleRecentUserSelect}
