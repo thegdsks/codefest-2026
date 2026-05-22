@@ -125,11 +125,18 @@ function buildModel(cfg, modelId) {
  */
 function buildPrompt(surfaces, profile, recentSignals, nowSec, signalContext) {
   const surfaceLines = surfaces
-    .map(
-      (s) =>
+    .map((s) => {
+      // Include per-surface context fields (e.g. pointsToNextTier) as named fields
+      // so the LLM has unambiguous numeric anchors and cannot hallucinate the gap.
+      const ctxParts = Object.entries(s.context || {})
+        .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+        .join(' ');
+      return (
         `- ${s.surfaceId}: state=${s.state} reason="${s.reason}" ` +
+        (ctxParts ? `context={${ctxParts}} ` : '') +
         (s.copy ? `headline="${s.copy.headline}"` : 'no copy')
-    )
+      );
+    })
     .join('\n');
 
   const signalLines =
@@ -143,12 +150,24 @@ function buildPrompt(surfaces, profile, recentSignals, nowSec, signalContext) {
           .join('\n')
       : '  (none)';
 
-  const tier = profile.tier || 'unknown';
-  const loyaltyScore = profile.loyaltyScore || 0;
   const profileCompletion = profile.profileCompletion || 0;
   const mfaEnrolled = !!profile.mfaSecret;
   const hour = new Date(nowSec * 1000).getUTCHours();
   const tod = hour < 6 ? 'night' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+
+  // Pull tier and points from the first PRESTIGE_ADVANCE surface context if present
+  // (those already went through getCurrentTier and ptsToNext) so the LLM sees
+  // the exact same numbers the deterministic engine used.
+  const prestigeSurface = surfaces.find(
+    (s) => s.surfaceId === 'PROPERTY_PRESTIGE_ADVANCE' || s.surfaceId === 'RESULTS_PRESTIGE_ADVANCE'
+  );
+  const currentTierForPrompt =
+    (prestigeSurface && prestigeSurface.context.currentTier) || profile.tier || 'unknown';
+  const nextTierForPrompt = (prestigeSurface && prestigeSurface.context.nextTier) || 'Platinum';
+  const pointsToNextTierForPrompt =
+    prestigeSurface != null && typeof prestigeSurface.context.pointsToNextTier === 'number'
+      ? prestigeSurface.context.pointsToNextTier
+      : null;
 
   // Build the enriched SDK context block when available
   let contextBlock = '';
@@ -181,11 +200,17 @@ function buildPrompt(surfaces, profile, recentSignals, nowSec, signalContext) {
     }
   }
 
+  const tierLine =
+    `  currentTier=${currentTierForPrompt}` +
+    ` nextTier=${nextTierForPrompt}` +
+    (pointsToNextTierForPrompt !== null ? ` pointsToNextTier=${pointsToNextTierForPrompt}` : '') +
+    ` profileCompletion=${profileCompletion}% mfaEnrolled=${mfaEnrolled} timeOfDay=${tod}`;
+
   return (
     `You are the personalization brain for a loyalty platform. Given the user's current state and recent behavior, decide which surfaces to PROMOTE, KEEP, DEMOTE, or HIDE so we show the most relevant thing without overwhelming.\n\n` +
     'Output one verdict per surface with a rationale a product manager would write.\n\n' +
     'User context:\n' +
-    `  tier=${tier} loyaltyScore=${loyaltyScore} profileCompletion=${profileCompletion}% mfaEnrolled=${mfaEnrolled} timeOfDay=${tod}\n` +
+    `${tierLine}\n` +
     contextBlock +
     '\nCandidate surfaces (deterministic state is fixed, AI adds ranking only):\n' +
     `${surfaceLines}\n\n` +
@@ -198,6 +223,7 @@ function buildPrompt(surfaces, profile, recentSignals, nowSec, signalContext) {
     '- SWAP means show an alternate copy variant (use sparingly)\n' +
     '- aiRationale must be 1-2 sentences, written for a product manager\n' +
     '- Use the context fields (trustScore, recentEventTypes, scrollDepth, flowState) to justify your verdict. Cite at least one specific signal in the rationale.\n' +
+    '- When referencing points or tier gaps, use the exact numbers from the surface context fields above. Do NOT estimate or invent point values.\n' +
     '- Do NOT invent facts not present in the context.\n' +
     '- Output a verdict for every surface in the input list'
   );

@@ -1463,7 +1463,7 @@ describe('getActivityFeed', () => {
     requestContext: { http: { method: 'GET', path: '/admin/activity-feed' } },
   });
 
-  test('merges decisions, sessions, and demo events into one sorted feed', async () => {
+  test('merges decisions, sessions, demo events, and signal events into one sorted feed', async () => {
     const ts = nowSec();
     const decision = {
       decisionId: 'DEC#1',
@@ -1489,12 +1489,26 @@ describe('getActivityFeed', () => {
       payload: { to: 'user002' },
       timestamp: ts,
     };
+    const signalEvent = {
+      userId: 'user-001',
+      activityTime: (ts - 2) * 1000,
+      activityType: 'ENGAGEMENT_SIGNAL',
+      signal: 'rage_click',
+      count: 5,
+      target: 'results.book',
+      score: 45,
+      action: 'ALLOW',
+      sessionId: 'sess-1',
+    };
     loadAdmin(
       fakeDdb({
         scanByTable: {
           DecisionStore: [decision],
           UserSession: [session],
-          UserActivity: [demoEvent],
+          // The feed fetches UserActivity twice (DEMO_EVENT and ENGAGEMENT_SIGNAL).
+          // The stub returns the same array for both scans; separate rows ensure
+          // both DEMO_EVENT and SIGNAL kinds appear in the merged output.
+          UserActivity: [demoEvent, signalEvent],
         },
       })
     );
@@ -1505,11 +1519,11 @@ describe('getActivityFeed', () => {
     assert.equal(resp.statusCode, 200);
     const body = JSON.parse(resp.body);
     const { events } = body.data;
-    assert.ok(events.length === 3, `expected 3 events, got ${events.length}`);
     const kinds = events.map((e) => e.kind);
-    assert.ok(kinds.includes('DECISION'));
-    assert.ok(kinds.includes('SESSION'));
-    assert.ok(kinds.includes('DEMO_EVENT'));
+    assert.ok(kinds.includes('DECISION'), 'should include DECISION events');
+    assert.ok(kinds.includes('SESSION'), 'should include SESSION events');
+    assert.ok(kinds.includes('DEMO_EVENT'), 'should include DEMO_EVENT events');
+    assert.ok(kinds.includes('SIGNAL'), 'should include SIGNAL events from ENGAGEMENT_SIGNAL rows');
   });
 
   test('returns 403 for a non-admin caller', async () => {

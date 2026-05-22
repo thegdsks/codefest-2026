@@ -54,7 +54,7 @@
           "passwordHash": { "S": "Password1" },
           "email": { "S": "priya033@example.com" },
           "phone": { "S": "+1-202-555-1033" },
-          "tier": { "S": "Platinum" },
+          "tier": { "S": "Diamond" },
           "loyaltyScore": { "N": "120000" },
           "profileCompletion": { "N": "0.95" },
           "emailVerified": { "BOOL": true },
@@ -64,7 +64,7 @@
           "mfaEnabled": { "BOOL": true },
           "mfaSecret": { "S": "JBSWY3DPEHPK3PXP" },
           "mfaRecoveryHashes": { "L": [] },
-          "personaLabel": { "S": "Platinum Elite" },
+          "personaLabel": { "S": "Diamond Elite" },
           "personaTagline": { "S": "Top-tier member, AI demotes most nudges, only celebratory states shown" }
         }
       }

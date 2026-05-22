@@ -3,10 +3,11 @@
 /**
  * GET /admin/activity-feed?since=<epochMs>&limit=<n>
  *
- * Merges three event sources into a single chronological array (newest first):
+ * Merges four event sources into a single chronological array (newest first):
  *   1. Decisions from DecisionStore (filtered by timestamp > since)
  *   2. Sessions from UserSession (ACCESS rows with lastActivityAt > since)
  *   3. Demo events from UserActivity (activityType=DEMO_EVENT, timestamp > since)
+ *   4. Signal events from UserActivity (activityType=ENGAGEMENT_SIGNAL, activityTime > since ms)
  *
  * Total capped at 100. nextCursor is the epoch-ms of the newest event so the
  * client can poll incrementally.
@@ -32,6 +33,14 @@ function sessionSummary(row) {
   return parts.length ? `Login ${parts.join(', ')}` : 'Login session';
 }
 
+function signalSummary(row) {
+  const parts = [row.signal || 'signal'];
+  if (typeof row.count === 'number' && row.count > 1) parts.push(`x${row.count}`);
+  if (row.target) parts.push(`on ${row.target}`);
+  if (row.action && row.action !== 'ALLOW') parts.push(`-> ${row.action}`);
+  return parts.join(' ');
+}
+
 function demoEventSummary(row) {
   const p = row.payload || {};
   switch (row.type) {
@@ -52,38 +61,60 @@ function demoEventSummary(row) {
   }
 }
 
+// activityTime on ENGAGEMENT_SIGNAL rows is stored as epoch milliseconds.
+// effectiveSince is epoch seconds, so multiply for the comparison.
 async function fetchAllSources(effectiveSince) {
-  const [decisionsResult, sessionsResult, demoEventsResult] = await Promise.all([
-    getDdb().send(
-      new ScanCommand({
-        TableName: CFG.tDecision,
-        FilterExpression: '#ts >= :since',
-        ExpressionAttributeNames: { '#ts': 'timestamp' },
-        ExpressionAttributeValues: { ':since': effectiveSince },
-      })
-    ),
-    getDdb().send(
-      new ScanCommand({
-        TableName: CFG.tUserSession,
-        FilterExpression: '#rt = :access AND #la > :since',
-        ExpressionAttributeNames: { '#rt': 'recordType', '#la': 'lastActivityAt' },
-        ExpressionAttributeValues: { ':access': 'ACCESS', ':since': effectiveSince },
-      })
-    ),
-    getDdb().send(
-      new ScanCommand({
-        TableName: CFG.tUserActivity,
-        FilterExpression: '#at = :demo AND #ts > :since',
-        ExpressionAttributeNames: { '#at': 'activityType', '#ts': 'timestamp' },
-        ExpressionAttributeValues: { ':demo': 'DEMO_EVENT', ':since': effectiveSince },
-      })
-    ),
-  ]);
+  const effectiveSinceMs = effectiveSince * 1000;
 
-  return [decisionsResult.Items || [], sessionsResult.Items || [], demoEventsResult.Items || []];
+  const [decisionsResult, sessionsResult, demoEventsResult, signalEventsResult] = await Promise.all(
+    [
+      getDdb().send(
+        new ScanCommand({
+          TableName: CFG.tDecision,
+          FilterExpression: '#ts >= :since',
+          ExpressionAttributeNames: { '#ts': 'timestamp' },
+          ExpressionAttributeValues: { ':since': effectiveSince },
+        })
+      ),
+      getDdb().send(
+        new ScanCommand({
+          TableName: CFG.tUserSession,
+          FilterExpression: '#rt = :access AND #la > :since',
+          ExpressionAttributeNames: { '#rt': 'recordType', '#la': 'lastActivityAt' },
+          ExpressionAttributeValues: { ':access': 'ACCESS', ':since': effectiveSince },
+        })
+      ),
+      getDdb().send(
+        new ScanCommand({
+          TableName: CFG.tUserActivity,
+          FilterExpression: '#at = :demo AND #ts > :since',
+          ExpressionAttributeNames: { '#at': 'activityType', '#ts': 'timestamp' },
+          ExpressionAttributeValues: { ':demo': 'DEMO_EVENT', ':since': effectiveSince },
+        })
+      ),
+      getDdb().send(
+        new ScanCommand({
+          TableName: CFG.tUserActivity,
+          FilterExpression: '#at = :sig AND #act > :sinceMs',
+          ExpressionAttributeNames: { '#at': 'activityType', '#act': 'activityTime' },
+          ExpressionAttributeValues: {
+            ':sig': 'ENGAGEMENT_SIGNAL',
+            ':sinceMs': effectiveSinceMs,
+          },
+        })
+      ),
+    ]
+  );
+
+  return [
+    decisionsResult.Items || [],
+    sessionsResult.Items || [],
+    demoEventsResult.Items || [],
+    signalEventsResult.Items || [],
+  ];
 }
 
-function projectEvents(decisions, sessions, demoEvents) {
+function projectEvents(decisions, sessions, demoEvents, signalEvents) {
   const events = [];
 
   for (const row of decisions) {
@@ -130,6 +161,23 @@ function projectEvents(decisions, sessions, demoEvents) {
     });
   }
 
+  for (const row of signalEvents || []) {
+    events.push({
+      kind: 'SIGNAL',
+      // activityTime is stored as epoch ms
+      timestamp: typeof row.activityTime === 'number' ? row.activityTime : 0,
+      userId: row.userId ?? '',
+      summary: signalSummary(row),
+      signal: row.signal ?? '',
+      count: typeof row.count === 'number' ? row.count : 1,
+      target: row.target ?? '',
+      score: typeof row.score === 'number' ? row.score : 0,
+      action: row.action ?? '',
+      sessionId: row.sessionId ?? '',
+      raw: row,
+    });
+  }
+
   return events;
 }
 
@@ -147,8 +195,8 @@ async function getActivityFeed(event, correlationId) {
 
   const effectiveSince = sinceSec > 0 ? sinceSec : nowSec() - 3600;
 
-  const [decisions, sessions, demoEvents] = await fetchAllSources(effectiveSince);
-  const events = projectEvents(decisions, sessions, demoEvents);
+  const [decisions, sessions, demoEvents, signalEvents] = await fetchAllSources(effectiveSince);
+  const events = projectEvents(decisions, sessions, demoEvents, signalEvents);
 
   events.sort((a, b) => b.timestamp - a.timestamp);
   const sliced = events.slice(0, limit);

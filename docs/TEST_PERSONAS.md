@@ -10,7 +10,7 @@ All demo personas use password `Password1`.
 | USER#020 | user020 | Silver | 700 | 40% | No | Mid-flow: Silver with incomplete profile, no MFA |
 | USER#031 | maya031 | Silver | 1,500 | 25% | No | First-timer: maximum surfaces shown simultaneously |
 | USER#032 | dre032 | Gold | 49,500 | 75% | No | Prestige+Catalyst+MFA triple: 500 pts from Platinum |
-| USER#033 | priya033 | Platinum | 120,000 | 95% | Yes | AI Mode: demotes nudges, shows celebratory states only |
+| USER#033 | priya033 | Diamond | 120,000 | 95% | Yes | AI Mode: demotes nudges, shows celebratory states only |
 | USER#034 | ethan034 | Gold | 32,000 | 60% | Yes | Velocity: 3 transfers in last hour, FRAUD_TRANSFER risk |
 | USER#035 | naomi035 | Silver | 4,200 | 40% | No | Abandon: TRANSFER_ABANDON_OFFER fires from 90s-old draft |
 | USER#036 | marcus036 | Gold | 18,000 | 55% | Yes | AI signals: rage_click + dwell data for LLM reasoning |
@@ -67,15 +67,15 @@ All demo personas use password `Password1`.
 
 ---
 
-## USER#033 - Priya, Platinum Elite
+## USER#033 - Priya, Diamond Elite
 
 **Username:** `priya033` | **Password:** `Password1` | **userId:** `USER#033`
 
-**Tier:** Platinum | **Points:** 120,000 | **Profile:** 95% | **MFA:** Enabled
+**Tier:** Diamond | **Points:** 120,000 | **Profile:** 95% | **MFA:** Enabled
 
-**What the demo shows:** Priya is at the top of the loyalty stack. Profile is 95%, MFA is enrolled, tier is Platinum. Most nudge surfaces are ineligible or demoted by the AI prioritizer since there is nothing material to improve. Use Priya to contrast with Maya or Dre: toggle AI Mode on and show the LLM demoting all nudges, leaving only celebratory copy. This is the "AI Mode promote/demote" beat - log in as Dre (lots of surfaces), switch to AI Mode, then swap to Priya to show the opposite pole.
+**What the demo shows:** Priya is at the top of the loyalty stack. With 120,000 points she is in the Diamond tier (100,000+ threshold). Profile is 95%, MFA is enrolled. Most nudge surfaces are ineligible or demoted by the AI prioritizer since there is nothing material to improve. Use Priya to contrast with Maya or Dre: toggle AI Mode on and show the LLM demoting all nudges, leaving only celebratory copy. This is the "AI Mode promote/demote" beat - log in as Dre (lots of surfaces), switch to AI Mode, then swap to Priya to show the opposite pole.
 
-**Surfaces SHOWN on login:** Possibly PRESTIGE_ADVANCE hidden (already Platinum), MFA_ENROLLMENT_OFFER hidden (already enrolled), CATALYST_ELEVATE hidden (95%). Celebratory or welcome copy may show depending on rule configuration.
+**Surfaces SHOWN on login:** PRESTIGE_ADVANCE hidden (already Diamond/top tier), MFA_ENROLLMENT_OFFER hidden (already enrolled), CATALYST_ELEVATE hidden (95%). Celebratory or welcome copy may show depending on rule configuration.
 
 ---
 
