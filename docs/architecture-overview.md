@@ -22,6 +22,7 @@ Every decision is auditable. The admin studio lets ops tune rules without a depl
 - [Operational notes](#operational-notes)
 
 See also:
+
 - [architecture-engine.md](./architecture-engine.md) - rules-first engine, storage tiering, studio loop
 - [architecture-ai.md](./architecture-ai.md) - AI fraud explainer, surface prioritizer, LiteLLM topology, budget guard
 - [deployment.md](./deployment.md) - step-by-step deploy runbook
@@ -180,11 +181,11 @@ Read it in three passes:
                             +---------------------+
 ```
 
-| App | Built where (demo) | Built where (production) |
-|---|---|---|
-| Customer surface | `apps/frontend/` `/login`, `/dashboard` routes | Bonvoy app or SDK embedded on partner sites |
-| Decision engine | `apps/backend/src/handler.js` Lambda | Split into hot + warm + cold lanes |
-| Studio | `apps/frontend/src/pages/admin/` route in same SPA | Separate app, Cognito-protected |
+| App              | Built where (demo)                                 | Built where (production)                    |
+| ---------------- | -------------------------------------------------- | ------------------------------------------- |
+| Customer surface | `apps/frontend/` `/login`, `/dashboard` routes     | Bonvoy app or SDK embedded on partner sites |
+| Decision engine  | `apps/backend/src/handler.js` Lambda               | Split into hot + warm + cold lanes          |
+| Studio           | `apps/frontend/src/pages/admin/` route in same SPA | Separate app, Cognito-protected             |
 
 ---
 
@@ -298,13 +299,13 @@ What changes from the demo stack:
 
 ## Cost (demo)
 
-| Service | Cost over the event |
-|---|---|
-| Lambda, API Gateway, DynamoDB (free tier) | $0.00 |
-| Claude Haiku 4.5 via LiteLLM proxy (~500 calls) | ~$0.80 |
-| SNS, CloudWatch, S3 (free tier) | $0.00 |
-| AWS Budgets | ~$0.10 |
-| **Total** | **~$1.00** |
+| Service                                         | Cost over the event |
+| ----------------------------------------------- | ------------------- |
+| Lambda, API Gateway, DynamoDB (free tier)       | $0.00               |
+| Claude Haiku 4.5 via LiteLLM proxy (~500 calls) | ~$0.80              |
+| SNS, CloudWatch, S3 (free tier)                 | $0.00               |
+| AWS Budgets                                     | ~$0.10              |
+| **Total**                                       | **~$1.00**          |
 
 The $250 cap is not at risk.
 
@@ -314,14 +315,14 @@ The $250 cap is not at risk.
 
 Six tables in `signal-force-dynamodb`. All PAY_PER_REQUEST with PITR enabled.
 
-| Table | PK | SK | GSI | Stores |
-|---|---|---|---|---|
-| `UserProfile` | `userId` (S) | - | `username-index` (PK: `username`) | Loyalty member directory, MFA secret, tier, profile fields |
-| `UserSession` | `sessionId` (S) | - | `userId-index` (PK: `userId`) | Bearer sessions. `recordType: ACCESS` for active tokens, `CHALLENGE` for MFA challenges |
-| `UserActivity` | `userId` (S) | `activityTime` (N) | - (TTL on `ttl`) | Append-only event log per user. DEMO_EVENT rows share this table |
-| `DecisionStore` | `decisionId` (S) | - | `userId-timestamp-index` (PK: `userId`, SK: `timestamp`) | Every engine decision. GSI enables per-user queries with time range in `KeyConditionExpression` |
-| `UserState` | `userId` (S) | - | - | Rolling counters and surface lifecycle timestamps per user |
-| `EngagementRules` | `ruleId` (S) | `version` (S) | - | Rule documents. `version=latest` is the live row; ISO timestamps are history entries |
+| Table             | PK               | SK                 | GSI                                                      | Stores                                                                                          |
+| ----------------- | ---------------- | ------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `UserProfile`     | `userId` (S)     | -                  | `username-index` (PK: `username`)                        | Loyalty member directory, MFA secret, tier, profile fields                                      |
+| `UserSession`     | `sessionId` (S)  | -                  | `userId-index` (PK: `userId`)                            | Bearer sessions. `recordType: ACCESS` for active tokens, `CHALLENGE` for MFA challenges         |
+| `UserActivity`    | `userId` (S)     | `activityTime` (N) | - (TTL on `ttl`)                                         | Append-only event log per user. DEMO_EVENT rows share this table                                |
+| `DecisionStore`   | `decisionId` (S) | -                  | `userId-timestamp-index` (PK: `userId`, SK: `timestamp`) | Every engine decision. GSI enables per-user queries with time range in `KeyConditionExpression` |
+| `UserState`       | `userId` (S)     | -                  | -                                                        | Rolling counters and surface lifecycle timestamps per user                                      |
+| `EngagementRules` | `ruleId` (S)     | `version` (S)      | -                                                        | Rule documents. `version=latest` is the live row; ISO timestamps are history entries            |
 
 The `DecisionStore` GSI (`userId-timestamp-index`) is used by `GET /admin/decisions?userId=` to
 query by user with a timestamp range in the `KeyConditionExpression` (not a `FilterExpression`),
@@ -364,11 +365,11 @@ Added since 2026-05-20:
 
 Three CDK stacks. All on `main`.
 
-| Stack | Status | Contents |
-|---|---|---|
-| `signal-force-dynamodb` | deployed | 6 DynamoDB tables: UserProfile, UserSession, UserActivity (TTL), DecisionStore, UserState, EngagementRules |
-| `signal-force-budgets` | deployed | 3 monthly budgets (25 / 100 / 200 USD) with SNS email alerts |
-| `signal-force-runtime` | deployed | Lambda + HTTP API + IAM + Bedrock IAM (prod-path, unused on LiteLLM demo path) + fraud-alert SNS + CloudWatch dashboard |
+| Stack                   | Status   | Contents                                                                                                                |
+| ----------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `signal-force-dynamodb` | deployed | 6 DynamoDB tables: UserProfile, UserSession, UserActivity (TTL), DecisionStore, UserState, EngagementRules              |
+| `signal-force-budgets`  | deployed | 3 monthly budgets (25 / 100 / 200 USD) with SNS email alerts                                                            |
+| `signal-force-runtime`  | deployed | Lambda + HTTP API + IAM + Bedrock IAM (prod-path, unused on LiteLLM demo path) + fraud-alert SNS + CloudWatch dashboard |
 
 ---
 
@@ -401,7 +402,7 @@ Each decision is closed. Reopening requires written rationale in a PR descriptio
 1. **CDK TypeScript over CloudFormation YAML.** Type safety, L2 constructs, cdk diff workflow.
 2. **HTTP API over REST API.** Cheaper, faster, sufficient.
 3. **Single Lambda for the demo, tiered compute at scale.** Hot lane to Fargate, warm to Lambda, cold to Glue.
-4. **Claude Haiku 4.5 via the Marriott LiteLLM proxy.** OpenAI-compatible wire format, Bedrock-backed, no direct Bedrock activation needed on the Lambda for the demo.
+4. **Claude Haiku 4.5 via the LiteLLM proxy.** OpenAI-compatible wire format, Bedrock-backed, no direct Bedrock activation needed on the Lambda for the demo.
 5. **Static MFA OTP over Cognito for the demo.** Half day saved. Cognito JWT is the next upgrade.
 6. **Rules-first engine. AI when rules abstain.** 90% of decisions resolve via deterministic rules. LLM share drops over time as the studio loop adds rules.
 7. **Three apps, one repo, one backend, two frontends (or two routes).** Customer + studio share the SPA in the demo. Production splits.

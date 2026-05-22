@@ -89,7 +89,7 @@ const CFG = {
   get estLlmUnitUsd() {
     return Number(process.env.EST_LLM_UNIT_USD || 0.0006);
   },
-  // Daily LLM cost cap for the responsible-AI budget tile. Matches the codefest cost cap.
+  // Daily LLM cost cap for the responsible-AI budget tile. Matches the cost cap.
   get llmDailyBudgetUsd() {
     return Number(process.env.LLM_DAILY_BUDGET_USD || 250);
   },

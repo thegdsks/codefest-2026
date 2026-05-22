@@ -3,7 +3,7 @@
 /**
  * aiModels.js
  *
- * Curated catalog of LLM models available through the Marriott LiteLLM proxy
+ * Curated catalog of LLM models available through the LiteLLM proxy
  * for the Signal Force engine. Anchors the model id used by engine/llm.js and
  * lib/aiRuleSuggest.js, surfaces a structured list for the admin UI, and
  * records public-rate per-token costs so we can compare options on the demo

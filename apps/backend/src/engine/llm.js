@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Thin wrapper around the Marriott-hosted LiteLLM proxy, using the Vercel AI SDK
+ * Thin wrapper around the hosted LiteLLM proxy, using the Vercel AI SDK
  * with the @ai-sdk/openai-compatible provider. LiteLLM speaks OpenAI wire format.
  *
  * Required env vars:
@@ -251,7 +251,12 @@ async function classify(prompt, _schema) {
       const latencyMs = Date.now() - attemptStart;
       const errorCode = err.name || 'UnknownError';
       console.error(
-        JSON.stringify({ msg: '[llm] classify attempt failed', model, errorCode, latencyMs })
+        JSON.stringify({
+          msg: '[llm] classify attempt failed',
+          model,
+          errorCode,
+          latencyMs,
+        })
       );
       emitEmfMetric(model, 'error', latencyMs);
     }
@@ -309,7 +314,12 @@ async function writeText(prompt, opts) {
       const latencyMs = Date.now() - attemptStart;
       const errorCode = err.name || 'UnknownError';
       console.error(
-        JSON.stringify({ msg: '[llm] writeText attempt failed', model, errorCode, latencyMs })
+        JSON.stringify({
+          msg: '[llm] writeText attempt failed',
+          model,
+          errorCode,
+          latencyMs,
+        })
       );
       emitEmfMetric(model, 'error', latencyMs);
     }
