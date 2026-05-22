@@ -60,6 +60,17 @@ export interface DecisionRow {
   originalDecisionId?: string;
   correlationId?: string;
   aiExplanation?: AiExplanation;
+  // Per-type context fields for richer row labels
+  location?: string | null;
+  deviceType?: string | null;
+  browser?: string | null;
+  amount?: number | null;
+  recipientId?: string | null;
+  velocity?: number | null;
+  signal?: string | null;
+  target?: string | null;
+  ruleId?: string | null;
+  mfaPath?: string | null;
 }
 
 export interface DecisionsListResponse {
@@ -604,4 +615,57 @@ export function clearUserBlock(userId: string): Promise<ApiResult<ClearBlockResp
   return adminFetch<ClearBlockResponse>(`/admin/users/${encodeURIComponent(userId)}/clear-block`, {
     method: 'POST',
   });
+}
+
+// ---------------------------------------------------------------------------
+// Signals
+// ---------------------------------------------------------------------------
+
+export type SignalType =
+  | 'rage_click'
+  | 'dwell_no_action'
+  | 'abandoned_flow_step'
+  | 'repeated_query'
+  | 'points_balance_stare';
+
+export type SignalWindow = '1h' | '24h' | '7d' | '30d';
+
+export interface SignalRow {
+  activityId: string;
+  userId: string;
+  signal: string;
+  target: string;
+  activityTime: number;
+  count: number;
+  score: number;
+  action: string;
+  sessionId: string;
+  ruleId: string | null;
+  contextSummary: string;
+  context: Record<string, unknown>;
+  trustScore: number | null;
+  scrollDepth: number | null;
+}
+
+export interface SignalsListResponse {
+  signals: SignalRow[];
+  count: number;
+  window: SignalWindow;
+}
+
+export interface SignalsQuery {
+  window?: SignalWindow;
+  signal?: string;
+  userId?: string;
+  limit?: number;
+}
+
+export function getSignals(q: SignalsQuery = {}): Promise<ApiResult<SignalsListResponse>> {
+  const params = new URLSearchParams();
+  if (q.window) params.set('window', q.window);
+  if (q.signal) params.set('signal', q.signal);
+  if (q.userId) params.set('userId', q.userId);
+  if (q.limit) params.set('limit', String(q.limit));
+  const qs = params.toString();
+  return adminFetch<SignalsListResponse>(`/admin/signals${qs ? `?${qs}` : ''}`);
 }

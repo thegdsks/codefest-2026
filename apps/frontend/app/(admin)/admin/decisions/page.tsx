@@ -1,10 +1,16 @@
 'use client';
 
+import type { Icon } from '@phosphor-icons/react';
 import {
   ArrowClockwise,
+  ArrowsLeftRight,
   CaretRight,
   DownloadSimple,
+  Key,
+  LockOpen,
   MagnifyingGlass,
+  Shield,
+  Sparkle,
   X,
 } from '@phosphor-icons/react';
 import Link from 'next/link';
@@ -78,6 +84,78 @@ function formatTimeAgo(epochSec: number): string {
 
 function reasonOf(row: DecisionRow): string {
   return row.reasonText || row.reasonCode || row.explanation || row.reason || '';
+}
+
+function decisionSubline(row: DecisionRow): string {
+  const type = row.decisionType as string;
+
+  if (type === 'FRAUD_LOGIN') {
+    const parts: string[] = [];
+    if (row.location) parts.push(`from ${row.location}`);
+    if (row.deviceType || row.browser) {
+      parts.push([row.deviceType, row.browser].filter(Boolean).join(' '));
+    }
+    return parts.length ? `Login ${parts.join(', ')}` : reasonOf(row);
+  }
+
+  if (type === 'FRAUD_TRANSFER') {
+    const parts: string[] = [];
+    if (typeof row.amount === 'number') parts.push(`${row.amount} SFC`);
+    if (row.recipientId) parts.push(`to ${row.recipientId}`);
+    if (typeof row.velocity === 'number') parts.push(`${row.velocity}h count`);
+    return parts.length ? parts.join(', ') : reasonOf(row);
+  }
+
+  if (
+    type === 'ENGAGEMENT' ||
+    type === 'NUDGE' ||
+    type === 'ENGAGEMENT_OFFER' ||
+    type === 'OFFER'
+  ) {
+    const parts: string[] = [];
+    if (row.signal) parts.push(`Signal: ${row.signal}`);
+    if (row.target) parts.push(`on ${row.target}`);
+    if (row.ruleId) parts.push(`fired ${row.ruleId}`);
+    return parts.length ? parts.join(' ') : reasonOf(row);
+  }
+
+  if (type === 'MFA_VERIFY') {
+    return row.mfaPath ? `MFA verified via ${row.mfaPath}` : reasonOf(row);
+  }
+
+  if (type === 'DECISION_RELEASE') {
+    return row.originalDecisionId ? `Operator released ${row.originalDecisionId}` : reasonOf(row);
+  }
+
+  return reasonOf(row);
+}
+
+interface DecisionTypeIconInfo {
+  Icon: Icon;
+  colorClass: string;
+}
+
+function decisionTypeIcon(type: string): DecisionTypeIconInfo {
+  if (type === 'FRAUD_LOGIN') return { Icon: Shield, colorClass: 'text-rose-400' };
+  if (type === 'FRAUD_TRANSFER') return { Icon: ArrowsLeftRight, colorClass: 'text-orange-400' };
+  if (
+    type === 'ENGAGEMENT' ||
+    type === 'NUDGE' ||
+    type === 'ENGAGEMENT_OFFER' ||
+    type === 'OFFER'
+  ) {
+    return { Icon: Sparkle, colorClass: 'text-violet-400' };
+  }
+  if (type === 'MFA_VERIFY') return { Icon: Key, colorClass: 'text-sky-400' };
+  if (type === 'DECISION_RELEASE') return { Icon: LockOpen, colorClass: 'text-emerald-400' };
+  return { Icon: Shield, colorClass: 'text-zinc-400' };
+}
+
+function rowBorderClass(action: string): string {
+  if (action === 'ALLOW') return 'border-l-4 border-l-emerald-500';
+  if (action === 'BLOCK') return 'border-l-4 border-l-rose-500';
+  if (action === 'RELEASE') return 'border-l-4 border-l-sky-400';
+  return 'border-l-4 border-l-amber-500';
 }
 
 export default function DecisionsListPage() {
@@ -278,7 +356,8 @@ export default function DecisionsListPage() {
 
       <div className="overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-surface)]/40">
         <div className="grid grid-cols-12 gap-3 border-b border-[color:var(--border)] px-4 py-2 text-[10px] font-medium uppercase tracking-wider text-[color:var(--text-dim)]">
-          <div className="col-span-3">When</div>
+          <div className="col-span-1" />
+          <div className="col-span-2">When</div>
           <div className="col-span-2">User</div>
           <div className="col-span-2">Type</div>
           <div className="col-span-1">Action</div>
@@ -290,7 +369,8 @@ export default function DecisionsListPage() {
           <div className="divide-y divide-[color:var(--border)]">
             {SKELETON_ROWS.map((k) => (
               <div key={k} className="grid grid-cols-12 gap-3 px-4 py-3">
-                <Skeleton className="col-span-3 h-4" />
+                <Skeleton className="col-span-1 h-4" />
+                <Skeleton className="col-span-2 h-4" />
                 <Skeleton className="col-span-2 h-4" />
                 <Skeleton className="col-span-2 h-4" />
                 <Skeleton className="col-span-1 h-4" />
@@ -308,18 +388,25 @@ export default function DecisionsListPage() {
           <ul className="divide-y divide-[color:var(--border)]">
             {rows.map((row) => {
               const href = `/admin/decisions/${encodeURIComponent(row.decisionId)}`;
-              const isBlock = row.action === 'BLOCK';
-              const isReleased = isBlock && releasedIds.has(row.decisionId);
+              const isReleased = row.action === 'BLOCK' && releasedIds.has(row.decisionId);
+              const typeIconInfo = decisionTypeIcon(row.decisionType as string);
+              const TypeIcon = typeIconInfo.Icon;
+              const subline = decisionSubline(row);
               return (
-                <li
-                  key={row.decisionId}
-                  className={isBlock ? 'border-l-4 border-l-rose-500' : undefined}
-                >
+                <li key={row.decisionId} className={rowBorderClass(row.action as string)}>
                   <Link
                     href={href}
                     className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[color:var(--bg-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
                   >
-                    <div className="col-span-3">
+                    <div className="col-span-1 flex items-center justify-center">
+                      <TypeIcon
+                        size={16}
+                        weight="fill"
+                        className={typeIconInfo.colorClass}
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div className="col-span-2">
                       <div className="text-[color:var(--text)]">{formatTimeAgo(row.timestamp)}</div>
                       <div className="text-[11px] text-[color:var(--text-dim)] tabular-nums">
                         {new Date(row.timestamp * 1000).toLocaleString()}
@@ -328,13 +415,23 @@ export default function DecisionsListPage() {
                     <div className="col-span-2 truncate font-mono text-xs text-[color:var(--text-muted)]">
                       {row.userId}
                     </div>
-                    <div className="col-span-2 truncate text-xs text-[color:var(--text-muted)]">
-                      {DECISION_TYPE_LABEL[row.decisionType] ?? row.decisionType}
+                    <div className="col-span-2">
+                      <div className="truncate text-xs text-[color:var(--text-muted)]">
+                        {DECISION_TYPE_LABEL[row.decisionType] ?? row.decisionType}
+                      </div>
+                      {subline ? (
+                        <div
+                          className="mt-0.5 truncate text-[11px] text-[color:var(--text-dim)]"
+                          title={subline}
+                        >
+                          {subline}
+                        </div>
+                      ) : null}
                     </div>
-                    <div className="col-span-1 flex items-center gap-1.5 flex-wrap">
+                    <div className="col-span-1 flex flex-wrap items-center gap-1.5">
                       <ActionPill action={row.action} />
                       {isReleased && (
-                        <span className="rounded-sm bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 whitespace-nowrap">
+                        <span className="whitespace-nowrap rounded-sm bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">
                           Released
                         </span>
                       )}
@@ -355,9 +452,6 @@ export default function DecisionsListPage() {
                       ) : null}
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1 text-[color:var(--text-dim)]">
-                      <span className="truncate text-[11px]" title={reasonOf(row)}>
-                        {reasonOf(row).slice(0, 18)}
-                      </span>
                       <CaretRight size={14} />
                     </div>
                   </Link>

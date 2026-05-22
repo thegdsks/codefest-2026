@@ -304,6 +304,53 @@ function buildTrace(row) {
 }
 
 // ---------------------------------------------------------------------------
+// Row projection
+// ---------------------------------------------------------------------------
+
+/**
+ * Project a raw DecisionStore row to the shape returned by list/export endpoints.
+ * Includes context sub-fields needed for richer per-type labels in the UI.
+ *
+ * @param {object} row
+ * @returns {object}
+ */
+function projectDecisionRow(row) {
+  return {
+    decisionId: row.decisionId,
+    userId: row.userId,
+    decisionType: row.decisionType,
+    action: row.action,
+    score: row.score,
+    riskLevel: row.riskLevel,
+    engineLayer: row.engineLayer,
+    channel: row.channel,
+    reasonCode: row.reasonCode,
+    reasonText: row.reasonText,
+    reason: row.reason,
+    explanation: row.explanation,
+    llmLatencyMs: row.llmLatencyMs,
+    llmModel: row.llmModel,
+    timestamp: row.timestamp,
+    isFinalDecision: row.isFinalDecision,
+    modelVersion: row.modelVersion,
+    originalDecisionId: row.originalDecisionId,
+    correlationId: row.correlationId,
+    aiExplanation: row.aiExplanation,
+    // Context fields for per-type labels
+    location: row.location ?? null,
+    deviceType: row.deviceType ?? null,
+    browser: row.browser ?? null,
+    amount: row.amount !== undefined ? row.amount : null,
+    recipientId: row.recipientId ?? null,
+    velocity: row.velocity ?? null,
+    signal: row.signal ?? null,
+    target: row.target ?? null,
+    ruleId: row.ruleId ?? null,
+    mfaPath: row.mfaPath ?? null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Route handlers
 // ---------------------------------------------------------------------------
 
@@ -364,7 +411,7 @@ async function listDecisions(event, correlationId) {
   }
 
   items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-  const decisions = items.slice(0, limit);
+  const decisions = items.slice(0, limit).map(projectDecisionRow);
 
   return json(200, correlationId, { data: { decisions, count: decisions.length } });
 }
