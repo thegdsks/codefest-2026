@@ -192,6 +192,31 @@ describe('GET /customer/loyalty-summary', () => {
     assert.equal(body.data.currentPoints, 42000);
   });
 
+  // Regression: balance lookup must work for users with only loyaltyScore (no
+  // loyaltyPointsBalance field). The frontend reads currentPoints from this
+  // endpoint, NOT from the dashboard response which has no pointsBalance field.
+  it('returns non-zero currentPoints for a seeded user with only loyaltyScore', async () => {
+    const ddb = withAccessRow('USER#001', ACCESS_TOKEN);
+    handler._setDdb(ddb);
+
+    const event = makeEvent({ headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } });
+    const res = await handler.main(event);
+    assert.equal(res.statusCode, 200);
+
+    const body = JSON.parse(res.body);
+    assert.ok(
+      body.data.currentPoints > 0,
+      `currentPoints must be > 0 for a user with loyaltyScore=510; got ${body.data.currentPoints}`
+    );
+    // Verify the exact derivation: 510 * 82 = 41820.
+    // This catches any regression where deriveLoyaltyPoints silently returns 0.
+    assert.equal(
+      body.data.currentPoints,
+      41820,
+      'deriveLoyaltyPoints must scale loyaltyScore by 82 when score < 1000'
+    );
+  });
+
   it('maps TRANSFER activity rows to recentMiles entries', async () => {
     const now = Math.floor(Date.now() / 1000);
     const ddb = makeDdb({

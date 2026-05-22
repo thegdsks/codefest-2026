@@ -111,8 +111,11 @@ export default function TransferScreen() {
     }
   }, [loyaltyData, displayBalance]);
 
-  // Source-of-truth balance: prefer live loyalty data, fall back to user.points from dashboard.
-  const currentPoints = loyaltyData?.currentPoints ?? user.points ?? 0;
+  // Source-of-truth balance: always read from the loyalty-summary response.
+  // user.points is not reliable - the dashboard endpoint does not return pointsBalance.
+  // When loyaltyData has not loaded yet, use undefined so overBalance stays false
+  // and the form does not flash a spurious "insufficient balance" error on render.
+  const currentPoints = loyaltyData?.currentPoints ?? user.points;
 
   const selectedPartner = PARTNERS.find((p) => p.id === partnerKey) ?? PARTNERS[0];
   const partnerReceived = Math.floor(Number(pointsInput) / selectedPartner.sfcPerPoint) || 0;
@@ -124,10 +127,17 @@ export default function TransferScreen() {
       setError('Minimum transfer is 1,000 SFC.');
       return;
     }
-    if (cost > currentPoints) {
-      setError(
-        `You have ${currentPoints.toLocaleString()} SFC. Reduce the amount or earn more by booking.`
-      );
+    const confirmedBalance = currentPoints ?? 0;
+    if (cost > confirmedBalance) {
+      if (confirmedBalance === 0) {
+        setError(
+          `Your balance hasn't loaded yet or is 0 SFC. Try refreshing, or log in as a demo user with points (e.g. user001).`
+        );
+      } else {
+        setError(
+          `You have ${confirmedBalance.toLocaleString()} SFC. Reduce the amount or earn more by booking.`
+        );
+      }
       return;
     }
     if (!session) {
@@ -214,7 +224,12 @@ export default function TransferScreen() {
   if (!isAuthenticated) return null;
 
   const amountNum = Number(pointsInput);
-  const overBalance = Number.isFinite(amountNum) && amountNum > currentPoints;
+  // Only flag overBalance once we have a confirmed balance. While loyaltyData is
+  // loading, currentPoints is undefined and this stays false so the form stays
+  // usable and no spurious "0 SFC" error appears.
+  const overBalance =
+    currentPoints !== undefined && Number.isFinite(amountNum) && amountNum > currentPoints;
+  const balanceLoading = !loyaltyData && isAuthenticated;
 
   return (
     <div className="bg-[#fbf9f8] min-h-screen pb-24 font-sans text-black">
@@ -369,7 +384,9 @@ export default function TransferScreen() {
                 >
                   SFC Points to Transfer{' '}
                   <span className="text-[#775a19] font-mono text-[10px] text-right font-semibold">
-                    (Max: {currentPoints.toLocaleString()} SFC)
+                    {currentPoints !== undefined
+                      ? `(Max: ${currentPoints.toLocaleString()} SFC)`
+                      : '(Loading balance...)'}
                   </span>
                 </label>
                 <div className="relative flex items-center">
@@ -390,7 +407,7 @@ export default function TransferScreen() {
                     SFC
                   </span>
                 </div>
-                {overBalance && (
+                {overBalance && currentPoints !== undefined && (
                   <p className="text-red-600 text-[11px] font-sans mt-1">
                     You have {currentPoints.toLocaleString()} SFC. Reduce the amount or earn more by
                     booking.
@@ -464,10 +481,14 @@ export default function TransferScreen() {
             <div className="flex flex-col items-center pt-6">
               <button
                 type="submit"
-                disabled={processing || overBalance}
+                disabled={processing || overBalance || balanceLoading}
                 className="w-full md:w-auto bg-black hover:bg-[#775a19] text-white px-16 py-4.5 font-sans font-bold text-xs uppercase tracking-widest transition-all duration-300 silk-shadow focus:outline-none cursor-pointer disabled:bg-gray-400"
               >
-                {processing ? 'Processing...' : 'Confirm Transfer'}
+                {processing
+                  ? 'Processing...'
+                  : balanceLoading
+                    ? 'Loading balance...'
+                    : 'Confirm Transfer'}
               </button>
               <p className="mt-4 text-[10px] text-gray-400 uppercase tracking-widest font-sans">
                 Transfer orders are final. Partner conversions cannot be reversed.
