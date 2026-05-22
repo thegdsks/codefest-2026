@@ -1,7 +1,7 @@
 # Lambda Timeout Review
 
-**Date:** 2026-05-20
-**Reviewer:** X8 (infra lane)
+Last updated: 2026-05-20
+
 **Scope:** LLM call path latency budget vs current Lambda timeout
 
 ---
@@ -17,22 +17,19 @@ Source: `infra/cdk/lib/config.ts`, `LAMBDA_DEFAULTS`
 | Architecture | arm64 |
 | Runtime | Node.js 18 |
 
-Note: the task brief mentioned 30 s as the current value. The actual value in
-`config.ts` is **10 s**. This review uses 10 s as the baseline.
-
 ---
 
 ## 2. Worst-Case Latency Contributors
 
 ### 2a. LLM call timeout
 
-Defined in `apps/backend/src/engine/llm.js`:
+Defined in `apps/backend/src/engine/llm.js` via the `LITELLM_TIMEOUT_MS` env var:
 
 ```
-abortSignal: AbortSignal.timeout(1500)
+default: 8000 ms (configurable via LITELLM_TIMEOUT_MS)
 ```
 
-Both `classify()` and `writeText()` cap at **1500 ms**. No retries. On timeout
+Both `classify()` and `writeText()` use `AbortSignal.timeout(timeoutMs)`. On timeout
 the router falls back to the L1 decision, so the LLM timeout is a hard ceiling,
 not a soft one.
 
@@ -50,9 +47,8 @@ A login that scores in the gray zone triggers the following DDB calls:
 
 Warm total (5 ops): ~37 ms. Cold total (5 ops): ~560 ms.
 
-DDB cold-start here means a Lambda cold-start, not a DDB cold-start. DDB is
-serverless and consistently fast once the VPC/SDK connection is warm. On a true
-Lambda cold-start (Node.js init + module load) the first DDB call is slower
+"Cold" here means a Lambda cold-start, not a DDB cold-start. DynamoDB is consistently fast
+once the SDK connection is warm. On a true Lambda cold-start the first DDB call is slower
 because the SDK is still negotiating the connection.
 
 ### 2c. Cold-start overhead (Node.js 18, arm64, 512 MB)
@@ -64,13 +60,6 @@ Typical cold-start for this bundle size (no native binaries, bundled with esbuil
 
 Request body parse, response serialise, EMF log line: negligible, **<5 ms** combined.
 
-### 2e. Bedrock path (not currently in production)
-
-`BEDROCK_MODEL_ID` is set in the CDK env, but `llm.js` uses `LITELLM_BASE_URL`
-and `LITELLM_API_KEY`. If those are absent, `readConfig()` returns null and no
-LLM call is made. The Bedrock IAM grant exists but is not exercised by the
-current code path. This is a non-contributor today.
-
 ---
 
 ## 3. Worst-Case Sum (Login + L2 + 5 DDB Writes)
@@ -80,9 +69,9 @@ current code path. This is a non-contributor today.
 | Component | ms |
 |---|---|
 | DDB reads + writes (5 ops, warm) | 37 |
-| LLM classify call (p95 observed: ~100 ms, hard cap 1500 ms) | 1500 |
+| LLM classify call (p95 observed: ~100 ms, hard cap 8000 ms) | 8000 |
 | JSON / misc | 5 |
-| **Total** | **1542 ms** |
+| **Total** | **8042 ms** |
 
 ### Cold-start Lambda
 
@@ -90,63 +79,43 @@ current code path. This is a non-contributor today.
 |---|---|
 | Node.js init overhead | 400 |
 | DDB (5 ops, first-call cold) | 560 |
-| LLM classify (hard cap) | 1500 |
+| LLM classify (hard cap) | 8000 |
 | JSON / misc | 5 |
-| **Total** | **2465 ms** |
+| **Total** | **8965 ms** |
 
-The absolute worst case is a cold-start where the LLM call hits the 1500 ms
-abort: **~2465 ms end-to-end** inside the Lambda handler. API Gateway HTTP API
-adds roughly 5-15 ms integration overhead on top.
+The absolute worst case is a cold-start where the LLM call hits the 8000 ms abort: **~8965 ms
+end-to-end** inside the Lambda handler. API Gateway HTTP API adds roughly 5-15 ms integration
+overhead on top.
 
 ---
 
-## 4. CloudWatch Actuals (last 24 h)
-
-Function: `signal-force-runtime-ApiLambda91D2282D-tv45G7vAnQvP`
-Window: 2026-05-19T02:53Z to 2026-05-20T02:53Z
+## 4. CloudWatch Actuals (observed)
 
 | Percentile | Duration |
 |---|---|
-| p95 | **99.7 ms** |
-| p99 | **341.6 ms** |
+| p95 | ~100 ms |
+| p99 | ~342 ms |
 
-Reading: p99 at 341 ms means the LLM path has not yet been exercised at scale
-(or LiteLLM credentials are not set, keeping the handler in rules-only mode).
-Once LiteLLM is active, p99 will rise toward the 1500 ms LLM cap on gray-zone
-requests.
+The low p99 indicates the LLM gray-zone path has not been exercised heavily, or LiteLLM
+credentials were not set at the time of measurement, keeping the handler in rules-only mode.
+Once LiteLLM is active, p99 will rise on gray-zone requests.
 
 ---
 
 ## 5. Recommendation
 
-**Set `timeoutSeconds` to 6 s (from the current 10 s).** Do not drop to 3 s yet.
+**Current timeout (10 s) is adequate.** The worst case (cold-start + LLM hard cap) is ~8965 ms,
+leaving about 1 second of margin. The value could be reduced to 9 s for a tighter fail-fast
+without risk, but the change is low priority given the observed p99 of ~342 ms.
 
-Math: worst-case cold-start + LLM cap = 2465 ms. Adding a 2x safety multiplier
-gives ~4.9 s. Rounding up to 6 s provides ~2.4x headroom over the computed
-worst case, and ~17x headroom over the observed p99 (341 ms). 6 s is tight
-enough to fail-fast on hung Bedrock or LiteLLM calls but loose enough to absorb
-a real cold-start on demo day.
+The AI surface prioritizer timeout was already tightened to 6 s in PR #124, which is the
+tighter sub-call that is more latency-sensitive.
 
-The originally suggested value of 3 s would be safe for the warm steady-state
-path (p99 341 ms today) but risks false timeouts on cold-start + max LLM
-latency (2465 ms). 6 s is the right middle ground.
+**Post-demo hardening:** split into two Lambda tiers via `serverless.yml` function-per-route:
+a "fast" function (3-4 s, no LLM) for health/profile reads, and the current "slow" function for
+login, transfer, and offer routes. This is straightforward with Serverless Framework but requires
+two API Gateway integrations and is not worth the complexity during a 48-hour event.
 
-**Post-demo hardening (not in scope now):** split into two Lambda tiers via
-`serverless.yml` function-per-route: a "fast" function (3 s, no LLM) for
-health/profile reads, and the current "slow" function (6 s) for login, transfer,
-and offer routes. This is straightforward with Serverless Framework but requires
-two API Gateway integrations and is not worth the complexity during a 48-hour
-event.
+---
 
-### Action required
-
-Change `LAMBDA_DEFAULTS.timeoutSeconds` from `10` to `6` in
-`infra/cdk/lib/config.ts` and redeploy the runtime stack:
-
-```
-cd infra/cdk
-npx cdk deploy signal-force-runtime
-```
-
-This change is **not made in this review** per task constraints. It is
-recommended for the next deploy before the demo on day 2.
+Related: [architecture-ai.md](./architecture-ai.md) | [deployment.md](./deployment.md)
