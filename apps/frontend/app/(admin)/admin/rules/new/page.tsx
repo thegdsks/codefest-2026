@@ -333,7 +333,7 @@ export default function NewRulePage() {
       />
 
       {form.saveError ? (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-[color:var(--danger-border)] bg-[color:var(--danger-bg)] px-4 py-3 text-sm text-[color:var(--danger-fg)]">
           <TriangleAlert className="size-4 shrink-0" />
           {form.saveError}
         </div>

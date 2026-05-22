@@ -3,15 +3,20 @@ interface ActionPillProps {
 }
 
 const TONE: Record<string, string> = {
-  ALLOW: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
-  BLOCK: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
-  HOLD: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
-  REVIEW: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
-  MFA: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
-  RELEASE: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
-  OFFER: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
-  NUDGE: 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
-  HINT: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
+  ALLOW:
+    'bg-[color:var(--success-bg)] text-[color:var(--success-fg)] border-[color:var(--success-border)]',
+  BLOCK:
+    'bg-[color:var(--danger-bg)] text-[color:var(--danger-fg)] border-[color:var(--danger-border)]',
+  HOLD: 'bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] border-[color:var(--warning-border)]',
+  REVIEW: 'bg-[color:var(--info-bg)] text-[color:var(--info-fg)] border-[color:var(--info-border)]',
+  MFA: 'bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] border-[color:var(--warning-border)]',
+  RELEASE:
+    'bg-[color:var(--accent-sky-bg)] text-[color:var(--accent-sky-fg)] border-[color:var(--accent-sky-border)]',
+  OFFER:
+    'bg-[color:var(--success-bg)] text-[color:var(--success-fg)] border-[color:var(--success-border)]',
+  NUDGE:
+    'bg-[color:var(--accent-violet-bg)] text-[color:var(--accent-violet-fg)] border-[color:var(--accent-violet-border)]',
+  HINT: 'bg-[color:var(--info-bg)] text-[color:var(--info-fg)] border-[color:var(--info-border)]',
 };
 
 const ACTION_LABEL: Record<string, string> = {

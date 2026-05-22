@@ -128,7 +128,7 @@ export default function RuleAiAssistTab({ onApply }: RuleAiAssistTabProps) {
       ) : null}
 
       {status.kind === 'error' ? (
-        <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-200">
+        <div className="flex items-start gap-2 rounded-lg border border-[color:var(--danger-border)] bg-[color:var(--danger-bg)] px-4 py-3 text-sm text-[color:var(--danger-fg)]">
           <Warning size={16} className="mt-0.5 shrink-0" />
           <span>{status.message}</span>
         </div>

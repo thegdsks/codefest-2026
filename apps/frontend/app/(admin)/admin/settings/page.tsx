@@ -320,9 +320,9 @@ export default function SettingsPage() {
               {reseedStatus.kind === 'error' && (
                 <div
                   aria-live="assertive"
-                  className="space-y-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-4 py-3"
+                  className="space-y-2 rounded-lg border border-[color:var(--danger-border)] bg-[color:var(--danger-bg)] px-4 py-3"
                 >
-                  <p className="text-sm text-rose-700 dark:text-rose-300">
+                  <p className="text-sm text-[color:var(--danger-fg)]">
                     Reseed failed: {reseedStatus.message}
                   </p>
                   <button

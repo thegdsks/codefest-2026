@@ -51,11 +51,16 @@ function formatRelative(iso: string): string {
 }
 
 const SIGNAL_BADGE_CLASS: Record<string, string> = {
-  rage_click: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-  dwell_no_action: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
-  abandoned_flow_step: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  repeated_query: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
-  points_balance_stare: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  rage_click:
+    'bg-[color:var(--danger-bg)] text-[color:var(--danger-fg)] border-[color:var(--danger-border)]',
+  dwell_no_action:
+    'bg-[color:var(--info-bg)] text-[color:var(--info-fg)] border-[color:var(--info-border)]',
+  abandoned_flow_step:
+    'bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] border-[color:var(--warning-border)]',
+  repeated_query:
+    'bg-[color:var(--accent-violet-bg)] text-[color:var(--accent-violet-fg)] border-[color:var(--accent-violet-border)]',
+  points_balance_stare:
+    'bg-[color:var(--success-bg)] text-[color:var(--success-fg)] border-[color:var(--success-border)]',
 };
 
 function signalBadgeClass(signal: string): string {
@@ -250,7 +255,7 @@ function MatchCard({ state, hasConditions }: MatchCardProps) {
 
   if (state.kind === 'error') {
     return (
-      <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+      <div className="rounded-xl border border-[color:var(--danger-border)] bg-[color:var(--danger-bg)] p-4 text-sm text-[color:var(--danger-fg)]">
         {state.message}
       </div>
     );

@@ -72,11 +72,13 @@ function surfaceLabel(surface: EngagementSurface): string {
 
 function surfaceColorClass(surface: EngagementSurface): string {
   const label = surfaceLabel(surface);
-  if (label === 'nudge_banner') return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
-  if (label === 'offer_modal') return 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+  if (label === 'nudge_banner')
+    return 'bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] border-[color:var(--warning-border)]';
+  if (label === 'offer_modal')
+    return 'bg-[color:var(--accent-purple-bg)] text-[color:var(--accent-purple-fg)] border-[color:var(--accent-purple-border)]';
   if (label === 'help_tooltip' || label === 'inline_help_tooltip')
-    return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
-  return 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30';
+    return 'bg-[color:var(--info-bg)] text-[color:var(--info-fg)] border-[color:var(--info-border)]';
+  return 'bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)] border-[color:var(--border-strong)]';
 }
 
 function ruleToSurface(action: RuleAction | undefined): EngagementSurface {
@@ -153,17 +155,17 @@ interface MockSurfaceProps {
 
 function MockBanner({ copy }: { copy: string }) {
   return (
-    <div className="w-full rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+    <div className="w-full rounded border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] px-3 py-2.5">
       <div className="flex items-start gap-2">
-        <div className="mt-0.5 h-3 w-3 shrink-0 rounded-full bg-amber-400" />
+        <div className="mt-0.5 h-3 w-3 shrink-0 rounded-full bg-[color:var(--warning-fg)]" />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-amber-200 leading-snug">
+          <p className="text-xs font-medium text-[color:var(--warning-fg)] leading-snug">
             {copy || 'Nudge copy will appear here when the rule fires.'}
           </p>
         </div>
         <button
           type="button"
-          className="shrink-0 text-amber-400/70 hover:text-amber-300 text-xs"
+          className="shrink-0 text-[color:var(--warning-fg)] opacity-70 hover:opacity-100 text-xs"
           aria-label="Dismiss"
         >
           x
