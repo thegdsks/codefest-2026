@@ -62,13 +62,13 @@ aws cloudformation deploy \
 
 ## Re-synthesizing
 
-After changing the CDK source in `infra/cdk/`:
+After changing the CDK source in `infra/cdk/`, run the helper from the repo root:
 
 ```bash
-cd infra/cdk
-CDK_NAG=off npx cdk synth <StackId> --json false > ../../infra/cloudformation/<file>.yaml
+./scripts/synth-cf.sh
 ```
 
-Strip the `CDKMetadata` resource, `BootstrapVersion` parameter, and `Rules` section before
-committing, or use the `scripts/synth-cf.sh` helper if one exists. The canonical source is
-always `infra/cdk/` - these YAML files are derived artifacts for judge/teammate use only.
+The script runs `cdk synth`, converts each stack template to YAML, and strips the
+`CDKMetadata` resource, `BootstrapVersion` parameter, and `Rules` section so the
+output reads as plain CloudFormation. The canonical source is always `infra/cdk/`,
+these YAML files are derived artifacts for judge and teammate use only.
