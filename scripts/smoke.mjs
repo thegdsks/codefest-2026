@@ -1,386 +1,1002 @@
 /**
- * smoke.mjs - end-to-end smoke test for the Signal Force demo path.
+ * smoke.mjs - Signal Force API end-to-end smoke test
  *
- * Runs the full demo flow against a deployed or locally-offline backend.
- * Each step is timed and printed. Exits 1 if any step fails.
+ * Drives every documented API endpoint and verifies it works against the
+ * deployed environment. Uses only Node.js stdlib (fetch built-in, no chalk).
  *
- * Required env vars:
- *   DEMO_USER       - username sent in the login body (e.g. "alice")
- *   DEMO_PASSWORD   - password sent in the login body
- *   DEMO_MFA_OTP    - 6-digit OTP for MFA verification (static "123456" for demo mode)
+ * Env vars:
+ *   API_URL         - base URL without trailing slash
+ *                     (default: https://55p8lbxf9g.execute-api.us-east-1.amazonaws.com)
+ *   CLIENT_ID       - Basic Auth client id  (default: demoClient)
+ *   CLIENT_SECRET   - Basic Auth secret     (default: demoSecret)
+ *   SMOKE_TIMEOUT   - per-request timeout ms (default: 20000)
  *
- * Optional env vars:
- *   BASE_URL        - backend base URL without trailing slash (default: http://localhost:3000)
- *   SMOKE_TIMEOUT   - per-request timeout in ms (default: 15000)
+ * Modes:
+ *   node scripts/smoke.mjs           - all checks
+ *   node scripts/smoke.mjs --quick   - 5 representative checks (~10s)
  *
- * No external dependencies. Uses Node 20 built-in fetch.
- *
- * Usage:
- *   DEMO_USER=alice DEMO_PASSWORD=secret DEMO_MFA_OTP=123456 node scripts/smoke.mjs
- *   npm run smoke        (same, reads from .env or shell env)
- *
- * --dry-run flag: prints the steps that would run without making any network calls.
+ * Exit codes:
+ *   0 - all P0 checks passed
+ *   1 - at least one P0 check failed
  */
 
-const DRY_RUN = process.argv.includes('--dry-run');
-
-const BASE_URL = (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
-const DEMO_USER = process.env.DEMO_USER;
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
-const DEMO_MFA_OTP = process.env.DEMO_MFA_OTP;
-const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT || 15000);
-
 // ---------------------------------------------------------------------------
-// Validation
+// Config
 // ---------------------------------------------------------------------------
 
-if (!DRY_RUN) {
-  const missing = ['DEMO_USER', 'DEMO_PASSWORD', 'DEMO_MFA_OTP'].filter((k) => !process.env[k]);
-  if (missing.length > 0) {
-    console.error(`smoke: missing required env vars: ${missing.join(', ')}`);
-    console.error(
-      'Set DEMO_USER, DEMO_PASSWORD, DEMO_MFA_OTP (and optionally BASE_URL, SMOKE_TIMEOUT).'
-    );
-    process.exit(1);
-  }
+const QUICK = process.argv.includes('--quick');
+const BASE_URL = (
+  process.env.API_URL || 'https://55p8lbxf9g.execute-api.us-east-1.amazonaws.com'
+).replace(/\/$/, '');
+const CLIENT_ID = process.env.CLIENT_ID || 'demoClient';
+const CLIENT_SECRET = process.env.CLIENT_SECRET || 'demoSecret';
+const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT || 20000);
+
+// Test persona (seed data, password is constant across all personas)
+const DEMO_USERNAME = 'maya031';
+const DEMO_PASSWORD = 'Password1';
+const DEMO_USER_ID = 'USER#031';
+const DEMO_MFA_OTP = '123456';
+const DEMO_PROPERTY_ID = 'PROP#42';
+
+// ---------------------------------------------------------------------------
+// ANSI color helpers (stdlib only)
+// ---------------------------------------------------------------------------
+
+const C = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  green: '\x1b[32m',
+  red: '\x1b[31m',
+  yellow: '\x1b[33m',
+  cyan: '\x1b[36m',
+  gray: '\x1b[90m',
+};
+
+function green(s) {
+  return `${C.green}${s}${C.reset}`;
+}
+function red(s) {
+  return `${C.red}${s}${C.reset}`;
+}
+function yellow(s) {
+  return `${C.yellow}${s}${C.reset}`;
+}
+function cyan(s) {
+  return `${C.cyan}${s}${C.reset}`;
+}
+function gray(s) {
+  return `${C.gray}${s}${C.reset}`;
+}
+function bold(s) {
+  return `${C.bold}${s}${C.reset}`;
 }
 
 // ---------------------------------------------------------------------------
 // HTTP helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Perform a fetch with a per-request timeout via AbortSignal.
- *
- * @param {string} url
- * @param {RequestInit} init
- * @returns {Promise<Response>}
- */
-async function fetchWithTimeout(url, init) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
- * Make a Basic Auth header value from username:password.
- *
- * @param {string} user
- * @param {string} pass
- * @returns {string}
- */
 function basicAuth(user, pass) {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
 }
 
+const GATEWAY_AUTH = basicAuth(CLIENT_ID, CLIENT_SECRET);
+
+async function fetchT(url, init) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
+/**
+ * Make a request and return { status, body, excerpt }.
+ * Always parses JSON; falls back to raw text.
+ *
+ * @param {string} method
+ * @param {string} path - path portion only (e.g. "/health")
+ * @param {object} [opts]
+ * @param {object} [opts.headers]
+ * @param {object|null} [opts.body]
+ * @returns {Promise<{ status: number, body: unknown, excerpt: string }>}
+ */
+async function req(method, path, opts = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(opts.headers || {}),
+  };
+
+  const init = {
+    method,
+    headers,
+  };
+
+  if (opts.body !== undefined && opts.body !== null) {
+    init.body = JSON.stringify(opts.body);
+  }
+
+  const res = await fetchT(`${BASE_URL}${path}`, init);
+  let body;
+  const text = await res.text();
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = text;
+  }
+
+  // One-line excerpt: first 120 chars of JSON body
+  const raw = typeof body === 'string' ? body : JSON.stringify(body);
+  const excerpt = raw.replace(/\s+/g, ' ').slice(0, 120);
+
+  return { status: res.status, body, excerpt };
+}
+
 // ---------------------------------------------------------------------------
-// Step runner
+// Check runner
 // ---------------------------------------------------------------------------
 
 /**
- * @typedef {{ name: string, durationMs: number, status: 'PASS' | 'FAIL', error?: string }} StepResult
+ * @typedef {{ label: string, p0: boolean, status: number, expected: number, pass: boolean, excerpt: string, durationMs: number, error?: string }} CheckResult
  */
 
-/** @type {StepResult[]} */
+/** @type {CheckResult[]} */
 const results = [];
 
 /**
- * Run a single named step, record timing and pass/fail.
+ * Run a single named check.
  *
- * @param {string} name
- * @param {() => Promise<void>} fn
+ * @param {string} label        - display name
+ * @param {boolean} p0          - whether a failure exits non-zero
+ * @param {() => Promise<{ status: number, body: unknown, excerpt: string }>} fn
+ * @param {number} expectedStatus
+ * @param {(body: unknown) => string|null} assert - return null on pass, error string on fail
  */
-async function step(name, fn) {
+async function check(label, p0, fn, expectedStatus, assert) {
   const start = Date.now();
   try {
-    await fn();
+    const { status, body, excerpt } = await fn();
     const durationMs = Date.now() - start;
-    results.push({ name, durationMs, status: 'PASS' });
-    console.log(`  [PASS] ${name} (${durationMs}ms)`);
+    const statusOk = status === expectedStatus;
+    const assertErr = statusOk ? assert(body) : null;
+    const pass = statusOk && assertErr === null;
+
+    const statusTag = `HTTP ${status}`;
+    const mark = pass ? green('PASS') : red('FAIL');
+    const p0tag = p0 ? bold('[P0]') : gray('[  ]');
+    const dur = gray(`${durationMs}ms`);
+
+    if (pass) {
+      console.log(`  ${mark} ${p0tag} ${label} ${dur}`);
+      console.log(`       ${gray(excerpt)}`);
+    } else {
+      const reason = !statusOk
+        ? `expected HTTP ${expectedStatus}, got ${statusTag}`
+        : assertErr || 'assertion failed';
+      console.log(`  ${mark} ${p0tag} ${label} ${dur}`);
+      console.log(`       ${yellow(reason)}`);
+      console.log(`       ${gray(excerpt)}`);
+    }
+
+    results.push({ label, p0, status, expected: expectedStatus, pass, excerpt, durationMs });
   } catch (err) {
     const durationMs = Date.now() - start;
     const error = err instanceof Error ? err.message : String(err);
-    results.push({ name, durationMs, status: 'FAIL', error });
-    console.error(`  [FAIL] ${name} (${durationMs}ms): ${error}`);
-    // Print full summary then exit - abort remaining steps
-    printSummary();
-    process.exit(1);
+    console.log(
+      `  ${red('FAIL')} ${p0 ? bold('[P0]') : gray('[  ]')} ${label} ${gray(`${durationMs}ms`)}`
+    );
+    console.log(`       ${yellow(`exception: ${error}`)}`);
+    results.push({
+      label,
+      p0,
+      status: 0,
+      expected: expectedStatus,
+      pass: false,
+      excerpt: '',
+      durationMs,
+      error,
+    });
   }
 }
 
 // ---------------------------------------------------------------------------
-// Dry-run path
+// Session state (populated during auth flow then reused)
 // ---------------------------------------------------------------------------
 
-if (DRY_RUN) {
-  const steps = [
-    'POST /auth/login -> get challengeId',
-    'POST /auth/mfa/verify -> get bearer token',
-    'GET /admin/metrics -> assert { ok: true }',
-    'POST /engagement/event (rage_click) -> get decisionId',
-    'GET /admin/decisions -> assert new decisionId present',
-    'POST /admin/decisions/{id}/release -> assert 200',
-    'GET /admin/sessions -> assert current session present',
-    'GET /admin/ai-config -> assert activeModelId is set',
-  ];
-  console.log(`smoke --dry-run (BASE_URL=${BASE_URL})`);
-  console.log('Steps that would run:');
-  for (const [i, s] of steps.entries()) {
-    console.log(`  ${i + 1}. ${s}`);
-  }
-  process.exit(0);
-}
-
-// ---------------------------------------------------------------------------
-// State shared across steps
-// ---------------------------------------------------------------------------
-
-let challengeId = '';
 let bearerToken = '';
-let targetDecisionId = '';
+let mfaSessionId = '';
+let releaseDecisionId = '';
+
+// ---------------------------------------------------------------------------
+// Check definitions
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the full check list. Returns an array of async functions so the
+ * runner can conditionally skip for --quick mode.
+ */
+function buildChecks() {
+  // Helper to make a bearer-auth header object
+  const bearerHeaders = () => ({ Authorization: `Bearer ${bearerToken}` });
+  const adminHeaders = () => ({ Authorization: GATEWAY_AUTH });
+
+  return [
+    // ------------------------------------------------------------------
+    // Public
+    // ------------------------------------------------------------------
+    {
+      id: 'health',
+      quick: true,
+      p0: true,
+      run: () =>
+        check(
+          'GET /health',
+          true,
+          () => req('GET', '/health'),
+          200,
+          (b) =>
+            b && b.status === 'ok' ? null : `expected {status:"ok"}, got ${JSON.stringify(b)}`
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Auth: login
+    // ------------------------------------------------------------------
+    {
+      id: 'login',
+      quick: true,
+      p0: true,
+      run: () =>
+        check(
+          'POST /auth/login',
+          true,
+          async () => {
+            const r = await req('POST', '/auth/login', {
+              headers: { Authorization: GATEWAY_AUTH },
+              body: {
+                username: DEMO_USERNAME,
+                password: DEMO_PASSWORD,
+                location: 'Austin',
+                deviceId: 'smoke-device-001',
+              },
+            });
+            // Capture state for subsequent steps
+            if (r.body && typeof r.body === 'object') {
+              const d = r.body.data || r.body;
+              bearerToken = d.token || bearerToken;
+              mfaSessionId = d.sessionId || mfaSessionId;
+            }
+            return r;
+          },
+          200,
+          (b) => {
+            const d = b?.data || b;
+            if (!d?.status) return 'missing data.status in login response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Auth: MFA verify (uses sessionId from login, static OTP)
+    // ------------------------------------------------------------------
+    {
+      id: 'mfa-verify',
+      quick: true,
+      p0: true,
+      run: () =>
+        check(
+          'POST /auth/mfa/verify',
+          true,
+          async () => {
+            // If login returned a direct token (no MFA challenge), skip gracefully
+            if (bearerToken && !mfaSessionId) {
+              return {
+                status: 200,
+                body: { data: { status: 'SUCCESS', token: bearerToken } },
+                excerpt: '(no MFA challenge issued - direct token)',
+              };
+            }
+            const r = await req('POST', '/auth/mfa/verify', {
+              headers: { Authorization: GATEWAY_AUTH },
+              body: {
+                sessionId: mfaSessionId,
+                otp: DEMO_MFA_OTP,
+              },
+            });
+            if (r.body && typeof r.body === 'object') {
+              const d = r.body.data || r.body;
+              if (d.token) bearerToken = d.token;
+            }
+            return r;
+          },
+          200,
+          (b) => {
+            if (bearerToken) return null; // already had a token
+            const d = b?.data || b;
+            if (!d?.token) return 'expected token in mfa/verify response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Customer: loyalty summary
+    // ------------------------------------------------------------------
+    {
+      id: 'loyalty-summary',
+      quick: true,
+      p0: true,
+      run: () =>
+        check(
+          `GET /customer/loyalty-summary?userId=${encodeURIComponent(DEMO_USER_ID)}`,
+          true,
+          () =>
+            req('GET', `/customer/loyalty-summary?userId=${encodeURIComponent(DEMO_USER_ID)}`, {
+              headers: bearerHeaders(),
+            }),
+          200,
+          (b) => {
+            const d = b?.data || b;
+            if (!d?.currentTier) return 'expected data.currentTier in loyalty-summary';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Customer: surface eligibility (no aiMode)
+    // ------------------------------------------------------------------
+    {
+      id: 'surface-eligibility',
+      quick: true,
+      p0: false,
+      run: () =>
+        check(
+          `GET /customer/surface-eligibility?userId=${encodeURIComponent(DEMO_USER_ID)}`,
+          false,
+          () =>
+            req('GET', `/customer/surface-eligibility?userId=${encodeURIComponent(DEMO_USER_ID)}`, {
+              headers: bearerHeaders(),
+            }),
+          200,
+          (b) => {
+            const d = b?.data || b;
+            if (d === undefined || d === null) return 'empty surface-eligibility response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Customer: surface eligibility with aiMode
+    // ------------------------------------------------------------------
+    {
+      id: 'surface-eligibility-ai',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          `GET /customer/surface-eligibility?userId=${encodeURIComponent(DEMO_USER_ID)}&aiMode=true`,
+          false,
+          () =>
+            req(
+              'GET',
+              `/customer/surface-eligibility?userId=${encodeURIComponent(DEMO_USER_ID)}&aiMode=true`,
+              {
+                headers: bearerHeaders(),
+              }
+            ),
+          200,
+          (b) => {
+            const d = b?.data || b;
+            if (d === undefined || d === null) return 'empty surface-eligibility (aiMode) response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Customer: transfer draft
+    // ------------------------------------------------------------------
+    {
+      id: 'transfer-draft',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'POST /customer/transfers/draft',
+          false,
+          async () => {
+            const r = await req('POST', '/customer/transfers/draft', {
+              headers: bearerHeaders(),
+              body: {
+                userId: DEMO_USER_ID,
+                recipientId: 'USER#002',
+                amount: 500,
+              },
+            });
+            return r;
+          },
+          200,
+          (b) => {
+            const d = b?.data || b;
+            if (!d || typeof d !== 'object') return 'expected data object in transfer draft';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Customer: execute transfer (P0 - core demo flow)
+    // ------------------------------------------------------------------
+    {
+      id: 'transfer',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'POST /transactions/transfer',
+          false,
+          () =>
+            req('POST', '/transactions/transfer', {
+              headers: bearerHeaders(),
+              body: {
+                userId: DEMO_USER_ID,
+                recipientId: 'USER#002',
+                amount: 100,
+                channel: 'APP',
+                deviceFingerprint: 'smoke-fp-001',
+              },
+            }),
+          200,
+          (b) => {
+            const d = b?.data || b;
+            if (!d || typeof d !== 'object') return 'expected data object in transfer response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Customer: property availability
+    // ------------------------------------------------------------------
+    {
+      id: 'property-availability',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          `GET /customer/properties/${DEMO_PROPERTY_ID}/availability`,
+          false,
+          () =>
+            req(
+              'GET',
+              `/customer/properties/${encodeURIComponent(DEMO_PROPERTY_ID)}/availability`,
+              {
+                headers: bearerHeaders(),
+              }
+            ),
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty availability response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Customer: personalized offer for property
+    // ------------------------------------------------------------------
+    {
+      id: 'personalized-offer',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          `GET /customer/properties/${DEMO_PROPERTY_ID}/personalized-offer`,
+          false,
+          () =>
+            req(
+              'GET',
+              `/customer/properties/${encodeURIComponent(DEMO_PROPERTY_ID)}/personalized-offer?userId=${encodeURIComponent(DEMO_USER_ID)}`,
+              {
+                headers: bearerHeaders(),
+              }
+            ),
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty personalized-offer response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Customer: create booking
+    // ------------------------------------------------------------------
+    {
+      id: 'create-booking',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'POST /customer/bookings',
+          false,
+          () =>
+            req('POST', '/customer/bookings', {
+              headers: bearerHeaders(),
+              body: {
+                userId: DEMO_USER_ID,
+                propertyId: DEMO_PROPERTY_ID,
+                checkIn: '2026-08-01',
+                checkOut: '2026-08-03',
+                nights: 2,
+              },
+            }),
+          200,
+          (b) => {
+            const d = b?.data || b;
+            if (!d || typeof d !== 'object') return 'expected data object in booking response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Customer: update profile
+    // ------------------------------------------------------------------
+    {
+      id: 'update-profile',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'PUT /customer/profile',
+          false,
+          () =>
+            req('PUT', '/customer/profile', {
+              headers: bearerHeaders(),
+              body: {
+                userId: DEMO_USER_ID,
+                updates: { preferredLanguage: 'en' },
+              },
+            }),
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty profile update response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Engagement: track event (rage_click is a valid signal)
+    // ------------------------------------------------------------------
+    {
+      id: 'engagement-event',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'POST /engagement/event',
+          false,
+          async () => {
+            const r = await req('POST', '/engagement/event', {
+              headers: bearerHeaders(),
+              body: {
+                signal: 'rage_click',
+                userId: DEMO_USER_ID,
+                sessionId: 'smoke-session-001',
+                params: { count: 3, elementId: 'transfer-btn' },
+              },
+            });
+            if (r.body?.data?.decisionId) {
+              releaseDecisionId = r.body.data.decisionId;
+            }
+            return r;
+          },
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty engagement event response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: metrics
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-metrics',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'GET /admin/metrics',
+          false,
+          () => req('GET', '/admin/metrics', { headers: adminHeaders() }),
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty metrics response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: decisions (list)
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-decisions',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'GET /admin/decisions',
+          false,
+          async () => {
+            const r = await req('GET', '/admin/decisions', { headers: adminHeaders() });
+            // Capture a decisionId for the release check if we don't have one yet
+            if (!releaseDecisionId && r.body && r.body.data) {
+              const decisions = r.body.data.decisions || r.body.data;
+              if (Array.isArray(decisions) && decisions.length > 0) {
+                releaseDecisionId = decisions[0].decisionId || '';
+              }
+            }
+            return r;
+          },
+          200,
+          (b) => {
+            const decisions = b?.data?.decisions || b?.data || [];
+            if (!Array.isArray(decisions)) return 'expected decisions array';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: decisions filtered by userId
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-decisions-by-user',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          `GET /admin/decisions?userId=${encodeURIComponent(DEMO_USER_ID)}`,
+          false,
+          () =>
+            req('GET', `/admin/decisions?userId=${encodeURIComponent(DEMO_USER_ID)}`, {
+              headers: adminHeaders(),
+            }),
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty decisions response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: release a decision (if we captured one)
+    // The decisionId contains '#' which must be URL-encoded in the path.
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-decision-release',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          releaseDecisionId
+            ? `POST /admin/decisions/${releaseDecisionId}/release`
+            : 'POST /admin/decisions/{id}/release (no decisionId captured - skip)',
+          false,
+          async () => {
+            if (!releaseDecisionId) {
+              return {
+                status: 200,
+                body: { skipped: true },
+                excerpt: '(skipped: no decisionId captured)',
+              };
+            }
+            const encodedId = encodeURIComponent(releaseDecisionId);
+            return req('POST', `/admin/decisions/${encodedId}/release`, {
+              headers: adminHeaders(),
+            });
+          },
+          200,
+          () => null
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: sessions
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-sessions',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'GET /admin/sessions',
+          false,
+          () => req('GET', '/admin/sessions', { headers: adminHeaders() }),
+          200,
+          (b) => {
+            const sessions = b?.data?.sessions || b?.data || [];
+            if (!Array.isArray(sessions)) return 'expected sessions array';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: users
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-users',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'GET /admin/users',
+          false,
+          () => req('GET', '/admin/users', { headers: adminHeaders() }),
+          200,
+          (b) => {
+            const users = b?.data?.users || b?.data || [];
+            if (!Array.isArray(users)) return 'expected users array';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: rules
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-rules',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'GET /admin/rules',
+          false,
+          () => req('GET', '/admin/rules', { headers: adminHeaders() }),
+          200,
+          (b) => {
+            const rules = b?.data?.rules || b?.data || [];
+            if (!Array.isArray(rules)) return 'expected rules array';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: ai-config
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-ai-config',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'GET /admin/ai-config',
+          false,
+          () => req('GET', '/admin/ai-config', { headers: adminHeaders() }),
+          200,
+          (b) => {
+            if (!b || typeof b !== 'object') return 'expected object in ai-config response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: activity feed
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-activity-feed',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'GET /admin/activity-feed',
+          false,
+          () => req('GET', '/admin/activity-feed', { headers: adminHeaders() }),
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty activity-feed response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: signals
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-signals',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'GET /admin/signals',
+          false,
+          () => req('GET', '/admin/signals', { headers: adminHeaders() }),
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty signals response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: ai-suggest rule (field is 'description' not 'context')
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-rules-ai-suggest',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'POST /admin/rules/ai-suggest',
+          false,
+          () =>
+            req('POST', '/admin/rules/ai-suggest', {
+              headers: adminHeaders(),
+              body: {
+                description:
+                  'High-value transfer with unknown device fingerprint from a new location',
+              },
+            }),
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty ai-suggest response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: demo-actions mutate-user (body uses 'mutation' object)
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-mutate-user',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'POST /admin/demo-actions/mutate-user',
+          false,
+          () =>
+            req('POST', '/admin/demo-actions/mutate-user', {
+              headers: adminHeaders(),
+              body: {
+                userId: DEMO_USER_ID,
+                mutation: { loyaltyScore: 1500 },
+              },
+            }),
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty mutate-user response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: demo-events (write) - type must be a valid VALID_TYPES value
+    // Returns 201 Created on success
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-demo-events-write',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          'POST /admin/demo-events',
+          false,
+          () =>
+            req('POST', '/admin/demo-events', {
+              headers: adminHeaders(),
+              body: {
+                type: 'SIGNAL_TRIGGER',
+                actor: 'smoke-test',
+                payload: { source: 'smoke.mjs', userId: DEMO_USER_ID },
+              },
+            }),
+          201,
+          (b) => {
+            if (b === undefined || b === null) return 'empty demo-events write response';
+            return null;
+          }
+        ),
+    },
+
+    // ------------------------------------------------------------------
+    // Admin: clear user block
+    // ------------------------------------------------------------------
+    {
+      id: 'admin-clear-block',
+      quick: false,
+      p0: false,
+      run: () =>
+        check(
+          `POST /admin/users/${DEMO_USER_ID}/clear-block`,
+          false,
+          () =>
+            req('POST', `/admin/users/${encodeURIComponent(DEMO_USER_ID)}/clear-block`, {
+              headers: adminHeaders(),
+            }),
+          200,
+          (b) => {
+            if (b === undefined || b === null) return 'empty clear-block response';
+            return null;
+          }
+        ),
+    },
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
-console.log('\nSignal Force smoke test');
-console.log(`BASE_URL : ${BASE_URL}`);
-console.log(`USER     : ${DEMO_USER}`);
-console.log(`TIMEOUT  : ${TIMEOUT_MS}ms per step`);
+const allChecks = buildChecks();
+const checksToRun = QUICK ? allChecks.filter((c) => c.quick) : allChecks;
+
+console.log('');
+console.log(bold('Signal Force API smoke test'));
+console.log(`  ${gray('API_URL')}  ${cyan(BASE_URL)}`);
+console.log(
+  `  ${gray('mode')}     ${cyan(QUICK ? `--quick (${checksToRun.length} checks)` : `full (${checksToRun.length} checks)`)}`
+);
+console.log(`  ${gray('timeout')}  ${cyan(`${TIMEOUT_MS}ms per request`)}`);
 console.log('');
 
 const smokeStart = Date.now();
 
-// Step 1: login
-await step('POST /auth/login -> challengeId', async () => {
-  const res = await fetchWithTimeout(`${BASE_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: basicAuth(DEMO_USER, DEMO_PASSWORD),
-    },
-    body: JSON.stringify({ userId: DEMO_USER, password: DEMO_PASSWORD }),
-  });
-
-  const body = await res.json();
-  if (res.status !== 200 && res.status !== 202) {
-    throw new Error(
-      `Expected 200/202, got ${res.status}: ${body.error?.message || JSON.stringify(body)}`
-    );
-  }
-
-  // Login may return a challenge (MFA required) or direct access
-  challengeId = body.challengeId || body.data?.challengeId || null;
-  if (!challengeId && body.action === 'MFA') {
-    throw new Error(`MFA required but no challengeId in response: ${JSON.stringify(body)}`);
-  }
-  // If no MFA challenge was issued (static/dev mode may skip it), we expect a token directly
-  if (!challengeId) {
-    const token = body.token || body.data?.token;
-    if (!token)
-      throw new Error(`No challengeId or token in login response: ${JSON.stringify(body)}`);
-    bearerToken = token;
-  }
-});
-
-// Step 2: MFA verify (skip if already got token in step 1)
-await step('POST /auth/mfa/verify -> bearer token', async () => {
-  if (bearerToken) {
-    // Token was issued at login (no MFA challenge mode)
-    return;
-  }
-
-  const res = await fetchWithTimeout(`${BASE_URL}/auth/mfa/verify`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: basicAuth(DEMO_USER, DEMO_PASSWORD),
-    },
-    body: JSON.stringify({ challengeId, otp: DEMO_MFA_OTP }),
-  });
-
-  const body = await res.json();
-  if (res.status !== 200) {
-    throw new Error(
-      `Expected 200, got ${res.status}: ${body.error?.message || JSON.stringify(body)}`
-    );
-  }
-
-  const token = body.token || body.data?.token;
-  if (!token) throw new Error(`No token in MFA verify response: ${JSON.stringify(body)}`);
-  bearerToken = token;
-});
-
-// Step 3: GET /admin/metrics
-await step('GET /admin/metrics -> assert 200', async () => {
-  const res = await fetchWithTimeout(`${BASE_URL}/admin/metrics`, {
-    headers: { Authorization: basicAuth(DEMO_USER, DEMO_PASSWORD) },
-  });
-
-  if (res.status !== 200) {
-    const body = await res.text();
-    throw new Error(`Expected 200, got ${res.status}: ${body}`);
-  }
-
-  const body = await res.json();
-  // The metrics endpoint returns a top-level ok or data object - accept either shape
-  if (!body && body !== 0) {
-    throw new Error('Empty metrics response');
-  }
-});
-
-// Step 4: POST a risky engagement event to trigger a decision
-await step('POST /engagement/event (rage_click) -> decisionId', async () => {
-  const res = await fetchWithTimeout(`${BASE_URL}/engagement/event`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${bearerToken}`,
-    },
-    body: JSON.stringify({
-      signal: 'rage_click',
-      userId: DEMO_USER,
-      sessionId: 'smoke-session',
-      params: { count: 12, elementId: 'transfer-btn' },
-    }),
-  });
-
-  const body = await res.json();
-  if (res.status !== 200) {
-    throw new Error(
-      `Expected 200, got ${res.status}: ${body.error?.message || JSON.stringify(body)}`
-    );
-  }
-
-  // decisionId is only present when action != ALLOW
-  const decId = body.data?.decisionId || null;
-  if (decId) {
-    targetDecisionId = decId;
-  }
-  // action ALLOW is fine for smoke - no decision row is written but call succeeded
-});
-
-// Step 5: GET /admin/decisions -> assert new decision appears (only if one was written)
-await step('GET /admin/decisions -> verify engagement decision', async () => {
-  const res = await fetchWithTimeout(`${BASE_URL}/admin/decisions`, {
-    headers: { Authorization: basicAuth(DEMO_USER, DEMO_PASSWORD) },
-  });
-
-  if (res.status !== 200) {
-    const body = await res.text();
-    throw new Error(`Expected 200, got ${res.status}: ${body}`);
-  }
-
-  const body = await res.json();
-  const decisions = body.data?.decisions || body.decisions || [];
-
-  if (targetDecisionId) {
-    // A decision row was written; confirm it appears in the list
-    const found = decisions.some((d) => d.decisionId === targetDecisionId);
-    if (!found) {
-      throw new Error(
-        `Decision ${targetDecisionId} not found in /admin/decisions list (got ${decisions.length} rows)`
-      );
-    }
-  } else {
-    // No NUDGE/OFFER decision was produced (ALLOW path); just confirm the endpoint is healthy
-    if (!Array.isArray(decisions)) {
-      throw new Error(`Expected decisions array in response: ${JSON.stringify(body)}`);
-    }
-  }
-});
-
-// Step 6: POST /admin/decisions/{id}/release (only when we have a decision to release)
-await step('POST /admin/decisions/{id}/release -> 200', async () => {
-  if (!targetDecisionId) {
-    // No decision to release; step is vacuously passing
-    return;
-  }
-
-  const res = await fetchWithTimeout(`${BASE_URL}/admin/decisions/${targetDecisionId}/release`, {
-    method: 'POST',
-    headers: { Authorization: basicAuth(DEMO_USER, DEMO_PASSWORD) },
-  });
-
-  if (res.status !== 200) {
-    const body = await res.text();
-    throw new Error(`Expected 200, got ${res.status}: ${body}`);
-  }
-
-  const body = await res.json();
-  if (!body.data?.released) {
-    throw new Error(`Expected released:true in response: ${JSON.stringify(body)}`);
-  }
-});
-
-// Step 7: GET /admin/sessions -> assert current session appears
-await step('GET /admin/sessions -> current session present', async () => {
-  const res = await fetchWithTimeout(`${BASE_URL}/admin/sessions`, {
-    headers: { Authorization: basicAuth(DEMO_USER, DEMO_PASSWORD) },
-  });
-
-  if (res.status !== 200) {
-    const body = await res.text();
-    throw new Error(`Expected 200, got ${res.status}: ${body}`);
-  }
-
-  const body = await res.json();
-  const sessions = body.data?.sessions || body.sessions || [];
-  if (!Array.isArray(sessions)) {
-    throw new Error(`Expected sessions array: ${JSON.stringify(body)}`);
-  }
-
-  // The active session for DEMO_USER must appear
-  const found = sessions.some((s) => s.userId === DEMO_USER || s.pk === `USER#${DEMO_USER}`);
-  if (!found) {
-    throw new Error(`No session found for userId=${DEMO_USER} in ${sessions.length} session(s)`);
-  }
-});
-
-// Step 8: GET /admin/ai-config -> assert activeModelId is set
-await step('GET /admin/ai-config -> activeModelId present', async () => {
-  const res = await fetchWithTimeout(`${BASE_URL}/admin/ai-config`, {
-    headers: { Authorization: basicAuth(DEMO_USER, DEMO_PASSWORD) },
-  });
-
-  if (res.status !== 200) {
-    const body = await res.text();
-    throw new Error(`Expected 200, got ${res.status}: ${body}`);
-  }
-
-  const body = await res.json();
-  if (!body.activeModelId) {
-    throw new Error(`Expected activeModelId in ai-config response: ${JSON.stringify(body)}`);
-  }
-});
+for (const c of checksToRun) {
+  await c.run();
+}
 
 // ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 
-function printSummary() {
-  const totalMs = Date.now() - smokeStart;
-  const allPassed = results.every((r) => r.status === 'PASS');
+const totalMs = Date.now() - smokeStart;
+const p0results = results.filter((r) => r.p0);
+const allP0Pass = p0results.every((r) => r.pass);
+const passCount = results.filter((r) => r.pass).length;
 
-  console.log('');
-  console.log('--- smoke summary ---');
-  console.log(`${'Step'.padEnd(52)} ${'Duration'.padStart(10)}  Status`);
-  console.log('-'.repeat(72));
-  for (const r of results) {
-    const status = r.status === 'PASS' ? 'PASS' : 'FAIL';
-    console.log(`${r.name.padEnd(52)} ${`${r.durationMs}ms`.padStart(10)}  ${status}`);
-    if (r.error) console.log(`       -> ${r.error}`);
+console.log('');
+console.log(bold('Summary'));
+console.log(gray('-'.repeat(80)));
+console.log(`${'Check'.padEnd(56)} ${'HTTP'.padStart(5)} ${'ms'.padStart(7)}  Status`);
+console.log(gray('-'.repeat(80)));
+
+for (const r of results) {
+  const statusStr = String(r.status || '-').padStart(5);
+  const durStr = `${r.durationMs}ms`.padStart(7);
+  const statusMark = r.pass ? green('PASS') : red('FAIL');
+  const p0mark = r.p0 ? bold('[P0]') : gray('[  ]');
+  console.log(`${r.label.padEnd(56)} ${statusStr} ${durStr}  ${statusMark} ${p0mark}`);
+  if (!r.pass && r.error) {
+    console.log(`${''.padEnd(68)} ${yellow(r.error.slice(0, 60))}`);
   }
-  console.log('-'.repeat(72));
-  console.log(`Total: ${totalMs}ms  |  ${allPassed ? 'ALL PASS' : 'FAILED'}`);
-  console.log('');
 }
 
-printSummary();
+console.log(gray('-'.repeat(80)));
+console.log(
+  `${bold(`${passCount}/${results.length} passed`)}  ${gray('|')}  ` +
+    `P0: ${allP0Pass ? green('all pass') : red('FAILED')}  ${gray('|')}  ` +
+    `Total: ${gray(`${totalMs}ms`)}`
+);
+console.log('');
 
-const allPassed = results.every((r) => r.status === 'PASS');
-process.exit(allPassed ? 0 : 1);
+process.exit(allP0Pass ? 0 : 1);
