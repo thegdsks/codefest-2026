@@ -9,6 +9,9 @@
           "username": {
             "S": "user001"
           },
+          "name": {
+            "S": "Marcus Hale"
+          },
           "passwordHash": {
             "S": "Password1"
           },
@@ -104,6 +107,9 @@
           "username": {
             "S": "user002"
           },
+          "name": {
+            "S": "Priya Rajan"
+          },
           "passwordHash": {
             "S": "Password1"
           },
@@ -154,6 +160,9 @@
           },
           "username": {
             "S": "user003"
+          },
+          "name": {
+            "S": "Oliver Steele"
           },
           "passwordHash": {
             "S": "Password1"
