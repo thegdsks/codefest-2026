@@ -419,7 +419,7 @@ async function dashboard(event, correlationId) {
   const st = (await getState(userId)) || {};
   const recent = await recentActivity(userId, 10);
 
-  const user = { userId, tier: profile.tier };
+  const user = { userId, tier: profile.tier, name: profile.name || profile.username };
   const fraudStatus = {
     isBlocked: !!st.isBlocked,
     transferCount1h: st.transferCount1h || 0,
