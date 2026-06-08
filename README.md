@@ -1,4 +1,4 @@
-# Signal Force
+# Signal Force App
 
 Signal Force is a real-time decision intelligence platform built for loyalty programs. It turns behavioral signals from the customer surface into adaptive decisions across three lanes: fraud prevention, personalization, and engagement. One engine evaluates each event through deterministic rules, escalates ambiguous cases to an LLM, and returns a typed response the UI renders as a fraud hold, a personalized offer, or an engagement nudge.
 
