@@ -118,7 +118,7 @@ See `docs/architecture.md` for the full design, including how the engine splits 
 ## Tech stack (already decided)
 
 - Backend: Node.js 18 Lambda, Serverless Framework, DynamoDB PAY_PER_REQUEST. Migration to Python is the next major rewrite.
-- Frontend: Vite, React 18, TypeScript, Tailwind 3, React Router 6.
+- Frontend: Next.js 15 (App Router), React 19, TypeScript, Tailwind 3.
 - Infra: AWS CDK v2 in TypeScript. Three stacks: `signal-force-dynamodb`, `signal-force-budgets`, `signal-force-runtime`.
 - Decision LLM: hosted LiteLLM proxy (OpenAI-compatible wire format), default model `us.anthropic.claude-haiku-4-5-20251001-v1:0` on Bedrock. The catalog of switchable models lives in `apps/backend/src/lib/aiModels.js` and is surfaced at `/admin/settings`. Called only on the warm lane. Direct Bedrock (Converse API) is the alternate production path; the CDK Bedrock IAM policy is kept for that future, unused on the demo path.
 - Auth: HTTP Basic Auth at client level, app user creds in login body. Single static MFA OTP for the demo.
